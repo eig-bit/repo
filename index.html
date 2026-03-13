@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-bit</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Courier New", monospace;
+            background: #000;
+            color: #0f0;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        h1 {
+            margin-top: 40px;
+            font-size: 3rem;
+            text-shadow: 0 0 10px #0f0;
+            letter-spacing: 3px;
+        }
+        p.greeting {
+            margin: 20px 0 40px;
+            font-size: 1.2rem;
+            color: #8f8;
+        }
+        .links {
+            list-style: none;
+            padding: 0;
+        }
+        .links li {
+            margin: 12px 0;
+        }
+        .links a {
+            display: inline-block;
+            color: #0f0;
+            text-decoration: none;
+            border: 1px solid #0f0;
+            padding: 8px 20px;
+            font-size: 1.1rem;
+            transition: background 0.2s, color 0.2s;
+            min-width: 200px;
+        }
+        .links a:hover {
+            background: #0f0;
+            color: #000;
+        }
+        .no-links {
+            color: #555;
+            font-size: 0.95rem;
+        }
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            .links a { font-size: 1rem; min-width: 160px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>8-bit</h1>
+        <p class="greeting">歡迎來到 8-bit。</p>
+        <ul class="links" id="linkList">
+            <li class="no-links">載入中...</li>
+        </ul>
+    </div>
+
+    <script>
+        (async () => {
+            const list = document.getElementById('linkList');
+            const currentFile = 'index.html';
+
+            try {
+                // fetch 當前目錄（GitHub Pages 會回傳 index.html 的 HTML）
+                const res = await fetch(window.location.href);
+                const text = await res.text();
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+
+                // 抓所有 <a href="*.html">，排除 index.html 及外部連結
+                const anchors = [...doc.querySelectorAll('a[href]')];
+                const htmlFiles = anchors
+                    .map(a => a.getAttribute('href'))
+                    .filter(href =>
+                        href &&
+                        href.endsWith('.html') &&
+                        !href.toLowerCase().includes('index.html') &&
+                        !href.startsWith('http') &&
+                        !href.startsWith('//')
+                    )
+                    // 去重
+                    .filter((v, i, arr) => arr.indexOf(v) === i)
+                    .sort();
+
+                if (htmlFiles.length === 0) {
+                    list.innerHTML = '<li class="no-links">目前沒有其他頁面。</li>';
+                    return;
+                }
+
+                list.innerHTML = htmlFiles.map(file => {
+                    const name = file.replace(/\.html$/i, '');
+                    return `<li><a href="${file}">${name}</a></li>`;
+                }).join('\n');
+
+            } catch (e) {
+                list.innerHTML = '<li class="no-links">無法載入頁面列表。</li>';
+            }
+        })();
+    </script>
+</body>
+</html>
