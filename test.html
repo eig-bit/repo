@@ -1,1 +1,350 @@
-<p>test</p>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歡迎來到這裡</title>
+<style>
+  /* ---------- 基礎設定 ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+                 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #070b1f;
+    color: #f8fafc;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 底層徑向光暈 */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(99, 102, 241, .28), transparent 55%),
+      radial-gradient(circle at 82% 78%, rgba(236, 72, 153, .22), transparent 55%);
+    z-index: 0;
+  }
+
+  /* ---------- 漂浮光斑 ---------- */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: .5;
+    z-index: 0;
+    pointer-events: none;
+    transition: margin .6s cubic-bezier(.2, .8, .2, 1);
+  }
+  .blob-1 {
+    width: 40vmax; height: 40vmax;
+    background: #4f46e5;
+    top: -14vmax; left: -12vmax;
+    animation: drift1 18s ease-in-out infinite alternate;
+  }
+  .blob-2 {
+    width: 34vmax; height: 34vmax;
+    background: #db2777;
+    bottom: -14vmax; right: -10vmax;
+    animation: drift2 22s ease-in-out infinite alternate;
+  }
+  .blob-3 {
+    width: 26vmax; height: 26vmax;
+    background: #0891b2;
+    top: 55%; left: 45%;
+    animation: drift3 26s ease-in-out infinite alternate;
+  }
+  @keyframes drift1 { to { transform: translate(9vmax, 7vmax) scale(1.18); } }
+  @keyframes drift2 { to { transform: translate(-8vmax, -6vmax) scale(1.12); } }
+  @keyframes drift3 { to { transform: translate(-7vmax, 5vmax) scale(.88); } }
+
+  /* ---------- 漂浮粒子 ---------- */
+  .particles {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .85);
+    box-shadow: 0 0 8px rgba(199, 210, 254, .9);
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(30px) scale(.5); opacity: 0; }
+    12%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateY(-110vh) scale(1); opacity: 0; }
+  }
+
+  /* ---------- 卡片 ---------- */
+  .card {
+    position: relative;
+    z-index: 2;
+    width: min(92vw, 680px);
+    padding: clamp(2.2rem, 6vw, 4rem) clamp(1.5rem, 6vw, 4rem);
+    text-align: center;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 28px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .5),
+                inset 0 1px 0 rgba(255, 255, 255, .12);
+    animation: rise .9s cubic-bezier(.2, .8, .2, 1) both;
+  }
+
+  /* 卡片頂部微光 */
+  .card::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 12%;
+    width: 76%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  }
+
+  /* ---------- 文字 ---------- */
+  .eyebrow {
+    margin: 0 0 1.1rem;
+    font-size: clamp(.85rem, 2.4vw, .95rem);
+    letter-spacing: .12em;
+    color: #c7d2fe;
+    animation: rise .9s cubic-bezier(.2, .8, .2, 1) .12s both;
+  }
+
+  h1 {
+    margin: 0 0 1.2rem;
+    font-size: clamp(2rem, 7.2vw, 3.6rem);
+    font-weight: 800;
+    line-height: 1.18;
+    letter-spacing: -.02em;
+    animation: rise .9s cubic-bezier(.2, .8, .2, 1) .2s both;
+  }
+
+  .grad {
+    background: linear-gradient(100deg, #a5b4fc, #f0abfc 40%, #67e8f9 70%, #a5b4fc);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shine 5s linear infinite;
+  }
+  @keyframes shine { to { background-position: 200% center; } }
+
+  .subtitle {
+    margin: 0 auto 2.2rem;
+    max-width: 46ch;
+    font-size: clamp(.95rem, 2.6vw, 1.08rem);
+    line-height: 1.85;
+    color: #cbd5e1;
+    animation: rise .9s cubic-bezier(.2, .8, .2, 1) .3s both;
+  }
+
+  /* ---------- 按鈕 ---------- */
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .85rem;
+    animation: rise .9s cubic-bezier(.2, .8, .2, 1) .4s both;
+  }
+
+  .btn {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .9rem 1.9rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform .25s cubic-bezier(.2, .8, .2, 1),
+                box-shadow .25s, background .25s, border-color .25s;
+  }
+  .btn:active { transform: translateY(0) scale(.98); }
+
+  .btn-primary {
+    color: #fff;
+    background: linear-gradient(120deg, #6366f1, #d946ef);
+    box-shadow: 0 14px 32px -12px rgba(129, 90, 245, .95);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 44px -14px rgba(217, 70, 239, .95);
+  }
+
+  .btn-ghost {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, .05);
+    border-color: rgba(255, 255, 255, .2);
+  }
+  .btn-ghost:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, .12);
+    border-color: rgba(255, 255, 255, .38);
+  }
+
+  /* 點擊漣漪 */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .55);
+    transform: scale(0);
+    pointer-events: none;
+    animation: ripple .65s ease-out forwards;
+  }
+  @keyframes ripple {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  /* ---------- 頁尾 ---------- */
+  .footer {
+    position: fixed;
+    bottom: 1.4rem;
+    z-index: 2;
+    font-size: .78rem;
+    letter-spacing: .08em;
+    color: rgba(226, 232, 240, .45);
+    animation: rise .9s cubic-bezier(.2, .8, .2, 1) .55s both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(26px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ---------- 無障礙：減少動態 ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- 背景光斑 -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- 漂浮粒子層（由 JS 產生） -->
+  <div class="particles" id="particles"></div>
+
+  <!-- 主要內容 -->
+  <main class="card">
+    <p class="eyebrow" id="greeting">👋 你好，歡迎你的到來</p>
+
+    <h1>歡迎，<span class="grad">很高興見到你</span></h1>
+
+    <p class="subtitle">
+      這裡是一個簡潔、優雅，帶著一點溫度的角落。<br>
+      準備好了嗎？讓我們一起開始吧。
+    </p>
+
+    <div class="actions">
+      <a href="#" class="btn btn-primary" id="startBtn">開始探索 →</a>
+      <a href="#" class="btn btn-ghost">了解更多</a>
+    </div>
+  </main>
+
+  <p class="footer">© 2025 · 用 ♥ 製作</p>
+
+<script>
+  /* ========== 1. 依時間顯示問候語 ========== */
+  (function () {
+    const hour = new Date().getHours();
+    let text, emoji;
+
+    if (hour >= 5 && hour < 11)       { text = '早安';   emoji = '🌅'; }
+    else if (hour >= 11 && hour < 14) { text = '午安';   emoji = '☀️'; }
+    else if (hour >= 14 && hour < 18) { text = '午後好'; emoji = '🍵'; }
+    else if (hour >= 18 && hour < 23) { text = '晚上好'; emoji = '🌆'; }
+    else                              { text = '夜深了'; emoji = '🌙'; }
+
+    document.getElementById('greeting').textContent =
+      `${emoji} ${text}，歡迎你的到來`;
+  })();
+
+  /* ========== 2. 產生漂浮粒子 ========== */
+  (function () {
+    const layer = document.getElementById('particles');
+    const count = window.innerWidth < 640 ? 18 : 36;
+
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('span');
+      const size = (Math.random() * 2.6 + 1.2).toFixed(2);
+      const duration = Math.random() * 15 + 11;
+
+      p.className = 'particle';
+      p.style.width = p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = Math.random() * 100 + '%';
+      p.style.opacity = (Math.random() * 0.5 + 0.25).toFixed(2);
+      p.style.animationDuration = duration.toFixed(1) + 's';
+      p.style.animationDelay = (-Math.random() * duration).toFixed(1) + 's';
+
+      layer.appendChild(p);
+    }
+  })();
+
+  /* ========== 3. 滑鼠視差（光斑微移動） ========== */
+  (function () {
+    const blobs = document.querySelectorAll('.blob');
+    let raf = null, mx = 0, my = 0;
+
+    document.addEventListener('mousemove', function (e) {
+      mx = (e.clientX / window.innerWidth - 0.5);
+      my = (e.clientY / window.innerHeight - 0.5);
+
+      if (raf) return;
+      raf = requestAnimationFrame(function () {
+        blobs.forEach(function (b, i) {
+          const depth = (i + 1) * 14;
+          b.style.marginLeft = (mx * depth).toFixed(1) + 'px';
+          b.style.marginTop  = (my * depth).toFixed(1) + 'px';
+        });
+        raf = null;
+      });
+    });
+  })();
+
+  /* ========== 4. 按鈕點擊漣漪 ========== */
+  (function () {
+    document.querySelectorAll('.btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        const rect = btn.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const ripple = document.createElement('span');
+
+        ripple.className = 'ripple';
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+        ripple.style.top  = (e.clientY - rect.top  - size / 2) + 'px';
+
+        btn.appendChild(ripple);
+        setTimeout(function () { ripple.remove(); }, 650);
+      });
+    });
+  })();
+</script>
+</body>
+</html>
