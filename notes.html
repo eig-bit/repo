@@ -37,9 +37,9 @@
     padding:24px 16px 60px;
   }
   /* 標題像素化與發光 */
-  .header { text-align:center; margin:20px 0 32px; }
+  .header { text-align:center; margin:20px 0 24px; }
   .title {
-    font-size:clamp(40px, 10vw, 72px); font-weight:900; color:var(--yellow);
+    font-size:clamp(36px, 9vw, 64px); font-weight:900; color:var(--yellow);
     letter-spacing:4px; line-height:1; display:inline-block; padding:8px 12px;
     text-shadow:
       4px 4px 0 var(--pink), 4px 4px 0 var(--border),
@@ -59,12 +59,32 @@
     padding:6px 14px; box-shadow:4px 4px 0 var(--purple);
   }
   .subtitle::before { content:"❯ "; color:var(--pink); }
-  .status {
-    text-align:center; color:var(--yellow); font-size:12px;
-    margin:12px 0; min-height:18px; letter-spacing:1px;
+  
+  /* 狀態列與搜尋欄 */
+  .controls {
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:24px; align-items:center;
   }
-  .status::before { content:"❯ "; color:var(--pink); }
-  /* 通用按鈕：8-bit 立體按鈕 */
+  .search-box {
+    background:var(--panel); border:3px solid var(--border); color:var(--ink);
+    padding:10px 14px; font-family:var(--pixel); font-size:13px; width:240px;
+    box-shadow:4px 4px 0 var(--purple);
+  }
+  .search-box:focus { outline:none; border-color:var(--yellow); box-shadow:4px 4px 0 var(--pink); }
+  .search-box::placeholder { color:rgba(245,241,232,0.4); }
+
+  /* 分類標籤列 */
+  .categories {
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:24px;
+  }
+  .cat-btn {
+    background:var(--panel); color:var(--mint); border:3px solid var(--border);
+    padding:6px 12px; font-family:var(--pixel); font-size:12px; cursor:pointer;
+    box-shadow:3px 3px 0 var(--purple); transition:all 0.1s;
+  }
+  .cat-btn:hover { transform:translate(1px,1px); box-shadow:2px 2px 0 var(--purple); }
+  .cat-btn.active { background:var(--yellow); color:var(--border); box-shadow:3px 3px 0 var(--pink); }
+
+  /* 通用按鈕 */
   .btn {
     background:var(--mint); color:var(--border); border:3px solid var(--border);
     padding:10px 14px; font-family:var(--pixel); font-weight:bold; font-size:13px;
@@ -74,17 +94,14 @@
   }
   .btn:hover { transform:translate(2px,2px); box-shadow:2px 2px 0 var(--purple); }
   .btn:active { transform:translate(4px,4px); box-shadow:0 0 0 var(--purple); }
-  .btn.pink { background:var(--pink); color:#fff; box-shadow:4px 4px 0 var(--purple); }
-  .btn.yellow { background:var(--yellow); box-shadow:4px 4px 0 var(--pink); }
+  .btn.pink { background:var(--pink); color:#fff; }
+  .btn.yellow { background:var(--yellow); }
   .btn.purple { background:var(--purple); color:#fff; box-shadow:4px 4px 0 var(--pink); }
   .btn.sm { padding:6px 10px; font-size:11px; }
-  /* 工具列 */
-  .toolbar {
-    display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:24px;
-  }
+
   /* 卡片網格 */
   .grid {
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:18px;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:18px;
   }
   .card {
     background:var(--panel); border:3px solid var(--border); padding:16px;
@@ -102,15 +119,40 @@
     background:repeating-linear-gradient(90deg, var(--pink) 0 8px, var(--yellow) 8px 16px);
     opacity:0.4;
   }
-  .card:hover { transform:translate(3px,3px); box-shadow:3px 3px 0 var(--purple); }
+  .card:hover { transform:translate(3px,3px); box-shadow:3px 3px 0 var(--purple); border-color:var(--yellow); }
   .card-title {
     font-size:15px; font-weight:bold; color:var(--yellow); margin-bottom:8px;
     word-break:break-all; line-height:1.3; padding-right:16px;
   }
-  .card-meta { font-size:11px; color:var(--mint); opacity:0.8; margin-bottom:10px; }
+  .card-meta { font-size:11px; color:var(--mint); opacity:0.8; margin-bottom:10px; display:flex; justify-content:space-between; }
+  .card-cat { color:var(--pink); font-weight:bold; }
   .card-content { font-size:12px; color:var(--ink); opacity:0.9; line-height:1.5; flex-grow:1; }
-  .card-actions { margin-top:12px; display:flex; gap:6px; }
-  /* 編輯器 */
+  .card-actions { margin-top:12px; display:flex; gap:6px; flex-wrap:wrap; }
+  
+  /* 分頁控制 */
+  .pagination {
+    display:flex; justify-content:center; align-items:center; gap:8px; margin-top:32px;
+  }
+  .page-btn {
+    background:var(--panel); color:var(--mint); border:3px solid var(--border);
+    padding:8px 14px; font-family:var(--pixel); font-weight:bold; cursor:pointer;
+    box-shadow:3px 3px 0 var(--purple); transition:all 0.1s;
+  }
+  .page-btn:hover:not(:disabled) { background:var(--purple); color:#fff; }
+  .page-btn.active { background:var(--yellow); color:var(--border); box-shadow:3px 3px 0 var(--pink); }
+  .page-btn:disabled { opacity:0.3; cursor:not-allowed; }
+  .page-info { color:var(--yellow); font-size:12px; padding:0 10px; }
+
+  /* 空狀態 */
+  .empty {
+    grid-column:1/-1; text-align:center; padding:48px 20px;
+    background:var(--panel); border:3px dashed var(--pink);
+    box-shadow:6px 6px 0 var(--purple);
+  }
+  .empty .big { font-size:32px; color:var(--yellow); margin-bottom:12px; font-weight:bold; }
+  .empty .hint { font-size:13px; opacity:0.7; line-height:1.6; }
+
+  /* 跨輯器 */
   .editor {
     position:fixed; inset:0; background:rgba(10,8,32,0.95); z-index:100;
     display:none; flex-direction:column; padding:16px;
@@ -118,49 +160,53 @@
   .editor.active { display:flex; }
   .editor-header {
     display:flex; justify-content:space-between; align-items:center;
-    margin-bottom:12px; padding-bottom:12px; border-bottom:3px solid var(--border);
+    margin-bottom:12px; padding-bottom:12px; border-bottom:3px solid var(--border); gap:10px;
   }
   .editor-title {
     background:var(--panel); border:3px solid var(--border); color:var(--yellow);
     padding:10px 14px; font-family:var(--pixel); font-size:15px;
-    flex-grow:1; margin-right:10px; box-shadow:4px 4px 0 var(--purple);
+    flex-grow:1; box-shadow:4px 4px 0 var(--purple);
   }
   .editor-title:focus { outline:none; border-color:var(--yellow); }
   .editor-body {
     flex-grow:1; background:var(--panel); border:3px solid var(--border);
     color:var(--ink); padding:16px; font-family:var(--pixel); font-size:14px;
-    resize:none; box-shadow:4px 4px 0 var(--purple); line-height:1.6;
+    resize:none; box-shadow:4px 4px 0 var(--purple); line-height:1.6; min-height:200px;
   }
   .editor-body:focus { outline:none; border-color:var(--mint); }
   .editor-footer {
     display:flex; justify-content:space-between; align-items:center;
-    margin-top:12px; font-size:11px; color:var(--mint);
+    margin-top:12px; font-size:11px; color:var(--mint); flex-wrap:wrap; gap:8px;
   }
-  .editor-tags {
+  .editor-input {
     background:var(--panel); border:3px solid var(--border); color:var(--mint);
     padding:8px 12px; font-family:var(--pixel); font-size:12px;
-    margin-top:12px; box-shadow:4px 4px 0 var(--purple);
+    margin-top:12px; box-shadow:4px 4px 0 var(--purple); width:100%;
   }
-  .editor-tags:focus { outline:none; border-color:var(--mint); }
-  /* 空狀態 */
-  .empty {
-    grid-column:1/-1; text-align:center; padding:48px 20px;
-    background:var(--panel); border:3px dashed var(--pink);
+  .editor-input:focus { outline:none; border-color:var(--mint); }
+  
+  /* 可摺疊面板 (匯出/匯入、技術說明) */
+  .collapsible-panel {
+    margin:24px 0; border:3px solid var(--border); background:var(--panel);
     box-shadow:6px 6px 0 var(--purple);
   }
-  .empty .big {
-    font-size:32px; color:var(--yellow); margin-bottom:12px; font-weight:bold;
+  .collapsible-header {
+    padding:12px 16px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--pixel); font-weight:bold; font-size:14px; transition:background 0.1s;
   }
-  .empty .hint { font-size:13px; opacity:0.7; line-height:1.6; }
-  /* 技術說明面板 */
-  .info-panel {
-    background:var(--panel); border:3px solid var(--yellow);
-    margin:24px 0; padding:20px; box-shadow:6px 6px 0 var(--pink);
+  .collapsible-header:hover { background:rgba(139,92,246,0.2); }
+  .collapsible-header.pink { background:var(--pink); color:#fff; }
+  .collapsible-header.yellow { background:var(--yellow); color:var(--border); }
+  .collapsible-header.purple { background:var(--purple); color:#fff; }
+  .toggle-icon { transition:transform 0.2s; font-size:12px; }
+  .collapsible-header.active .toggle-icon { transform:rotate(90deg); }
+  .collapsible-content {
+    max-height:0; overflow:hidden; transition:max-height 0.3s ease-out;
   }
-  .info-panel h3 {
-    color:var(--yellow); font-size:16px; margin-bottom:12px;
-    border-bottom:2px dashed var(--pink); padding-bottom:6px;
-  }
+  .collapsible-content.open { max-height:1000px; padding:20px; }
+  
+  /* 技術說明面板內容樣式 */
+  .info-panel h3 { display:none; } /* 標題已由摺疊標題取代 */
   .info-panel p { margin-bottom:10px; font-size:12px; line-height:1.6; color:var(--ink); }
   .info-panel code {
     background:var(--border); padding:2px 6px; color:var(--mint);
@@ -171,6 +217,10 @@
     background:var(--purple); color:#fff; padding:2px 8px; font-size:11px;
     border:2px solid var(--border);
   }
+  .import-export-actions {
+    display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;
+  }
+
   /* A2HS 提示框 */
   .a2hs-banner {
     position:fixed; bottom:16px; left:16px; right:16px; max-width:400px;
@@ -186,15 +236,22 @@
   .a2hs-banner.show { display:block; }
   .a2hs-banner h4 { color:var(--yellow); margin-bottom:6px; font-size:14px; }
   .a2hs-banner p { line-height:1.5; margin-bottom:10px; }
-  .a2hs-banner button { cursor:pointer; }
-  /* 響應式 */
+
+  /* Toast 提示 */
+  .toast {
+    position:fixed; top:20px; right:20px; background:var(--mint); color:var(--border);
+    border:3px solid var(--border); padding:12px 20px; font-family:var(--pixel);
+    font-weight:bold; font-size:13px; box-shadow:5px 5px 0 var(--purple);
+    z-index:200; transform:translateX(120%); transition:transform 0.3s;
+  }
+  .toast.show { transform:translateX(0); }
+
   @media (max-width: 600px) {
     .wrap { padding:16px 10px 40px; }
     .grid { grid-template-columns:1fr; }
-    .toolbar { flex-direction:column; }
-    .btn { width:100%; justify-content:center; }
-    .editor-header { flex-wrap:wrap; }
-    .editor-title { width:100%; margin:0 0 10px 0; }
+    .controls { flex-direction:column; }
+    .search-box { width:100%; }
+    .editor-header { flex-direction:column; align-items:stretch; }
   }
 </style>
 </head>
@@ -205,33 +262,56 @@
       <div class="subtitle" id="storageStatus">LOADING DB...</div>
     </header>
 
-    <div class="status" id="status">SYSTEM READY.</div>
-
-    <div class="toolbar">
+    <div class="controls">
+      <input type="text" id="searchInput" class="search-box" placeholder="SEARCH NOTES..." oninput="handleSearch()">
       <button class="btn yellow" onclick="openEditor()">+ NEW NOTE</button>
-      <button class="btn" onclick="exportJSON()">↧ EXPORT JSON</button>
-      <button class="btn pink" onclick="document.getElementById('fileInput').click()">↥ IMPORT JSON</button>
-      <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(event)">
     </div>
 
-    <main id="content" class="grid"></main>
+    <div class="categories" id="categoryBar"></div>
 
-    <!-- 技術說明面板 -->
-    <section class="info-panel">
-      <h3>★ TECHNICAL DETAILS (技術說明)</h3>
-      <p><strong>► Storage (儲存機制)：</strong>本應用使用 <code>IndexedDB</code> 儲存筆記資料。不同於 <code>localStorage</code> 限制 5MB，IndexedDB 提供更大儲存空間與非同步 API，適合儲存結構化資料。</p>
-      <p><strong>► Persistence (持久化)：</strong>透過 <code>navigator.storage.persist()</code> 申請持久化儲存。瀏覽器通常會在空間不足時清除資料，持久化可保護資料不被自動清除（需使用者授權或互動後觸發）。</p>
-      <p><strong>► A2HS (加入主畫面)：</strong>透過 PWA <code>beforeinstallprompt</code> 事件實作 Add to Home Screen 提示，讓使用者可將應用安裝至桌面。</p>
-      <p><strong>► Data Format (資料格式)：</strong>匯入/匯出使用標準 JSON 格式，結構包含：<code>id, title, content, tags, createdAt, updatedAt</code>。</p>
-      <p><strong>► Tech Stack (技術棧)：</strong></p>
-      <div class="tag-list">
-        <span>HTML5</span><span>CSS3</span><span>Vanilla JS</span>
-        <span>IndexedDB</span><span>PWA API</span><span>File API</span>
+    <main id="content" class="grid"></main>
+    
+    <div class="pagination" id="pagination"></div>
+
+    <!-- 可摺疊面板：匯出/匯入 -->
+    <div class="collapsible-panel">
+      <div class="collapsible-header pink" id="ioHeader" onclick="togglePanel('ioHeader', 'ioContent')">
+        <span>▶ DATA MANAGEMENT (IMPORT/EXPORT)</span>
+        <span class="toggle-icon">▼</span>
       </div>
-    </section>
+      <div class="collapsible-content" id="ioContent">
+        <div class="import-export-actions">
+          <button class="btn" onclick="exportJSON()">↧ EXPORT TO JSON</button>
+          <button class="btn pink" onclick="document.getElementById('fileInput').click()">↥ IMPORT FROM JSON</button>
+          <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(event)">
+        </div>
+        <p style="font-size:12px; color:var(--mint); opacity:0.8;">
+          ► Export all notes to a JSON file for backup. Import restores notes from a previously exported JSON file.
+        </p>
+      </div>
+    </div>
+
+    <!-- 可摺疊面板：技術說明 -->
+    <div class="collapsible-panel">
+      <div class="collapsible-header purple" id="techHeader" onclick="togglePanel('techHeader', 'techContent')">
+        <span>▶ TECHNICAL DETAILS</span>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="collapsible-content info-panel" id="techContent">
+        <p><strong>► Storage (儲存機制)：</strong>使用 <code>IndexedDB</code> 儲存筆記，支援非同步大容量資料，透過 <code>navigator.storage.persist()</code> 申請持久化防止資料遺失。</p>
+        <p><strong>► Features (功能)：</strong>支援分類過濾、即時搜尋、分頁瀏覽、一鍵複製筆記內容至剪貼簿。</p>
+        <p><strong>► Data (資料)：</strong>JSON 格式匯入/匯出，結構包含 <code>id, title, content, category, createdAt</code>。</p>
+        <p><strong>► Tech Stack (技術棧)：</strong></p>
+        <div class="tag-list">
+          <span>HTML5</span><span>CSS3</span><span>Vanilla JS</span>
+          <span>IndexedDB</span><span>PWA API</span><span>Clipboard API</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- 編輯器彈窗 -->
+  <!-- 編輯器 -->
   <div class="editor" id="editor">
     <div class="editor-header">
       <input type="text" class="editor-title" id="noteTitle" placeholder="NOTE TITLE..." maxlength="100">
@@ -240,11 +320,12 @@
         <button class="btn pink sm" onclick="closeEditor()">CLOSE</button>
       </div>
     </div>
-    <textarea class="editor-body" id="noteContent" placeholder="WRITE YOUR NOTE HERE... (MARKDOWN SUPPORTED)"></textarea>
-    <input type="text" class="editor-tags" id="noteTags" placeholder="TAGS (comma separated)...">
+    <textarea class="editor-body" id="noteContent" placeholder="WRITE YOUR NOTE HERE..."></textarea>
+    <input type="text" class="editor-input" id="noteCategory" placeholder="CATEGORY (e.g. CODE, TODO, IDEA)..." list="categoryList">
+    <datalist id="categoryList"></datalist>
     <div class="editor-footer">
       <span id="editorMeta">NEW NOTE</span>
-      <span>SHORTCUTS: CTRL+S (SAVE) | ESC (CLOSE)</span>
+      <span>CTRL+S (SAVE) | ESC (CLOSE)</span>
     </div>
   </div>
 
@@ -258,83 +339,65 @@
     </div>
   </div>
 
+  <!-- 複製成功提示 -->
+  <div class="toast" id="toast">COPIED TO CLIPBOARD!</div>
+
 <script>
 /* ===================================================
  * 8-BIT NOTES - 筆記應用核心邏輯
- * 技術：IndexedDB, PWA, File API
  * =================================================== */
 
 let db = null;
 let currentNoteId = null;
 let deferredPrompt = null;
+let allNotes = [];
+let currentCategory = 'ALL';
+let currentPage = 1;
+const NOTES_PER_PAGE = 6;
 
 // ---------------------------------------------------
-// IndexedDB 資料庫初始化
+// IndexedDB 初始化
 // ---------------------------------------------------
 function initDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('BitNotesDB', 1);
-    
-    // 資料庫版本更新或首次建立時觸發
     req.onupgradeneeded = (e) => {
       const database = e.target.result;
-      // 建立物件存藏區 (Object Store)，以 id 為主鍵，自動遞增
       if (!database.objectStoreNames.contains('notes')) {
         const store = database.createObjectStore('notes', { keyPath: 'id', autoIncrement: true });
-        // 建立索引以加速查詢
-        store.createIndex('title', 'title', { unique: false });
-        store.createIndex('createdAt', 'createdAt', { unique: false });
+        store.createIndex('category', 'category', { unique: false });
       }
     };
-    
     req.onsuccess = (e) => {
       db = e.target.result;
-      // 申請持久化儲存
       requestPersistentStorage();
-      renderNotes();
+      loadNotes();
       resolve(db);
     };
-    
-    req.onerror = (e) => {
-      console.error('DB Error:', e.target.error);
-      setStatus('DB ERROR: ' + e.target.error);
-      reject(e.target.error);
-    };
+    req.onerror = (e) => reject(e.target.error);
   });
 }
 
-// ---------------------------------------------------
-// 申請持久化儲存 (Persistence Storage)
-// 防止瀏覽器在空間不足時自動清除資料
-// ---------------------------------------------------
 async function requestPersistentStorage() {
   if (navigator.storage && navigator.storage.persist) {
     const isPersisted = await navigator.storage.persisted();
     if (isPersisted) {
       document.getElementById('storageStatus').textContent = 'STORAGE: PERSISTED ✓';
     } else {
-      // 申請持久化，通常需使用者互動才會核准
       const granted = await navigator.storage.persist();
-      if (granted) {
-        document.getElementById('storageStatus').textContent = 'STORAGE: PERSISTED ✓';
-      } else {
-        document.getElementById('storageStatus').textContent = 'STORAGE: TEMPORARY';
-      }
+      document.getElementById('storageStatus').textContent = granted ? 'STORAGE: PERSISTED ✓' : 'STORAGE: TEMPORARY';
     }
-  } else {
-    document.getElementById('storageStatus').textContent = 'STORAGE: UNSUPPORTED';
   }
 }
 
 // ---------------------------------------------------
-// IndexedDB 資料操作 (CRUD)
+// 資料庫操作
 // ---------------------------------------------------
 function addNoteToDB(note) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('notes', 'readwrite');
-    const store = tx.objectStore('notes');
-    const req = store.add(note);
-    req.onsuccess = () => { currentNoteId = req.result; resolve(req.result); };
+    const req = tx.objectStore('notes').add(note);
+    req.onsuccess = () => resolve(req.result);
     req.onerror = (e) => reject(e.target.error);
   });
 }
@@ -342,8 +405,7 @@ function addNoteToDB(note) {
 function updateNoteInDB(id, updatedNote) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('notes', 'readwrite');
-    const store = tx.objectStore('notes');
-    const req = store.put({ ...updatedNote, id: id });
+    const req = tx.objectStore('notes').put({ ...updatedNote, id: id });
     req.onsuccess = () => resolve(id);
     req.onerror = (e) => reject(e.target.error);
   });
@@ -352,82 +414,142 @@ function updateNoteInDB(id, updatedNote) {
 function deleteNoteFromDB(id) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('notes', 'readwrite');
-    const store = tx.objectStore('notes');
-    const req = store.delete(id);
+    const req = tx.objectStore('notes').delete(id);
     req.onsuccess = () => resolve();
     req.onerror = (e) => reject(e.target.error);
   });
 }
 
-function getAllNotes() {
+function getAllNotesFromDB() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('notes', 'readonly');
-    const store = tx.objectStore('notes');
-    const req = store.getAll();
-    req.onsuccess = () => {
-      // 按建立時間降序排列 (新到舊)
-      const notes = req.result.sort((a, b) => b.createdAt - a.createdAt);
-      resolve(notes);
+    const req = tx.objectStore('notes').getAll();
+    req.onsuccess = () => resolve(req.result.sort((a, b) => b.createdAt - a.createdAt));
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// ---------------------------------------------------
+// 狀態管理與渲染
+// ---------------------------------------------------
+async function loadNotes() {
+  allNotes = await getAllNotesFromDB();
+  renderCategories();
+  renderNotes();
+}
+
+function renderCategories() {
+  const cats = ['ALL', ...new Set(allNotes.map(n => n.category || 'UNCATEGORIZED'))];
+  const bar = document.getElementById('categoryBar');
+  bar.innerHTML = '';
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (cat === currentCategory ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => {
+      currentCategory = cat;
+      currentPage = 1;
+      renderCategories();
+      renderNotes();
     };
-    req.onerror = (e) => reject(e.target.error);
+    bar.appendChild(btn);
   });
-}
-
-function getNoteById(id) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('notes', 'readonly');
-    const store = tx.objectStore('notes');
-    const req = store.get(id);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = (e) => reject(e.target.error);
-  });
-}
-
-// ---------------------------------------------------
-// UI 渲染與互動
-// ---------------------------------------------------
-async function renderNotes() {
-  const notes = await getAllNotes();
-  const content = document.getElementById('content');
   
-  if (notes.length === 0) {
+  // 更新 datalist
+  const list = document.getElementById('categoryList');
+  list.innerHTML = cats.filter(c => c !== 'ALL').map(c => `<option value="${c}">`).join('');
+}
+
+function getFilteredNotes() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  return allNotes.filter(note => {
+    const matchCat = currentCategory === 'ALL' || (note.category || 'UNCATEGORIZED') === currentCategory;
+    const matchSearch = !searchTerm || 
+      note.title.toLowerCase().includes(searchTerm) || 
+      note.content.toLowerCase().includes(searchTerm);
+    return matchCat && matchSearch;
+  });
+}
+
+function renderNotes() {
+  const filtered = getFilteredNotes();
+  const content = document.getElementById('content');
+  const totalPages = Math.ceil(filtered.length / NOTES_PER_PAGE);
+  
+  if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+  const startIdx = (currentPage - 1) * NOTES_PER_PAGE;
+  const pageNotes = filtered.slice(startIdx, startIdx + NOTES_PER_PAGE);
+
+  if (pageNotes.length === 0) {
     content.innerHTML = `
       <div class="empty">
         <div class="big">NO NOTES FOUND</div>
-        <div class="hint">Click "+ NEW NOTE" to create your first 8-bit note!</div>
+        <div class="hint">Adjust filters or create a new note!</div>
       </div>
     `;
+    renderPagination(0, 1);
     return;
   }
-  
+
   content.innerHTML = '';
-  notes.forEach(note => {
+  pageNotes.forEach(note => {
     const card = document.createElement('div');
     card.className = 'card';
-    const preview = note.content.substring(0, 100) + (note.content.length > 100 ? '...' : '');
-    const date = new Date(note.createdAt).toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' });
+    const preview = note.content.substring(0, 80) + (note.content.length > 80 ? '...' : '');
+    const date = new Date(note.createdAt).toLocaleDateString('zh-TW');
     
     card.innerHTML = `
       <div class="card-title">${escapeHtml(note.title)}</div>
-      <div class="card-meta">${date} | ${note.tags || 'NO TAGS'}</div>
+      <div class="card-meta">
+        <span class="card-cat">${escapeHtml(note.category || 'UNCATEGORIZED')}</span>
+        <span>${date}</span>
+      </div>
       <div class="card-content">${escapeHtml(preview)}</div>
       <div class="card-actions">
-        <button class="btn sm" onclick="editNote(${note.id})">EDIT</button>
-        <button class="btn pink sm" onclick="confirmDelete(${note.id})">DEL</button>
+        <button class="btn sm" onclick="editNote(${note.id})">✎ EDIT</button>
+        <button class="btn purple sm" onclick="copyNoteContent(${note.id})">⎘ COPY</button>
+        <button class="btn pink sm" onclick="confirmDelete(${note.id})">✕ DEL</button>
       </div>
     `;
     content.appendChild(card);
   });
+
+  renderPagination(filtered.length, totalPages);
 }
 
-function setStatus(msg) {
-  document.getElementById('status').textContent = msg;
+function renderPagination(totalItems, totalPages) {
+  const pagi = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    pagi.innerHTML = totalItems > 0 ? `<span class="page-info">${totalItems} NOTE(S)</span>` : '';
+    return;
+  }
+  
+  pagi.innerHTML = `
+    <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>◄ PREV</button>
+    <span class="page-info">PAGE ${currentPage} / ${totalPages}</span>
+    <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>NEXT ►</button>
+  `;
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.innerText = text || '';
-  return div.innerHTML;
+function changePage(page) {
+  currentPage = page;
+  renderNotes();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleSearch() {
+  currentPage = 1;
+  renderNotes();
+}
+
+// ---------------------------------------------------
+// 可摺疊面板控制
+// ---------------------------------------------------
+function togglePanel(headerId, contentId) {
+  const header = document.getElementById(headerId);
+  const content = document.getElementById(contentId);
+  header.classList.toggle('active');
+  content.classList.toggle('open');
 }
 
 // ---------------------------------------------------
@@ -435,27 +557,14 @@ function escapeHtml(text) {
 // ---------------------------------------------------
 function openEditor(note = null) {
   const editor = document.getElementById('editor');
-  const titleInput = document.getElementById('noteTitle');
-  const contentInput = document.getElementById('noteContent');
-  const tagsInput = document.getElementById('noteTags');
-  const meta = document.getElementById('editorMeta');
+  document.getElementById('noteTitle').value = note ? note.title : '';
+  document.getElementById('noteContent').value = note ? note.content : '';
+  document.getElementById('noteCategory').value = note ? (note.category || '') : '';
   
-  if (note) {
-    currentNoteId = note.id;
-    titleInput.value = note.title;
-    contentInput.value = note.content;
-    tagsInput.value = note.tags || '';
-    meta.textContent = `EDITING: ID #${note.id} | CREATED: ${new Date(note.createdAt).toLocaleString()}`;
-  } else {
-    currentNoteId = null;
-    titleInput.value = '';
-    contentInput.value = '';
-    tagsInput.value = '';
-    meta.textContent = 'NEW NOTE';
-  }
-  
+  currentNoteId = note ? note.id : null;
+  document.getElementById('editorMeta').textContent = note ? `EDITING: ID #${note.id}` : 'NEW NOTE';
   editor.classList.add('active');
-  titleInput.focus();
+  document.getElementById('noteTitle').focus();
 }
 
 function closeEditor() {
@@ -466,89 +575,87 @@ function closeEditor() {
 async function saveNote() {
   const title = document.getElementById('noteTitle').value.trim();
   const content = document.getElementById('noteContent').value.trim();
-  const tags = document.getElementById('noteTags').value.trim();
+  const category = document.getElementById('noteCategory').value.trim() || 'UNCATEGORIZED';
   
-  if (!title) {
-    setStatus('ERROR: TITLE REQUIRED!');
-    return;
-  }
-  if (!content) {
-    setStatus('ERROR: CONTENT REQUIRED!');
+  if (!title || !content) {
+    showToast('TITLE & CONTENT REQUIRED!', true);
     return;
   }
   
   try {
     if (currentNoteId) {
-      // 更新現有筆記
-      const oldNote = await getNoteById(currentNoteId);
-      await updateNoteInDB(currentNoteId, {
-        ...oldNote,
-        title: title,
-        content: content,
-        tags: tags,
-        updatedAt: Date.now()
-      });
-      setStatus(`NOTE #${currentNoteId} UPDATED ✓`);
+      const old = allNotes.find(n => n.id === currentNoteId);
+      await updateNoteInDB(currentNoteId, { ...old, title, content, category, updatedAt: Date.now() });
+      showToast('NOTE UPDATED ✓');
     } else {
-      // 新增筆記
-      const newId = await addNoteToDB({
-        title: title,
-        content: content,
-        tags: tags,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
-      setStatus(`NOTE #${newId} CREATED ✓`);
+      await addNoteToDB({ title, content, category, createdAt: Date.now(), updatedAt: Date.now() });
+      showToast('NOTE CREATED ✓');
     }
-    await renderNotes();
+    await loadNotes();
     closeEditor();
   } catch (err) {
-    setStatus('SAVE ERROR: ' + err.message);
+    showToast('ERROR: ' + err.message, true);
   }
 }
 
 async function editNote(id) {
-  const note = await getNoteById(id);
+  const note = allNotes.find(n => n.id === id);
   if (note) openEditor(note);
 }
 
 async function confirmDelete(id) {
-  // 使用自定義確認框 (避免使用 confirm())
   if (confirm(`DELETE NOTE #${id}?\nThis cannot be undone.`)) {
-    try {
-      await deleteNoteFromDB(id);
-      setStatus(`NOTE #${id} DELETED`);
-      await renderNotes();
-    } catch (err) {
-      setStatus('DELETE ERROR: ' + err.message);
-    }
+    await deleteNoteFromDB(id);
+    showToast('NOTE DELETED');
+    await loadNotes();
   }
 }
 
 // ---------------------------------------------------
-// JSON 匯入/匯出功能
+// 一鍵複製功能
+// ---------------------------------------------------
+async function copyNoteContent(id) {
+  const note = allNotes.find(n => n.id === id);
+  if (!note) return;
+  
+  const textToCopy = `# ${note.title}\n[Category: ${note.category || 'UNCATEGORIZED'}]\n\n${note.content}`;
+  
+  try {
+    await navigator.clipboard.writeText(textToCopy);
+    showToast('COPIED TO CLIPBOARD ✓');
+  } catch (err) {
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      showToast('COPIED TO CLIPBOARD ✓');
+    } catch (e) {
+      showToast('COPY FAILED', true);
+    }
+    document.body.removeChild(textArea);
+  }
+}
+
+// ---------------------------------------------------
+// 匯入/匯出 JSON
 // ---------------------------------------------------
 async function exportJSON() {
-  try {
-    const notes = await getAllNotes();
-    if (notes.length === 0) {
-      setStatus('NO NOTES TO EXPORT');
-      return;
-    }
-    const json = JSON.stringify(notes, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `8bit-notes-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setStatus(`EXPORTED ${notes.length} NOTES TO JSON ✓`);
-  } catch (err) {
-    setStatus('EXPORT ERROR: ' + err.message);
+  if (allNotes.length === 0) {
+    showToast('NO NOTES TO EXPORT', true);
+    return;
   }
+  const json = JSON.stringify(allNotes, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `8bit-notes-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`EXPORTED ${allNotes.length} NOTES ✓`);
 }
 
 async function importJSON(event) {
@@ -559,56 +666,47 @@ async function importJSON(event) {
   reader.onload = async (e) => {
     try {
       const notes = JSON.parse(e.target.result);
-      if (!Array.isArray(notes)) throw new Error('INVALID JSON FORMAT');
+      if (!Array.isArray(notes)) throw new Error('Invalid format');
       
-      let imported = 0;
-      for (const note of notes) {
-        if (note.title && note.content) {
-          // 匯入時重新生成 ID，避免衝突
+      let count = 0;
+      for (const n of notes) {
+        if (n.title && n.content) {
           await addNoteToDB({
-            title: note.title,
-            content: note.content,
-            tags: note.tags || '',
-            createdAt: note.createdAt || Date.now(),
+            title: n.title,
+            content: n.content,
+            category: n.category || 'UNCATEGORIZED',
+            createdAt: n.createdAt || Date.now(),
             updatedAt: Date.now()
           });
-          imported++;
+          count++;
         }
       }
-      await renderNotes();
-      setStatus(`IMPORTED ${imported} NOTES FROM JSON ✓`);
+      await loadNotes();
+      showToast(`IMPORTED ${count} NOTES ✓`);
     } catch (err) {
-      setStatus('IMPORT ERROR: ' + err.message);
+      showToast('IMPORT ERROR: ' + err.message, true);
     }
-    // 重設 input 以便重複匯入相同檔案
     event.target.value = '';
   };
   reader.readAsText(file);
 }
 
 // ---------------------------------------------------
-// Add to Home Screen (A2HS) / PWA 功能
+// PWA / A2HS
 // ---------------------------------------------------
 window.addEventListener('beforeinstallprompt', (e) => {
-  // 阻止 Chrome 自動顯示迷你資訊列
   e.preventDefault();
-  // 儲存事件以便稍後觸發
   deferredPrompt = e;
-  // 顯示自定義安裝提示
   document.getElementById('a2hsBanner').classList.add('show');
 });
 
 function installPWA() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        setStatus('PWA INSTALLED ✓');
-      } else {
-        setStatus('PWA INSTALL CANCELLED');
-      }
-      deferredPrompt = null;
+    deferredPrompt.userChoice.then((choice) => {
+      if (choice.outcome === 'accepted') showToast('PWA INSTALLED ✓');
       hideA2HS();
+      deferredPrompt = null;
     });
   }
 }
@@ -618,37 +716,40 @@ function hideA2HS() {
 }
 
 // ---------------------------------------------------
-// 鍵盤快捷鍵支援
+// 工具函數
+// ---------------------------------------------------
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.innerText = text || '';
+  return div.innerHTML;
+}
+
+function showToast(msg, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.background = isError ? 'var(--pink)' : 'var(--mint)';
+  toast.style.color = isError ? '#fff' : 'var(--border)';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ---------------------------------------------------
+// 鍵盤快捷鍵
 // ---------------------------------------------------
 document.addEventListener('keydown', (e) => {
-  // Ctrl/Cmd + S 儲存筆記
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault();
-    if (document.getElementById('editor').classList.contains('active')) {
-      saveNote();
-    }
+    if (document.getElementById('editor').classList.contains('active')) saveNote();
   }
-  // ESC 關閉編輯器
   if (e.key === 'Escape' && document.getElementById('editor').classList.contains('active')) {
     closeEditor();
   }
 });
 
 // ---------------------------------------------------
-// 初始化應用
+// 啟動應用
 // ---------------------------------------------------
-window.addEventListener('DOMContentLoaded', () => {
-  initDB().then(() => {
-    setStatus('SYSTEM READY.');
-    // 延遲檢查 A2HS 狀態，避免與初始載入衝突
-    setTimeout(() => {
-      // 若瀏覽器已支援 A2HS 但尚未觸發，顯示提示
-      if (!deferredPrompt && window.matchMedia('(display-mode: standalone)').matches) {
-        document.getElementById('storageStatus').textContent += ' | PWA ACTIVE';
-      }
-    }, 2000);
-  });
-});
+window.addEventListener('DOMContentLoaded', initDB);
 </script>
 </body>
 </html>
