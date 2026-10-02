@@ -4,113 +4,187 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>8-bit</title>
+    <!-- 引入 Google 復古 8-bit 字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; }
+        :root {
+            --bg-color: #000000;
+            --text-color: #33ff33;
+            --hover-bg: #33ff33;
+            --hover-text: #000000;
+            --border-color: #33ff33;
+        }
+
         body {
-            font-family: "Courier New", monospace;
-            background: #000;
-            color: #0f0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Press Start 2P', monospace;
             margin: 0;
             padding: 20px;
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
-        .container {
-            max-width: 800px;
-            margin: auto;
-        }
+
         h1 {
-            margin-top: 40px;
-            font-size: 3rem;
-            text-shadow: 0 0 10px #0f0;
-            letter-spacing: 3px;
+            text-align: center;
+            font-size: clamp(1.5rem, 5vw, 3rem);
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #005500;
         }
-        p.greeting {
-            margin: 20px 0 40px;
-            font-size: 1.2rem;
-            color: #8f8;
+
+        h1::after {
+            content: '_';
+            animation: blink 1s step-end infinite;
         }
-        .links {
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #111;
+            border: 4px solid var(--border-color);
+            padding: 20px;
+            box-shadow: 8px 8px 0px #222;
+        }
+
+        .sys-msg {
+            font-size: 0.8rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            color: #ccc;
+        }
+
+        ul {
             list-style: none;
             padding: 0;
+            margin: 0;
         }
-        .links li {
-            margin: 12px 0;
+
+        li {
+            margin-bottom: 15px;
         }
-        .links a {
-            display: inline-block;
-            color: #0f0;
+
+        a {
+            display: block;
+            color: var(--text-color);
             text-decoration: none;
-            border: 1px solid #0f0;
-            padding: 8px 20px;
-            font-size: 1.1rem;
-            transition: background 0.2s, color 0.2s;
-            min-width: 200px;
+            padding: 15px;
+            border: 2px dashed var(--border-color);
+            font-size: clamp(0.7rem, 2.5vw, 1rem);
+            word-break: break-all;
+            transition: all 0.1s ease-in-out;
+            text-transform: lowercase;
         }
-        .links a:hover {
-            background: #0f0;
-            color: #000;
+
+        a:hover {
+            background-color: var(--hover-bg);
+            color: var(--hover-text);
+            border-style: solid;
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px #222;
         }
-        .no-links {
-            color: #555;
-            font-size: 0.95rem;
+
+        .error-msg {
+            color: #ff3333;
+            font-size: 0.8rem;
+            line-height: 1.8;
+            border: 2px solid #ff3333;
+            padding: 15px;
         }
-        @media (max-width: 600px) {
-            h1 { font-size: 2rem; }
-            .links a { font-size: 1rem; min-width: 160px; }
-        }
+
     </style>
 </head>
 <body>
+
+    <h1>8-bit_</h1>
+
     <div class="container">
-        <h1>8-bit</h1>
-        <p class="greeting">歡迎來到 8-bit。</p>
-        <ul class="links" id="linkList">
-            <li class="no-links">載入中...</li>
+        <div class="sys-msg">
+            > SCANNING CURRENT DIRECTORY...<br>
+            > FILTERING .HTML FILES...
+        </div>
+        <ul id="file-list">
+            <li class="sys-msg" id="loading-msg">> LOADING...</li>
         </ul>
     </div>
 
     <script>
-        (async () => {
-            const list = document.getElementById('linkList');
-            const currentFile = 'index.html';
+        document.addEventListener("DOMContentLoaded", async () => {
+            const fileList = document.getElementById('file-list');
+            const loadingMsg = document.getElementById('loading-msg');
+            
+            // 獲取當前網頁的檔名（用來排除自己）
+            const currentPath = window.location.pathname;
+            let currentFile = currentPath.split('/').pop();
+            // 如果網址沒有特定檔名（例如 http://localhost:8080/），通常代表是 index.html
+            if (!currentFile) currentFile = 'index.html'; 
 
             try {
-                // fetch 當前目錄（GitHub Pages 會回傳 index.html 的 HTML）
-                const res = await fetch(window.location.href);
-                const text = await res.text();
-
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(text, 'text/html');
-
-                // 抓所有 <a href="*.html">，排除 index.html 及外部連結
-                const anchors = [...doc.querySelectorAll('a[href]')];
-                const htmlFiles = anchors
-                    .map(a => a.getAttribute('href'))
-                    .filter(href =>
-                        href &&
-                        href.endsWith('.html') &&
-                        !href.toLowerCase().includes('index.html') &&
-                        !href.startsWith('http') &&
-                        !href.startsWith('//')
-                    )
-                    // 去重
-                    .filter((v, i, arr) => arr.indexOf(v) === i)
-                    .sort();
-
-                if (htmlFiles.length === 0) {
-                    list.innerHTML = '<li class="no-links">目前沒有其他頁面。</li>';
-                    return;
+                // 嘗試抓取當前目錄的內容（這需要 Web Server 支援並開啟 Directory Listing）
+                const response = await fetch('./');
+                if (!response.ok) {
+                    throw new Error("SERVER_DENIED_DIRECTORY_LISTING");
                 }
 
-                list.innerHTML = htmlFiles.map(file => {
-                    const name = file.replace(/\.html$/i, '');
-                    return `<li><a href="${file}">${name}</a></li>`;
-                }).join('\n');
+                const text = await response.text();
+                
+                // 將伺服器回傳的 HTML 內容解析為 DOM 物件
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                
+                // 找出所有超連結
+                const links = Array.from(doc.querySelectorAll('a'));
 
-            } catch (e) {
-                list.innerHTML = '<li class="no-links">無法載入頁面列表。</li>';
+                // 過濾出符合條件的 HTML 檔案
+                let htmlFiles = links
+                    .map(a => a.getAttribute('href'))
+                    .filter(href => {
+                        return href && 
+                               href.toLowerCase().endsWith('.html') && // 必須是 .html
+                               href !== currentFile &&                 // 排除自己
+                               !href.includes('/') &&                  // 排除子目錄中的檔案
+                               !href.startsWith('http');               // 排除外部連結
+                    });
+
+                // 移除陣列中重複的項目（以防伺服器回傳格式導致重複抓取）
+                htmlFiles = [...new Set(htmlFiles)];
+
+                // 清空載入中訊息
+                fileList.innerHTML = '';
+
+                if (htmlFiles.length === 0) {
+                    fileList.innerHTML = '<li class="sys-msg">> NO OTHER HTML FILES DETECTED.</li>';
+                } else {
+                    htmlFiles.forEach(file => {
+                        const li = document.createElement('li');
+                        const a = document.createElement('a');
+                        a.href = file;
+                        a.textContent = `> ${file}`;
+                        li.appendChild(a);
+                        fileList.appendChild(li);
+                    });
+                }
+
+            } catch (error) {
+                console.error("Directory fetch error:", error);
+                fileList.innerHTML = `
+                    <div class="error-msg">
+                        [ SYSTEM ERROR ]<br><br>
+                        無法讀取目錄清單。<br><br>
+                        原因：靜態單一檔案在本地端直接開啟 (file:///) 時，無法存取資料夾內容。<br><br>
+                        解決方案：請將此檔案放於 Web Server (如 Live Server, Python http.server, PHP server) 運行。
+                    </div>
+                `;
             }
-        })();
+        });
     </script>
 </body>
 </html>
