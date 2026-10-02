@@ -99,7 +99,6 @@
             border: 2px solid #ff3333;
             padding: 15px;
         }
-
     </style>
 </head>
 <body>
@@ -108,8 +107,8 @@
 
     <div class="container">
         <div class="sys-msg">
-            > SCANNING CURRENT DIRECTORY...<br>
-            > FILTERING .HTML FILES...
+            > CONNECTING TO GITHUB API...<br>
+            > FETCHING REPOSITORY CONTENTS...
         </div>
         <ul id="file-list">
             <li class="sys-msg" id="loading-msg">> LOADING...</li>
@@ -117,47 +116,68 @@
     </div>
 
     <script>
+        // ==========================================
+        // 設定區（選填）
+        // 如果網頁使用了自訂網域 (Custom Domain)，請手動填寫以下兩個值：
+        const MANUAL_CONFIG = {
+            owner: "", // 例如 "your-github-username"
+            repo: ""   // 例如 "your-repo-name"
+        };
+        // ==========================================
+
         document.addEventListener("DOMContentLoaded", async () => {
             const fileList = document.getElementById('file-list');
-            const loadingMsg = document.getElementById('loading-msg');
-            
-            // 獲取當前網頁的檔名（用來排除自己）
+
+            // 1. 取得當前網頁檔名（用於過濾排除自己）
             const currentPath = window.location.pathname;
-            let currentFile = currentPath.split('/').pop();
-            // 如果網址沒有特定檔名（例如 http://localhost:8080/），通常代表是 index.html
-            if (!currentFile) currentFile = 'index.html'; 
+            let currentFile = currentPath.split('/').pop().toLowerCase();
+            if (!currentFile || !currentFile.endsWith('.html')) {
+                currentFile = 'index.html';
+            }
+
+            // 2. 自動判斷 GitHub 帳號與 Repository 名稱
+            let owner = MANUAL_CONFIG.owner;
+            let repo = MANUAL_CONFIG.repo;
+
+            if (!owner || !repo) {
+                const host = window.location.hostname; // 例如 username.github.io
+                const pathSegments = currentPath.split('/').filter(p => p && !p.endsWith('.html'));
+
+                if (host.endsWith('.github.io')) {
+                    owner = host.split('.')[0];
+                    // 如果網址是 username.github.io/repo-name/，repo 就是第一個路徑片段
+                    // 如果網址是 username.github.io/，repo 名稱預設就是 username.github.io
+                    repo = pathSegments[0] || `${owner}.github.io`;
+                }
+            }
+
+            // 如果無法判斷，顯示提示
+            if (!owner || !repo) {
+                showError("無法自動識別 GitHub 儲存庫。<br>請在程式碼內的 MANUAL_CONFIG 填入你的 GitHub 帳號與 Repo 名稱。");
+                return;
+            }
 
             try {
-                // 嘗試抓取當前目錄的內容（這需要 Web Server 支援並開啟 Directory Listing）
-                const response = await fetch('./');
+                // 3. 呼叫 GitHub API 抓取檔案列表
+                const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/`;
+                const response = await fetch(apiUrl);
+
                 if (!response.ok) {
-                    throw new Error("SERVER_DENIED_DIRECTORY_LISTING");
+                    throw new Error(`GitHub API 回傳錯誤 (${response.status})`);
                 }
 
-                const text = await response.text();
-                
-                // 將伺服器回傳的 HTML 內容解析為 DOM 物件
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(text, 'text/html');
-                
-                // 找出所有超連結
-                const links = Array.from(doc.querySelectorAll('a'));
+                const data = await response.json();
 
-                // 過濾出符合條件的 HTML 檔案
-                let htmlFiles = links
-                    .map(a => a.getAttribute('href'))
-                    .filter(href => {
-                        return href && 
-                               href.toLowerCase().endsWith('.html') && // 必須是 .html
-                               href !== currentFile &&                 // 排除自己
-                               !href.includes('/') &&                  // 排除子目錄中的檔案
-                               !href.startsWith('http');               // 排除外部連結
-                    });
+                // 4. 過濾出 .html 檔案且排除自己
+                const htmlFiles = data
+                    .filter(item => 
+                        item.type === 'file' && 
+                        item.name.toLowerCase().endsWith('.html') && 
+                        item.name.toLowerCase() !== currentFile
+                    )
+                    .map(item => item.name);
 
-                // 移除陣列中重複的項目（以防伺服器回傳格式導致重複抓取）
-                htmlFiles = [...new Set(htmlFiles)];
-
-                // 清空載入中訊息
+                // 5. 渲染列表
                 fileList.innerHTML = '';
 
                 if (htmlFiles.length === 0) {
@@ -174,13 +194,15 @@
                 }
 
             } catch (error) {
-                console.error("Directory fetch error:", error);
+                console.error("GitHub API Error:", error);
+                showError(`無法讀取 GitHub 目錄清單。<br><br>錯誤訊息: ${error.message}`);
+            }
+
+            function showError(msg) {
                 fileList.innerHTML = `
                     <div class="error-msg">
                         [ SYSTEM ERROR ]<br><br>
-                        無法讀取目錄清單。<br><br>
-                        原因：靜態單一檔案在本地端直接開啟 (file:///) 時，無法存取資料夾內容。<br><br>
-                        解決方案：請將此檔案放於 Web Server (如 Live Server, Python http.server, PHP server) 運行。
+                        ${msg}
                     </div>
                 `;
             }
