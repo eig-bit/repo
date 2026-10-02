@@ -1,212 +1,588 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>8-bit</title>
-    <!-- 引入 Google 復古 8-bit 字體 -->
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #000000;
-            --text-color: #33ff33;
-            --hover-bg: #33ff33;
-            --hover-text: #000000;
-            --border-color: #33ff33;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>8-bit</title>
+<script>document.documentElement.className='js';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* ============ 基礎 ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#FFF1E8; --dim:#83769C; --navy:#1D2B53;
+  --blue:#29ADFF; --green:#00E436; --yellow:#FFEC27;
+  --red:#FF004D; --orange:#FFA300; --pink:#FF77A8; --plum:#7E2553;
+}
+html{scroll-behavior:smooth}
+body{
+  background:#08080f;
+  background-image:
+    linear-gradient(rgba(41,173,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(41,173,255,.045) 1px, transparent 1px);
+  background-size:34px 34px;
+  color:var(--ink);
+  font-family:'VT323','Courier New',monospace;
+  font-size:clamp(18px,2.4vw,22px);
+  line-height:1.45;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+html.js body.booting{overflow:hidden}
+::selection{background:var(--yellow);color:#000}
+::-webkit-scrollbar{width:14px}
+::-webkit-scrollbar-track{background:#08080f;border-left:3px solid var(--navy)}
+::-webkit-scrollbar-thumb{background:var(--navy);border:3px solid #08080f;box-shadow:inset 0 0 0 2px var(--dim)}
+button{font:inherit;color:inherit}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Press Start 2P', monospace;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
+/* ============ CRT 覆蓋層 ============ */
+.scanlines{position:fixed;inset:0;z-index:60;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+.roll{position:fixed;left:0;right:0;top:0;height:130px;z-index:60;pointer-events:none;
+  background:linear-gradient(transparent, rgba(255,255,255,.035), transparent);
+  animation:roll 7s linear infinite}
+@keyframes roll{from{transform:translateY(-140px)}to{transform:translateY(100vh)}}
+.vignette{position:fixed;inset:0;z-index:61;pointer-events:none;
+  background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.5) 100%)}
+#stars{position:fixed;inset:0;z-index:1;pointer-events:none}
+#fx{position:fixed;inset:0;z-index:80;pointer-events:none}
+#fx .px{position:fixed;width:8px;height:8px}
 
-        h1 {
-            text-align: center;
-            font-size: clamp(1.5rem, 5vw, 3rem);
-            margin-bottom: 40px;
-            text-transform: uppercase;
-            text-shadow: 2px 2px 0px #005500;
-        }
+/* ============ HUD ============ */
+.hud{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;
+  gap:6px 26px;padding:10px 18px;background:#05050c;border-bottom:4px solid var(--yellow);
+  font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:1px;color:var(--dim)}
+.hud b{display:block;font-weight:normal;font-size:11px;margin-top:6px;color:var(--ink)}
+#score{color:var(--green)} #hiscore{color:var(--pink)} #clock{color:var(--blue)}
+.hearts{display:inline-flex;gap:16px;padding:6px 22px 18px 2px}
+.heart{width:3px;height:3px;background:transparent}
 
-        h1::after {
-            content: '_';
-            animation: blink 1s step-end infinite;
-        }
+/* ============ 跑馬燈 ============ */
+.marquee{overflow:hidden;background:var(--yellow);border-bottom:4px solid #000;position:relative;z-index:2}
+.mq-track{display:flex;width:max-content;animation:mq 22s linear infinite}
+.mq-track span{white-space:nowrap;padding:8px 0;font-family:'Press Start 2P',monospace;
+  font-size:10px;letter-spacing:1px;color:#000}
+@keyframes mq{to{transform:translateX(-50%)}}
 
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
+/* ============ 主區域 ============ */
+main{position:relative;z-index:2;max-width:900px;margin:0 auto;padding:36px 18px 64px;
+  animation:flick 9s steps(1) infinite}
+@keyframes flick{0%,90%,94%,100%{opacity:1}92%{opacity:.86}}
+.title{text-align:center;margin:8px 0 32px}
+.kicker{font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:2px;color:var(--blue)}
+h1.logo{font-family:'Press Start 2P',monospace;font-size:clamp(44px,11vw,96px);color:var(--yellow);
+  margin:20px 0 12px;text-shadow:4px 4px 0 var(--red), 8px 8px 0 var(--plum);
+  animation:glitch 6s steps(1,end) infinite}
+@keyframes glitch{0%,88%,100%{transform:none}89%{transform:translate(3px,-2px) skewX(4deg)}
+  91%{transform:translate(-3px,1px)}93%{transform:translate(1px,0) skewX(-2deg)}}
+.tagline{color:var(--dim);letter-spacing:2px;font-size:clamp(18px,2.6vw,24px)}
+.press{margin-top:18px;font-family:'Press Start 2P',monospace;font-size:clamp(10px,1.8vw,13px);
+  color:var(--green);cursor:pointer}
+.blink{animation:blink 1s steps(2,start) infinite}
+@keyframes blink{50%{opacity:0}}
 
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: #111;
-            border: 4px solid var(--border-color);
-            padding: 20px;
-            box-shadow: 8px 8px 0px #222;
-        }
+/* ============ 面板 ============ */
+.panel-wrap{filter:drop-shadow(10px 10px 0 rgba(0,0,0,.55));animation:rise .5s steps(6) both .1s}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+.panel{background:#101024;border:4px solid var(--ink);
+  clip-path:polygon(0 10px,10px 10px,10px 0,calc(100% - 10px) 0,calc(100% - 10px) 10px,100% 10px,
+   100% calc(100% - 10px),calc(100% - 10px) calc(100% - 10px),calc(100% - 10px) 100%,
+   10px 100%,10px calc(100% - 10px),0 calc(100% - 10px))}
+.panel-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+  padding:14px 16px;border-bottom:4px dashed rgba(255,241,232,.25);
+  font-family:'Press Start 2P',monospace;font-size:10px}
+#statusLine.load{color:var(--yellow)} #statusLine.ok{color:var(--green)} #statusLine.err{color:var(--red)}
+.cursor{color:var(--yellow)}
+.chip{background:var(--navy);border:2px solid var(--blue);color:var(--blue);padding:5px 8px}
 
-        .sys-msg {
-            font-size: 0.8rem;
-            line-height: 1.5;
-            margin-bottom: 20px;
-            color: #ccc;
-        }
+/* ============ 關卡清單 ============ */
+.stages{list-style:none}
+.stage a{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;
+  padding:14px 18px;border-bottom:2px dashed rgba(255,241,232,.16);
+  color:var(--ink);text-decoration:none;
+  transition:transform .12s steps(2), background-color .12s steps(2);
+  animation:pop .35s steps(5) backwards;animation-delay:calc(var(--i)*50ms)}
+@keyframes pop{from{opacity:0;transform:translateX(-14px)}}
+.stage:last-child a{border-bottom:0}
+.num{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--blue);
+  background:#06060f;border:2px solid var(--navy);padding:7px}
+.name b{display:block;font-weight:normal;font-size:clamp(22px,3vw,28px);letter-spacing:1px;
+  text-transform:uppercase;line-height:1.1}
+.name small{display:block;color:var(--dim);font-size:16px;letter-spacing:1px;margin-top:3px}
+.go{font-size:18px;color:var(--yellow);opacity:0;transition:opacity .1s steps(2)}
+.stage a:hover,.stage.sel a{background:var(--blue);transform:translateX(10px)}
+.stage a:hover .name b,.stage.sel a .name b{color:#02121f}
+.stage a:hover .name small,.stage.sel a .name small{color:rgba(2,18,31,.75)}
+.stage a:hover .num,.stage.sel a .num{color:#02121f;border-color:#02121f;background:transparent}
+.stage a:hover .go,.stage.sel a .go{opacity:1;animation:blink .8s steps(2,start) infinite}
+.stage a:focus-visible{outline:3px dashed var(--yellow);outline-offset:-8px}
 
-        ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
+/* ============ 狀態盒 ============ */
+.statebox{padding:36px 22px;text-align:center}
+.statebox h2{font-family:'Press Start 2P',monospace;font-size:14px;margin:16px 0 12px;color:var(--ink)}
+.statebox.errbox h2{color:var(--red)}
+.statebox p{max-width:58ch;margin:6px auto}
+.statebox .dim{color:var(--dim);font-size:18px}
+.statebox code{background:#06060f;border:2px solid var(--navy);padding:2px 8px;color:var(--green);font-size:18px}
+.sprite{display:inline-block;animation:floaty 2.2s steps(4) infinite}
+@keyframes floaty{50%{transform:translateY(-8px)}}
+.noscript{padding:20px;color:var(--red);font-size:20px}
 
-        li {
-            margin-bottom: 15px;
-        }
+/* ============ 按鈕 / 頁尾 ============ */
+.pxbtn{font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;
+  background:var(--navy);color:var(--ink);border:3px solid var(--ink);padding:12px 16px;
+  box-shadow:4px 4px 0 #000;transition:transform .08s steps(2)}
+.pxbtn:hover{background:#26386b;color:var(--yellow)}
+.pxbtn:active{transform:translate(4px,4px);box-shadow:none}
+.pxbtn:focus-visible{outline:3px dashed var(--yellow);outline-offset:2px}
+.pxbtn.muted{color:var(--dim);border-color:var(--dim)}
+.hud .pxbtn{padding:8px 10px;font-size:8px;box-shadow:3px 3px 0 #000}
+footer{position:relative;z-index:2;text-align:center;display:grid;gap:16px;justify-items:center;
+  padding:0 18px 70px}
+.keys{color:var(--dim);font-size:17px;letter-spacing:1px}
+.copy{color:#4a4a66;font-size:16px}
+#coins{color:var(--yellow)}
 
-        a {
-            display: block;
-            color: var(--text-color);
-            text-decoration: none;
-            padding: 15px;
-            border: 2px dashed var(--border-color);
-            font-size: clamp(0.7rem, 2.5vw, 1rem);
-            word-break: break-all;
-            transition: all 0.1s ease-in-out;
-            text-transform: lowercase;
-        }
+/* ============ 開機畫面 ============ */
+#boot{display:none}
+html.js #boot{display:flex;position:fixed;inset:0;z-index:90;background:#020208;
+  flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity .45s steps(6)}
+#boot.off{opacity:0;pointer-events:none}
+#bootText{font-family:'VT323',monospace;font-size:clamp(18px,3vw,24px);color:var(--green);
+  white-space:pre;min-height:17rem;text-shadow:0 0 8px rgba(0,228,54,.45)}
 
-        a:hover {
-            background-color: var(--hover-bg);
-            color: var(--hover-text);
-            border-style: solid;
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0px #222;
-        }
-
-        .error-msg {
-            color: #ff3333;
-            font-size: 0.8rem;
-            line-height: 1.8;
-            border: 2px solid #ff3333;
-            padding: 15px;
-        }
-    </style>
+/* ============ 響應式 / 動能偏好 ============ */
+@media (max-width:640px){
+  .hud{gap:4px 14px;padding:8px 10px;font-size:8px}
+  .hud b{font-size:9px}
+  .stage a{gap:10px;padding:12px}
+  .name small{font-size:14px}
+}
+@media (max-width:460px){ .hud .opt{display:none} }
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001s !important;animation-iteration-count:1 !important;transition:none !important}
+}
+</style>
 </head>
-<body>
+<body class="booting">
 
-    <h1>8-bit_</h1>
+<canvas id="stars" aria-hidden="true"></canvas>
 
-    <div class="container">
-        <div class="sys-msg">
-            > CONNECTING TO GITHUB API...<br>
-            > FETCHING REPOSITORY CONTENTS...
-        </div>
-        <ul id="file-list">
-            <li class="sys-msg" id="loading-msg">> LOADING...</li>
-        </ul>
-    </div>
+<!-- 開機畫面 -->
+<div id="boot" aria-hidden="true">
+  <pre id="bootText"></pre>
+  <p class="press blink">▶ PRESS START ◀</p>
+</div>
 
-    <script>
-        // ==========================================
-        // 設定區（選填）
-        // 如果網頁使用了自訂網域 (Custom Domain)，請手動填寫以下兩個值：
-        const MANUAL_CONFIG = {
-            owner: "", // 例如 "your-github-username"
-            repo: ""   // 例如 "your-repo-name"
-        };
-        // ==========================================
+<!-- HUD -->
+<header class="hud">
+  <div>1UP<b id="score">000000</b></div>
+  <div>HI-SCORE<b id="hiscore">010000</b></div>
+  <div>LIVES<b class="hearts" id="lives"></b></div>
+  <div class="opt">TIME<b id="clock">--:--</b></div>
+  <button class="pxbtn" id="sndBtn" aria-pressed="true">♪ ON</button>
+</header>
 
-        document.addEventListener("DOMContentLoaded", async () => {
-            const fileList = document.getElementById('file-list');
+<!-- 跑馬燈 -->
+<div class="marquee" aria-hidden="true">
+  <div class="mq-track">
+    <span>★ 8-BIT DIRECTORY CART ★ INSERT COIN ★ SELECT YOUR STAGE ★ 目前目錄網頁一覽 ★ NO CONTINUES ★&nbsp;</span>
+    <span>★ 8-BIT DIRECTORY CART ★ INSERT COIN ★ SELECT YOUR STAGE ★ 目前目錄網頁一覽 ★ NO CONTINUES ★&nbsp;</span>
+  </div>
+</div>
 
-            // 1. 取得當前網頁檔名（用於過濾排除自己）
-            const currentPath = window.location.pathname;
-            let currentFile = currentPath.split('/').pop().toLowerCase();
-            if (!currentFile || !currentFile.endsWith('.html')) {
-                currentFile = 'index.html';
-            }
+<main data-app="8bit-index">
+  <section class="title">
+    <p class="kicker">★ NOW LOADING ‧ 目錄索引機台 ★</p>
+    <h1 class="logo">8-BIT</h1>
+    <p class="tagline">SELECT STAGE ‧ 選擇要進入的網頁</p>
+    <p class="press blink" id="pressStart">▶ PRESS START ◀</p>
+  </section>
 
-            // 2. 自動判斷 GitHub 帳號與 Repository 名稱
-            let owner = MANUAL_CONFIG.owner;
-            let repo = MANUAL_CONFIG.repo;
+  <div class="panel-wrap">
+    <section class="panel" aria-label="網頁清單">
+      <div class="panel-head">
+        <span><span id="statusLine" class="load" aria-live="polite">BOOTING</span> <span class="cursor blink">▮</span></span>
+        <span class="chip" id="countChip"></span>
+      </div>
+      <noscript><div class="noscript">⚠ 此頁需要 JavaScript 才能掃描目錄。請啟用 JavaScript；或在原始碼的 MANUAL_LIST 手動填入要顯示的網頁。</div></noscript>
+      <ul id="list" class="stages"></ul>
+      <div id="stateBox" class="statebox" hidden></div>
+    </section>
+  </div>
+</main>
 
-            if (!owner || !repo) {
-                const host = window.location.hostname; // 例如 username.github.io
-                const pathSegments = currentPath.split('/').filter(p => p && !p.endsWith('.html'));
+<footer>
+  <button class="pxbtn" id="coinBtn">INSERT COIN ×<span id="coins">0</span></button>
+  <p class="keys">↑↓ / J K 選擇 ‧ ENTER 進入 ‧ M 音效開關</p>
+  <p class="copy">© 1986–2026 8-BIT INDEX ‧ POWERED BY PIXELS</p>
+</footer>
 
-                if (host.endsWith('.github.io')) {
-                    owner = host.split('.')[0];
-                    // 如果網址是 username.github.io/repo-name/，repo 就是第一個路徑片段
-                    // 如果網址是 username.github.io/，repo 名稱預設就是 username.github.io
-                    repo = pathSegments[0] || `${owner}.github.io`;
-                }
-            }
+<div class="scanlines" aria-hidden="true"></div>
+<div class="roll" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div id="fx" aria-hidden="true"></div>
 
-            // 如果無法判斷，顯示提示
-            if (!owner || !repo) {
-                showError("無法自動識別 GitHub 儲存庫。<br>請在程式碼內的 MANUAL_CONFIG 填入你的 GitHub 帳號與 Repo 名稱。");
-                return;
-            }
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-            try {
-                // 3. 呼叫 GitHub API 抓取檔案列表
-                const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/`;
-                const response = await fetch(apiUrl);
+/* =====================================================================
+   設定區：自動掃描失敗時（例如用 file:// 直接開啟、或本頁被當成目錄首頁），
+   可在下方手動填入要顯示的網頁檔名，會直接採用此清單：
+   ===================================================================== */
+const MANUAL_LIST = [
+  // 'about.html',
+  // 'gallery.html',
+];
 
-                if (!response.ok) {
-                    throw new Error(`GitHub API 回傳錯誤 (${response.status})`);
-                }
+const SELF = (function(){ try{ return decodeURIComponent(location.pathname.split('/').pop() || ''); }catch(e){ return ''; } })();
 
-                const data = await response.json();
+/* ============ 音效（WebAudio 方波） ============ */
+let actx = null;
+let soundOn = (function(){ try{ return localStorage.getItem('bit8.sound') !== '0'; }catch(e){ return true; } })();
+function beep(f, d, t, v, type){
+  if(!soundOn) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if(actx.state === 'suspended') actx.resume();
+    d = d || .07; t = t || 0; v = v || .05; type = type || 'square';
+    const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + t;
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(v, t0);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+    o.connect(g).connect(actx.destination);
+    o.start(t0); o.stop(t0 + d + .02);
+  }catch(e){}
+}
+const sfx = {
+  move : () => beep(740,.045),
+  ok   : () => { beep(660,.06); beep(990,.09,.06); },
+  coin : () => { beep(987.77,.08,0,.06); beep(1318.5,.22,.08,.06); },
+  start: () => [523,659,784,1047].forEach((f,i)=>beep(f,.09,i*.08)),
+};
 
-                // 4. 過濾出 .html 檔案且排除自己
-                const htmlFiles = data
-                    .filter(item => 
-                        item.type === 'file' && 
-                        item.name.toLowerCase().endsWith('.html') && 
-                        item.name.toLowerCase() !== currentFile
-                    )
-                    .map(item => item.name);
+/* ============ 像素點陣圖 ============ */
+const INV = [
+'00100000100',
+'00010001000',
+'00111111100',
+'01101110110',
+'11111111111',
+'10111111101',
+'10100000101',
+'00011011000'];
+const HEART = [
+'0110110',
+'1111111',
+'1111111',
+'0111110',
+'0011100',
+'0001000'];
+function shadow(pat, px, color){
+  const s = [];
+  pat.forEach((row,y)=>{ [...row].forEach((c,x)=>{ if(c==='1') s.push((x*px)+'px '+(y*px)+'px 0 '+color); }); });
+  return s.join(',');
+}
+function mountSprite(container, pat, px, color){
+  container.style.width  = (pat[0].length*px)+'px';
+  container.style.height = (pat.length*px)+'px';
+  container.style.position = 'relative';
+  const d = document.createElement('div');
+  d.style.cssText = 'position:absolute;left:0;top:0;width:'+px+'px;height:'+px+'px;box-shadow:'+shadow(pat,px,color);
+  container.appendChild(d);
+}
+/* 生命愛心 */
+(function(){
+  const box = $('#lives');
+  for(let i=0;i<3;i++){
+    const h = document.createElement('span');
+    h.className = 'heart';
+    h.style.boxShadow = shadow(HEART,3,'#FF004D');
+    box.appendChild(h);
+  }
+})();
+/* favicon：像素侵略者 */
+(function(){
+  const cv = document.createElement('canvas'); cv.width = 22; cv.height = 16;
+  const c = cv.getContext('2d'); c.fillStyle = '#00E436';
+  INV.forEach((row,y)=>{ [...row].forEach((ch,x)=>{ if(ch==='1') c.fillRect(x*2,y*2,2,2); }); });
+  const l = document.createElement('link'); l.rel = 'icon'; l.href = cv.toDataURL();
+  document.head.appendChild(l);
+})();
 
-                // 5. 渲染列表
-                fileList.innerHTML = '';
+/* ============ 星空背景 ============ */
+(function(){
+  const cv = $('#stars'), cx = cv.getContext('2d');
+  const COLS = ['#FFF1E8','#29ADFF','#FFEC27','#FF77A8','#83769C'];
+  let stars = [];
+  function size(){
+    cv.width = innerWidth; cv.height = innerHeight;
+    stars = Array.from({length: Math.min(140, innerWidth*innerHeight/9000 | 0)}, () => ({
+      x: Math.random()*cv.width|0, y: Math.random()*cv.height|0,
+      s: Math.random()<.7 ? 2 : (Math.random()<.5 ? 3 : 4),
+      v: .15 + Math.random()*.5,
+      c: COLS[Math.random()*COLS.length|0],
+      p: Math.random()*6.28
+    }));
+  }
+  function draw(t){
+    cx.clearRect(0,0,cv.width,cv.height);
+    for(const st of stars){
+      cx.globalAlpha = .35 + .65*Math.abs(Math.sin(t*.0012 + st.p));
+      cx.fillStyle = st.c;
+      cx.fillRect(st.x, st.y, st.s, st.s);
+      st.y += st.v; if(st.y > cv.height){ st.y = -4; st.x = Math.random()*cv.width|0; }
+    }
+    cx.globalAlpha = 1;
+  }
+  size(); addEventListener('resize', size);
+  if(REDUCED){ draw(0); } else { (function loop(t){ draw(t||0); requestAnimationFrame(loop); })(0); }
+})();
 
-                if (htmlFiles.length === 0) {
-                    fileList.innerHTML = '<li class="sys-msg">> NO OTHER HTML FILES DETECTED.</li>';
-                } else {
-                    htmlFiles.forEach(file => {
-                        const li = document.createElement('li');
-                        const a = document.createElement('a');
-                        a.href = file;
-                        a.textContent = `> ${file}`;
-                        li.appendChild(a);
-                        fileList.appendChild(li);
-                    });
-                }
+/* ============ HUD：分數 / 時間 ============ */
+const pad6 = n => String(n).padStart(6,'0');
+let score = 0, hi = 10000;
+setInterval(()=>{
+  score += 10; if(score > hi) hi = score;
+  $('#score').textContent = pad6(score);
+  $('#hiscore').textContent = pad6(hi);
+},1000);
+function tick(){
+  const d = new Date();
+  $('#clock').textContent = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+tick(); setInterval(tick,1000);
 
-            } catch (error) {
-                console.error("GitHub API Error:", error);
-                showError(`無法讀取 GitHub 目錄清單。<br><br>錯誤訊息: ${error.message}`);
-            }
+/* ============ 投幣 ============ */
+let coinCount = 0;
+try{ coinCount = parseInt(localStorage.getItem('bit8.coins')||'0',10)||0; }catch(e){}
+$('#coins').textContent = coinCount;
+$('#coinBtn').addEventListener('click', function(){
+  coinCount++; $('#coins').textContent = coinCount;
+  try{ localStorage.setItem('bit8.coins', coinCount); }catch(e){}
+  sfx.coin();
+  const r = this.getBoundingClientRect();
+  burst(r.left + r.width/2, r.top + r.height/2);
+});
 
-            function showError(msg) {
-                fileList.innerHTML = `
-                    <div class="error-msg">
-                        [ SYSTEM ERROR ]<br><br>
-                        ${msg}
-                    </div>
-                `;
-            }
-        });
-    </script>
+/* ============ 音效開關 ============ */
+const sndBtn = $('#sndBtn');
+function paintSound(){
+  sndBtn.textContent = soundOn ? '♪ ON' : '♪ OFF';
+  sndBtn.setAttribute('aria-pressed', soundOn);
+  sndBtn.classList.toggle('muted', !soundOn);
+}
+function toggleSound(){
+  soundOn = !soundOn;
+  try{ localStorage.setItem('bit8.sound', soundOn ? '1' : '0'); }catch(e){}
+  paintSound();
+  if(soundOn) beep(880,.05);
+}
+sndBtn.addEventListener('click', toggleSound);
+paintSound();
+
+/* ============ 像素粒子 ============ */
+function burst(x,y){
+  if(REDUCED) return;
+  const layer = $('#fx');
+  const cols = ['#FFEC27','#FF004D','#00E436','#29ADFF','#FF77A8','#FFA300'];
+  for(let i=0;i<24;i++){
+    const p = document.createElement('i');
+    p.className = 'px';
+    p.style.background = cols[i%cols.length];
+    p.style.left = x+'px'; p.style.top = y+'px';
+    layer.appendChild(p);
+    const ang = Math.random()*Math.PI*2, dist = 60 + Math.random()*160;
+    const dx = Math.cos(ang)*dist, dy = Math.sin(ang)*dist - 40;
+    p.animate(
+      [{transform:'translate(-50%,-50%)',opacity:1},
+       {transform:'translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))',opacity:0}],
+      {duration:600+Math.random()*300, easing:'steps(7,end)'}
+    ).onfinish = () => p.remove();
+  }
+}
+
+/* ============ 開機畫面 ============ */
+const BOOT_LINES = [
+'8-BIT SYSTEM BIOS  v1.0',
+'COPYRIGHT (C) 1986-2026',
+'',
+'CPU ...... Z80A   OK',
+'RAM ...... 64K    OK',
+'SOUND .... PSG    OK',
+'VIDEO .... CRT    OK',
+'',
+'DIRECTORY SCAN ... READY.'
+];
+const bootEl = $('#boot'), bootText = $('#bootText');
+const fullText = BOOT_LINES.join('\n');
+let bootActive = true, typeTimer = null, bootTimer = null, ti = 0;
+function endBoot(skipped){
+  if(!bootActive) return;
+  bootActive = false;
+  clearInterval(typeTimer); clearTimeout(bootTimer);
+  if(skipped) bootText.textContent = fullText;
+  bootEl.classList.add('off');
+  document.body.classList.remove('booting');
+  setTimeout(()=>bootEl.remove(), 500);
+}
+if(REDUCED){
+  bootText.textContent = fullText;
+  bootTimer = setTimeout(()=>endBoot(false), 800);
+}else{
+  typeTimer = setInterval(()=>{
+    ti += 2;
+    bootText.textContent = fullText.slice(0, ti);
+    if(ti >= fullText.length){
+      clearInterval(typeTimer);
+      bootTimer = setTimeout(()=>endBoot(false), 3000);
+    }
+  }, 14);
+}
+
+/* ============ START ============ */
+let started = false;
+function startGame(){
+  if(started) return;
+  started = true;
+  sfx.start();
+  const r = $('.logo').getBoundingClientRect();
+  burst(r.left + r.width/2, r.top + r.height/2);
+  const ps = $('#pressStart');
+  ps.textContent = '▶ READY ‧ PLAYER 1 ◀';
+  ps.classList.remove('blink');
+}
+addEventListener('pointerdown', ()=>{ endBoot(true); startGame(); });
+
+/* ============ 鍵盤操作 ============ */
+let items = [], sel = 0;
+function setSel(i, withSound, scroll){
+  if(!items.length) return;
+  sel = ((i % items.length) + items.length) % items.length;
+  document.querySelectorAll('#list .stage').forEach((li,idx)=>li.classList.toggle('sel', idx===sel));
+  if(scroll !== false) items[sel].scrollIntoView({block:'nearest'});
+  if(withSound) sfx.move();
+}
+addEventListener('keydown', e=>{
+  if(e.key === 'm' || e.key === 'M'){ toggleSound(); return; }
+  if(bootActive){ endBoot(true); startGame(); return; }
+  if(!started && e.key === 'Enter'){ startGame(); return; }
+  if(!items.length) return;
+  if(e.key === 'ArrowDown' || e.key === 'j'){ e.preventDefault(); setSel(sel+1,true); }
+  else if(e.key === 'ArrowUp' || e.key === 'k'){ e.preventDefault(); setSel(sel-1,true); }
+  else if(e.key === 'Enter'){
+    const ae = document.activeElement;
+    if(ae && (ae.tagName === 'BUTTON' || ae.tagName === 'A')) return;
+    if(items[sel]){ sfx.ok(); items[sel].click(); }
+  }
+});
+
+/* ============ 目錄掃描 ============ */
+async function scanDirectory(){
+  const res = await fetch('./', {cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const selfIndexed = !!doc.querySelector('[data-app="8bit-index"]');
+  const dir = location.pathname.replace(/[^/]*$/,'');
+  const seen = new Set(), out = [];
+  for(const a of doc.querySelectorAll('a[href]')){
+    const raw = a.getAttribute('href');
+    if(!raw) continue;
+    let u; try{ u = new URL(raw, location.href); }catch(e){ continue; }
+    if(!/^https?:$/.test(u.protocol)) continue;
+    if(u.origin !== location.origin) continue;
+    if(u.pathname === location.pathname) continue;              // 自己 / 排序連結等
+    if(u.pathname.replace(/[^/]*$/,'') !== dir) continue;       // 只取同一資料夾
+    let name; try{ name = decodeURIComponent(u.pathname.split('/').pop()); }catch(e){ continue; }
+    if(!/\.html?$/i.test(name)) continue;
+    if(name === SELF) continue;                                 // 排除自己
+    const k = name.toLowerCase();
+    if(seen.has(k)) continue;
+    seen.add(k);
+    out.push({href: encodeURIComponent(name), name: name});
+  }
+  out.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase(), undefined, {numeric:true}));
+  return {files: out, selfIndexed: selfIndexed};
+}
+
+function setStatus(t, cls){
+  const el = $('#statusLine');
+  el.textContent = t;
+  el.className = cls;
+}
+function renderList(files){
+  const ul = $('#list');
+  ul.innerHTML = '';
+  files.forEach((f,i)=>{
+    const li = document.createElement('li');
+    li.className = 'stage';
+    li.style.setProperty('--i', i);
+    const a = document.createElement('a');
+    a.href = f.href;
+    a.innerHTML = '<span class="num">'+String(i+1).padStart(2,'0')+'</span>'
+                + '<span class="name"><b></b><small></small></span>'
+                + '<span class="go">▶</span>';
+    a.querySelector('b').textContent = f.name.replace(/\.html?$/i,'');
+    a.querySelector('small').textContent = f.name;
+    a.addEventListener('mouseenter', ()=>setSel(i,true,false));
+    a.addEventListener('focus', ()=>setSel(i,false,false));
+    li.appendChild(a); ul.appendChild(li);
+  });
+  items = [...ul.querySelectorAll('a')];
+  setSel(0,false,false);
+  $('#countChip').textContent = 'STAGES ×' + String(items.length).padStart(2,'0');
+}
+function showEmpty(selfIndexed){
+  const box = $('#stateBox');
+  $('#countChip').textContent = 'STAGES ×00';
+  box.hidden = false; box.classList.remove('errbox');
+  box.innerHTML = '<div class="sprite" id="inv"></div>'
+    + '<h2>NO STAGES FOUND</h2>'
+    + '<p>目前目錄沒有找到其他 HTML 網頁。</p>'
+    + '<p class="dim">' + (selfIndexed
+        ? '本頁被伺服器當作目錄首頁（例如 index.html），無法自動看到同層檔案。<br>請在原始碼的 <code>MANUAL_LIST</code> 手動加入要顯示的網頁。'
+        : '提示：也可在原始碼的 <code>MANUAL_LIST</code> 手動加入要顯示的網頁。')
+    + '</p>';
+  const inv = document.createElement('div');
+  inv.className = 'sprite';
+  box.insertBefore(inv, box.firstChild);
+  mountSprite(inv, INV, 6, '#00E436');
+}
+function showError(err){
+  const box = $('#stateBox');
+  $('#countChip').textContent = 'STAGES ×00';
+  box.hidden = false; box.className = 'statebox errbox';
+  box.innerHTML = '<h2>⚠ SCAN ERROR</h2>'
+    + '<p>無法取得目錄列表（' + String(err && err.message || 'network').replace(/[<>]/g,'') + '）。</p>'
+    + '<p class="dim">可能是直接以 file:// 開啟，或伺服器未開啟目錄清單。<br>'
+    + '請改用 HTTP 伺服器（例如 <code>python -m http.server</code>），<br>'
+    + '或在原始碼的 <code>MANUAL_LIST</code> 填入網頁檔名。</p>';
+}
+
+(async function init(){
+  setStatus('SCANNING DIRECTORY', 'load');
+  let files = null, selfIndexed = false, err = null;
+  try{
+    const r = await scanDirectory();
+    files = r.files; selfIndexed = r.selfIndexed;
+  }catch(e){ err = e; }
+
+  const manual = MANUAL_LIST.filter(n => n !== SELF).map(n => ({href: encodeURIComponent(n), name: n}));
+
+  if(files && files.length){ renderList(files); setStatus('SCAN COMPLETE', 'ok'); return; }
+  if(manual.length){ renderList(manual); setStatus('MANUAL LIST LOADED', 'ok'); return; }
+  if(!err){ setStatus('SCAN COMPLETE', 'ok'); showEmpty(selfIndexed); return; }
+  setStatus('SCAN FAILED', 'err'); showError(err);
+})();
+})();
+</script>
 </body>
 </html>
