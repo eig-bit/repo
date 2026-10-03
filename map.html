@@ -20,11 +20,7 @@
     --pixel-border: #c8c8d8;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     font-family: 'Courier New', monospace;
@@ -58,11 +54,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     box-shadow: 4px 4px 0 var(--pixel-yellow);
 }
 
-.pixel-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--pixel-accent);
-}
-
+.pixel-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--pixel-accent); }
 .pixel-btn.primary { background: var(--pixel-accent); color: #fff; }
 .pixel-btn.success { background: var(--pixel-green); color: var(--pixel-bg); }
 .pixel-btn.danger { background: #8b1538; color: #fff; }
@@ -85,7 +77,6 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     transition: right 0.25s ease;
 }
 
-/* ★ 側欄摺疊時，工具列延伸到右邊 */
 #toolbar.full { right: 60px; }
 
 #toolbar h1 {
@@ -95,22 +86,10 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     width: 100%;
 }
 
-.btn-group {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-}
+.btn-group { display: flex; gap: 5px; flex-wrap: wrap; }
 
 /* ========== 地圖 ========== */
-#map {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #000;
-    z-index: 1;
-}
+#map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1; }
 
 /* ========== 側邊欄 ========== */
 #sidebar {
@@ -128,14 +107,9 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     transition: transform 0.25s ease;
 }
 
-/* ★ 摺疊狀態：往右滑出，只露出切換鈕 */
-#sidebar.collapsed {
-    transform: translateX(calc(100% - 46px));
-}
-
+#sidebar.collapsed { transform: translateX(calc(100% - 46px)); }
 #sidebar.collapsed .sidebar-header h2 { opacity: 0; }
 
-/* ★ 摺疊/展開切換鈕 */
 #sidebar-toggle {
     position: absolute;
     left: -42px;
@@ -150,15 +124,9 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     font-size: 11px;
     cursor: pointer;
     z-index: 10;
-    transition: background 0.15s;
 }
 
-#sidebar-toggle:hover {
-    background: var(--pixel-yellow);
-    color: var(--pixel-bg);
-}
-
-#sidebar-toggle:active { transform: translate(-1px, 1px); }
+#sidebar-toggle:hover { background: var(--pixel-yellow); color: var(--pixel-bg); }
 
 .sidebar-header {
     padding: 12px;
@@ -167,10 +135,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     transition: opacity 0.2s;
 }
 
-.sidebar-header h2 {
-    font-size: 11px;
-    color: var(--pixel-yellow);
-}
+.sidebar-header h2 { font-size: 11px; color: var(--pixel-yellow); }
 
 .sidebar-tabs { display: flex; border-bottom: 2px solid var(--pixel-accent); }
 
@@ -188,15 +153,51 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 .tab-btn:last-child { border-right: none; }
 .tab-btn.active { background: var(--pixel-accent); color: #fff; }
 
-.sidebar-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
+.sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
 
 .sidebar-content::-webkit-scrollbar { width: 8px; }
 .sidebar-content::-webkit-scrollbar-track { background: var(--pixel-bg); }
 .sidebar-content::-webkit-scrollbar-thumb { background: var(--pixel-accent); }
+
+/* ========== 類型篩選列 ========== */
+.filter-bar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 8px;
+    border: 2px solid var(--pixel-border);
+    background: var(--pixel-bg);
+    margin-bottom: 10px;
+}
+
+.filter-chip {
+    background: var(--pixel-panel);
+    border: 2px solid var(--pixel-border);
+    color: var(--pixel-border);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.1s;
+}
+
+.filter-chip:hover { border-color: var(--pixel-yellow); }
+
+.filter-chip.active {
+    background: var(--pixel-yellow);
+    color: var(--pixel-bg);
+    border-color: var(--pixel-accent);
+}
+
+.filter-dot {
+    width: 8px;
+    height: 8px;
+    display: inline-block;
+    border: 1px solid #fff;
+}
 
 /* ========== 場所列表項 ========== */
 .marker-item {
@@ -208,10 +209,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     transition: all 0.15s;
 }
 
-.marker-item:hover {
-    border-color: var(--pixel-yellow);
-    transform: translateX(-3px);
-}
+.marker-item:hover { border-color: var(--pixel-yellow); transform: translateX(-3px); }
 
 .marker-item-title {
     font-family: 'Press Start 2P', monospace;
@@ -224,22 +222,12 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 .marker-item-coords { font-size: 10px; color: var(--pixel-green); margin-bottom: 4px; }
 .marker-item-desc { font-size: 11px; line-height: 1.4; }
 .marker-item-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
-
-.marker-item-actions .pixel-btn {
-    font-size: 7px;
-    padding: 4px 6px;
-    box-shadow: 2px 2px 0 var(--pixel-accent);
-}
+.marker-item-actions .pixel-btn { font-size: 7px; padding: 4px 6px; box-shadow: 2px 2px 0 var(--pixel-accent); }
 
 /* ========== 表單 ========== */
 .form-group { margin-bottom: 12px; }
 
-.form-label {
-    display: block;
-    font-size: 8px;
-    color: var(--pixel-yellow);
-    margin-bottom: 4px;
-}
+.form-label { display: block; font-size: 8px; color: var(--pixel-yellow); margin-bottom: 4px; }
 
 .form-input {
     width: 100%;
@@ -252,6 +240,8 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 }
 
 .form-input:focus { outline: none; border-color: var(--pixel-yellow); }
+
+input[type="color"].form-input { padding: 2px; height: 40px; cursor: pointer; }
 
 /* ========== 彈窗 ========== */
 .modal-overlay {
@@ -291,6 +281,29 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 .modal-content { margin-bottom: 16px; line-height: 1.8; font-size: 12px; }
 .modal-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
+/* ========== 類型管理列表 ========== */
+.type-item {
+    background: var(--pixel-bg);
+    border: 2px solid var(--pixel-border);
+    padding: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.type-color-box {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #fff;
+    flex-shrink: 0;
+}
+
+.type-name { flex: 1; font-size: 12px; word-break: break-all; }
+.type-count { font-size: 10px; color: var(--pixel-green); }
+
+.type-item .pixel-btn { font-size: 7px; padding: 4px 6px; box-shadow: 2px 2px 0 var(--pixel-accent); }
+
 /* ========== Leaflet 像素化樣式 ========== */
 .leaflet-popup-content-wrapper {
     background: var(--pixel-panel) !important;
@@ -301,11 +314,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 }
 
 .leaflet-popup-tip { background: var(--pixel-border) !important; }
-
-.leaflet-popup-content {
-    margin: 12px 14px !important;
-    font-family: 'Courier New', monospace !important;
-}
+.leaflet-popup-content { margin: 12px 14px !important; font-family: 'Courier New', monospace !important; }
 
 .popup-title {
     font-family: 'Press Start 2P', monospace;
@@ -381,13 +390,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 
 #a2hs-prompt.active { display: block; }
 
-.a2hs-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    color: var(--pixel-yellow);
-    margin-bottom: 8px;
-}
-
+.a2hs-title { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--pixel-yellow); margin-bottom: 8px; }
 .a2hs-text { font-size: 11px; line-height: 1.6; margin-bottom: 10px; }
 .a2hs-text strong { color: var(--pixel-green); }
 .a2hs-actions { display: flex; gap: 6px; }
@@ -423,31 +426,17 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     padding-bottom: 4px;
 }
 
-.info-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    padding: 3px 0;
-}
-
+.info-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; }
 .info-row .k { color: var(--pixel-green); }
-.info-row .v { color: var(--pixel-border); text-align: right; }
-
+.info-row .v { text-align: right; }
 .info-text { font-size: 11px; line-height: 1.7; }
 .info-text strong { color: var(--pixel-yellow); }
 
 /* ========== 響應式 ========== */
 @media (max-width: 768px) {
-    #toolbar {
-        right: 10px;
-        padding: 6px;
-        right: 10px;
-    }
-
+    #toolbar { right: 10px; padding: 6px; }
     #toolbar.full { right: 10px; }
-
     #toolbar h1 { font-size: 8px; }
-
     .pixel-btn { padding: 6px 7px; font-size: 7px; box-shadow: 2px 2px 0 var(--pixel-accent); }
 
     #sidebar {
@@ -459,14 +448,9 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
         max-height: 42vh;
     }
 
-    /* ★ 行動版摺疊：往下收，只露出頂部一條 */
-    #sidebar.collapsed {
-        transform: translateY(calc(100% - 46px));
-    }
-
+    #sidebar.collapsed { transform: translateY(calc(100% - 46px)); }
     #sidebar.collapsed .sidebar-header h2 { opacity: 1; }
 
-    /* ★ 行動版切換鈕：移到側欄頂部右側 */
     #sidebar-toggle {
         left: auto;
         right: 6px;
@@ -480,7 +464,6 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     .sidebar-header { padding: 8px; padding-right: 44px; }
     .sidebar-header h2 { font-size: 9px; }
     .tab-btn { font-size: 7px; padding: 6px 2px; }
-
     .leaflet-control-zoom a { width: 32px !important; height: 32px !important; line-height: 30px !important; }
 
     #a2hs-prompt {
@@ -491,7 +474,6 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
         transition: bottom 0.25s ease;
     }
 
-    /* ★ 側欄摺疊時 A2HS 提示位置跟著調整 */
     #a2hs-prompt.raised { bottom: 66px; }
 }
 </style>
@@ -505,6 +487,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
         <button class="pixel-btn" onclick="addMarkerMode()">➕新增</button>
         <button class="pixel-btn" onclick="locateUser()">📍定位</button>
         <button class="pixel-btn" onclick="toggleLayer()">🗺️圖層</button>
+        <button class="pixel-btn" onclick="openTypeManager()">🏷️類型</button>
         <button class="pixel-btn" onclick="exportJSON()">⬇匯出</button>
         <button class="pixel-btn" onclick="document.getElementById('import-file').click()">⬆匯入</button>
         <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importJSON(event)">
@@ -515,7 +498,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 <!-- 地圖 -->
 <div id="map"></div>
 
-<!-- 側邊欄（含摺疊切換鈕） -->
+<!-- 側邊欄 -->
 <div id="sidebar">
     <button id="sidebar-toggle" onclick="toggleSidebar()" title="摺疊/展開">▶</button>
     <div class="sidebar-header">
@@ -549,40 +532,39 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
                 <div class="info-text">
                     使用 <strong>Leaflet.js v1.9.4</strong> 開源地圖庫，以 Canvas 模式渲染（<strong>preferCanvas</strong>），
                     提升大量標記時的繪製效能。瓦片來源採用 <strong>OpenStreetMap</strong> 與 <strong>CARTO</strong>，
-                    共四種圖層可循環切換（街道 / 暗黑 / 明亮 / 地形）。
+                    共四種圖層可循環切換。
                 </div>
             </div>
             <div class="info-section">
                 <div class="info-title">資料儲存</div>
                 <div class="info-text">
-                    場所資料儲存於 <strong>IndexedDB</strong>（物件儲存庫名稱：markers），
-                    支援索引查詢（lat / lng / type / name）。啟動時呼叫
-                    <strong>navigator.storage.persist()</strong> 申請<strong>持久化儲存</strong>，
-                    防止瀏覽器在儲存空間不足時自動清除資料。
+                    場所與<strong>類型</strong>資料皆儲存於 <strong>IndexedDB</strong>
+                    （markers 與 types 兩個物件儲存庫）。類型支援自訂名稱與顏色，
+                    標記圖示會即時套用類型顏色。啟動時呼叫
+                    <strong>navigator.storage.persist()</strong> 申請<strong>持久化儲存</strong>。
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="info-title">篩選與管理</div>
+                <div class="info-text">
+                    「場所列表」提供<strong>類型篩選</strong>（可單選類型或顯示全部）。
+                    工具列「🏷️類型」開啟<strong>類型管理</strong>：
+                    可新增、編輯、刪除類型；刪除類型時，其所屬場所會自動改歸第一個類型。
                 </div>
             </div>
             <div class="info-section">
                 <div class="info-title">匯入 / 匯出</div>
                 <div class="info-text">
-                    以 <strong>JSON</strong> 格式匯出全部場所（含版本號與匯出時間），
-                    匯入時自動驗證格式並重編 ID，避免主鍵衝突。適合備份與跨裝置搬移。
-                </div>
-            </div>
-            <div class="info-section">
-                <div class="info-title">響應式設計</div>
-                <div class="info-text">
-                    採用 <strong>流體佈局 + 媒體查詢</strong>（768px 斷點）：
-                    桌面版為「地圖 + 右側欄」，行動版側欄改為底部抽屜，
-                    兩者皆支援<strong>摺疊/展開</strong>（狀態以 localStorage 記憶），
-                    並自動調整縮放級別與控制項大小，支援觸控手勢。
+                    以 <strong>JSON</strong> 格式匯出全部場所與類型（含版本號與匯出時間），
+                    匯入時自動驗證格式、補齊缺失類型並重編 ID。
                 </div>
             </div>
             <div class="info-section">
                 <div class="info-title">其他技術</div>
                 <div class="info-text">
-                    ・定位：<strong>Geolocation API</strong>（高精度模式）<br>
-                    ・加入主畫面：教學式提示（偵測 iOS / Android / 桌面平台）<br>
-                    ・安全：<strong>escapeHtml</strong> 防 XSS 注入<br>
+                    ・定位：Geolocation API（高精度模式）<br>
+                    ・安全：escapeHtml 防 XSS 注入<br>
+                    ・響應式：768px 斷點，側欄可摺疊（狀態記憶）<br>
                     ・風格：8-bit 像素風 UI，字體 Press Start 2P
                 </div>
             </div>
@@ -593,7 +575,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     </div>
 </div>
 
-<!-- 新增場所彈窗（唯一的表單，無重複 ID） -->
+<!-- 新增場所彈窗 -->
 <div class="modal-overlay" id="add-marker-modal">
     <div class="modal">
         <h3 class="modal-title">新增場所</h3>
@@ -616,12 +598,7 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
             </div>
             <div class="form-group">
                 <label class="form-label" for="marker-type">類型</label>
-                <select id="marker-type" class="form-input">
-                    <option value="default">一般場所</option>
-                    <option value="poi">興趣點</option>
-                    <option value="star">最愛</option>
-                    <option value="secret">秘密基地</option>
-                </select>
+                <select id="marker-type" class="form-input"></select>
             </div>
         </div>
         <div class="modal-actions">
@@ -655,17 +632,60 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
             </div>
             <div class="form-group">
                 <label class="form-label" for="edit-marker-type">類型</label>
-                <select id="edit-marker-type" class="form-input">
-                    <option value="default">一般場所</option>
-                    <option value="poi">興趣點</option>
-                    <option value="star">最愛</option>
-                    <option value="secret">秘密基地</option>
-                </select>
+                <select id="edit-marker-type" class="form-input"></select>
             </div>
         </div>
         <div class="modal-actions">
             <button class="pixel-btn success" onclick="updateMarker()">更新</button>
             <button class="pixel-btn" onclick="closeModal('edit-marker-modal')">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 類型管理彈窗 -->
+<div class="modal-overlay" id="type-manager-modal">
+    <div class="modal">
+        <h3 class="modal-title">🏷️ 類型管理</h3>
+        <div class="modal-content">
+            <div id="type-list"></div>
+            <hr style="border:1px dashed var(--pixel-accent);margin:14px 0;">
+            <p style="font-size:10px;color:var(--pixel-yellow);margin-bottom:10px;text-align:center;">➕ 新增類型</p>
+            <div class="form-group">
+                <label class="form-label" for="new-type-name">名稱 *</label>
+                <input type="text" id="new-type-name" class="form-input" placeholder="類型名稱" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="new-type-color">顏色</label>
+                <input type="color" id="new-type-color" class="form-input" value="#e94560">
+            </div>
+            <div class="modal-actions">
+                <button class="pixel-btn primary" onclick="addType()">新增</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="pixel-btn" onclick="closeModal('type-manager-modal')">關閉</button>
+        </div>
+    </div>
+</div>
+
+<!-- 編輯類型彈窗 -->
+<div class="modal-overlay" id="edit-type-modal">
+    <div class="modal">
+        <h3 class="modal-title">編輯類型</h3>
+        <div class="modal-content">
+            <input type="hidden" id="edit-type-id">
+            <div class="form-group">
+                <label class="form-label" for="edit-type-name">名稱 *</label>
+                <input type="text" id="edit-type-name" class="form-input" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="edit-type-color">顏色</label>
+                <input type="color" id="edit-type-color" class="form-input">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="pixel-btn success" onclick="updateType()">更新</button>
+            <button class="pixel-btn" onclick="closeModal('edit-type-modal')">取消</button>
         </div>
     </div>
 </div>
@@ -680,12 +700,13 @@ let currentLayer = 'street';
 let isAddMarkerMode = false;
 let mapMarkers = {};
 let currentMarkers = [];
+let currentTypes = [];       // [{id, name, color}]
+let typeFilter = 'all';      // 篩選：'all' 或類型 id
 let deferredPrompt = null;
 let currentTab = 'markers';
 let sidebarCollapsed = false;
 
 const LAYER_NAMES = { street: '街道', dark: '暗黑', light: '明亮', terrain: '地形' };
-const TYPE_NAMES = { default: '場所', poi: '興趣點', star: '最愛', secret: '秘密基地' };
 
 // ==================== 圖層定義 ====================
 const layers = {
@@ -707,20 +728,67 @@ const layers = {
     })
 };
 
+// ==================== 類型工具函式 ====================
+function getType(id) {
+    return currentTypes.find(t => t.id === id) || { id: 'default', name: '未分類', color: '#e94560' };
+}
+
+function getTypeName(id) { return getType(id).name; }
+
+function getTypeColor(id) { return getType(id).color; }
+
+function isValidColor(str) { return /^#[0-9a-fA-F]{6}$/.test(str); }
+
 // ==================== IndexedDB ====================
 function initDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('PixelMapDB', 1);
+        const request = indexedDB.open('PixelMapDB', 2); // 版本升級：加入 types store
         request.onerror = () => reject(request.error);
         request.onsuccess = () => { db = request.result; resolve(db); };
         request.onupgradeneeded = (event) => {
             const database = event.target.result;
+
             if (!database.objectStoreNames.contains('markers')) {
                 const store = database.createObjectStore('markers', { keyPath: 'id', autoIncrement: true });
                 store.createIndex('lat', 'lat', { unique: false });
                 store.createIndex('lng', 'lng', { unique: false });
                 store.createIndex('type', 'type', { unique: false });
                 store.createIndex('name', 'name', { unique: false });
+            }
+
+            // ★ 新增：類型物件儲存庫
+            if (!database.objectStoreNames.contains('types')) {
+                database.createObjectStore('types', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+    });
+}
+
+// 載入類型；若為空則建立預設類型
+function loadTypes() {
+    return new Promise((resolve) => {
+        const tx = db.transaction(['types'], 'readonly');
+        const req = tx.objectStore('types').getAll();
+        req.onsuccess = () => {
+            currentTypes = req.result;
+            if (currentTypes.length === 0) {
+                // 建立預設類型
+                const defaults = [
+                    { name: '一般場所', color: '#e94560' },
+                    { name: '興趣點',   color: '#4ade80' },
+                    { name: '最愛',     color: '#f9d923' },
+                    { name: '秘密基地', color: '#f472b6' }
+                ];
+                const tx2 = db.transaction(['types'], 'readwrite');
+                const store = tx2.objectStore('types');
+                defaults.forEach(d => store.add(d));
+                tx2.oncomplete = () => {
+                    const tx3 = db.transaction(['types'], 'readonly');
+                    const req3 = tx3.objectStore('types').getAll();
+                    req3.onsuccess = () => { currentTypes = req3.result; resolve(); };
+                };
+            } else {
+                resolve();
             }
         };
     });
@@ -767,20 +835,18 @@ function initMap() {
     layers.street.addTo(map);
     markersLayer = L.layerGroup().addTo(map);
 
-    // 點擊地圖：自動填入座標並開啟彈窗
     map.on('click', (e) => {
         if (isAddMarkerMode) {
             document.getElementById('marker-lat').value = e.latlng.lat.toFixed(6);
             document.getElementById('marker-lng').value = e.latlng.lng.toFixed(6);
             exitAddMarkerMode();
-            openModal('add-marker-modal');
-            document.getElementById('marker-name').focus();
+            openAddModal();
         }
     });
 
     window.addEventListener('resize', () => {
         map.invalidateSize();
-        updateToggleArrow();  // 跨斷點時更新箭頭方向
+        updateToggleArrow();
     });
 }
 
@@ -793,10 +859,9 @@ function toggleLayer() {
     showToast('圖層: ' + LAYER_NAMES[currentLayer]);
 }
 
-// ==================== 標記圖標 ====================
-function createMarkerIcon(type) {
-    const colors = { default: '#e94560', poi: '#4ade80', star: '#f9d923', secret: '#f472b6' };
-    const bg = colors[type] || colors.default;
+// ==================== 標記圖標（依類型顏色） ====================
+function createMarkerIcon(typeId) {
+    const bg = getTypeColor(typeId);
     const html = `
         <div style="position:relative;width:22px;height:30px;">
             <div style="position:absolute;top:0;left:4px;width:14px;height:14px;background:${bg};border:2px solid #fff;"></div>
@@ -826,7 +891,6 @@ function addMarkerMode() {
     isAddMarkerMode = true;
     document.getElementById('map').style.cursor = 'crosshair';
     showToast('點擊地圖選擇位置');
-    // 側欄若開著，自動摺疊以方便點地圖
     if (!sidebarCollapsed) toggleSidebar();
 }
 
@@ -855,24 +919,33 @@ function locateUser() {
     );
 }
 
+// ==================== 表單類型下拉選單更新 ====================
+function refreshTypeSelects(selectedId) {
+    const options = currentTypes.map(t =>
+        `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
+    ).join('');
+    document.getElementById('marker-type').innerHTML = options;
+    document.getElementById('edit-marker-type').innerHTML = options;
+}
+
 // ==================== 標記 CRUD ====================
 function saveMarker() {
     const name = document.getElementById('marker-name').value.trim();
     const desc = document.getElementById('marker-desc').value.trim();
     const lat = parseFloat(document.getElementById('marker-lat').value);
     const lng = parseFloat(document.getElementById('marker-lng').value);
-    const type = document.getElementById('marker-type').value;
+    const type = parseInt(document.getElementById('marker-type').value);
 
     if (!name) return showToast('請填寫名稱');
     if (isNaN(lat) || isNaN(lng)) return showToast('請填寫座標');
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return showToast('座標超出範圍');
+    if (isNaN(type)) return showToast('請先建立類型');
 
     const tx = db.transaction(['markers'], 'readwrite');
     tx.objectStore('markers').add({ name, desc, lat, lng, type, createdAt: new Date().toISOString() });
     tx.oncomplete = () => {
         showToast('場所已儲存!');
         closeModal('add-marker-modal');
-        clearAddMarkerForm();
         loadMarkers();
     };
     tx.onerror = () => showToast('儲存失敗');
@@ -881,12 +954,12 @@ function saveMarker() {
 function editMarker(id) {
     const m = currentMarkers.find(m => m.id === id);
     if (!m) return;
+    refreshTypeSelects(m.type);
     document.getElementById('edit-marker-id').value = m.id;
     document.getElementById('edit-marker-name').value = m.name;
     document.getElementById('edit-marker-desc').value = m.desc || '';
     document.getElementById('edit-marker-lat').value = m.lat;
     document.getElementById('edit-marker-lng').value = m.lng;
-    document.getElementById('edit-marker-type').value = m.type || 'default';
     openModal('edit-marker-modal');
 }
 
@@ -896,7 +969,7 @@ function updateMarker() {
     const desc = document.getElementById('edit-marker-desc').value.trim();
     const lat = parseFloat(document.getElementById('edit-marker-lat').value);
     const lng = parseFloat(document.getElementById('edit-marker-lng').value);
-    const type = document.getElementById('edit-marker-type').value;
+    const type = parseInt(document.getElementById('edit-marker-type').value);
 
     if (!name) return showToast('請填寫名稱');
     if (isNaN(lat) || isNaN(lng)) return showToast('請填寫座標');
@@ -925,9 +998,19 @@ function loadMarkers() {
     const req = tx.objectStore('markers').getAll();
     req.onsuccess = () => {
         currentMarkers = req.result;
-        renderMarkersOnMap(currentMarkers);
-        if (currentTab === 'markers') renderMarkerList(currentMarkers);
+        renderAll();
     };
+}
+
+function renderAll() {
+    renderMarkersOnMap(currentMarkers);
+    if (currentTab === 'markers') renderMarkerList(currentMarkers);
+}
+
+// 依篩選取得場所
+function getFilteredMarkers() {
+    if (typeFilter === 'all') return currentMarkers;
+    return currentMarkers.filter(m => m.type === typeFilter);
 }
 
 function renderMarkersOnMap(markers) {
@@ -939,7 +1022,7 @@ function renderMarkersOnMap(markers) {
             <div>
                 <div class="popup-title">${escapeHtml(m.name)}</div>
                 <div class="popup-coords">📍 ${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}</div>
-                <div class="popup-coords">🏷️ ${TYPE_NAMES[m.type] || '場所'}</div>
+                <div class="popup-coords">🏷️ ${escapeHtml(getTypeName(m.type))}</div>
                 ${m.desc ? `<div class="popup-desc">${escapeHtml(m.desc)}</div>` : ''}
                 <div class="popup-actions">
                     <button class="pixel-btn" onclick="editMarker(${m.id})">編輯</button>
@@ -952,14 +1035,33 @@ function renderMarkersOnMap(markers) {
 
 function renderMarkerList(markers) {
     const c = document.getElementById('sidebar-content');
+
+    // ★ 篩選列
+    let filterHTML = '<div class="filter-bar">';
+    filterHTML += `<span class="filter-chip ${typeFilter === 'all' ? 'active' : ''}" onclick="setTypeFilter('all')">全部 (${markers.length})</span>`;
+    currentTypes.forEach(t => {
+        const count = markers.filter(m => m.type === t.id).length;
+        filterHTML += `<span class="filter-chip ${typeFilter === t.id ? 'active' : ''}" onclick="setTypeFilter(${t.id})">
+            <span class="filter-dot" style="background:${t.color}"></span>${escapeHtml(t.name)} (${count})
+        </span>`;
+    });
+    filterHTML += '</div>';
+
     if (!markers.length) {
-        c.innerHTML = '<div style="text-align:center;padding:24px;font-size:11px;line-height:1.8;">尚無場所<br>點擊「➕新增」開始探險!</div>';
+        c.innerHTML = filterHTML + '<div style="text-align:center;padding:24px;font-size:11px;line-height:1.8;">尚無場所<br>點擊「➕新增」開始探險!</div>';
         return;
     }
-    c.innerHTML = markers.map(m => `
+
+    const list = getFilteredMarkers();
+    if (!list.length) {
+        c.innerHTML = filterHTML + '<div style="text-align:center;padding:24px;font-size:11px;line-height:1.8;">此類型尚無場所</div>';
+        return;
+    }
+
+    c.innerHTML = filterHTML + list.map(m => `
         <div class="marker-item" onclick="flyToMarker(${m.id})">
             <div class="marker-item-title">${escapeHtml(m.name)}</div>
-            <div class="marker-item-coords">📍 ${m.lat.toFixed(4)}, ${m.lng.toFixed(4)}　[${TYPE_NAMES[m.type] || '場所'}]</div>
+            <div class="marker-item-coords">📍 ${m.lat.toFixed(4)}, ${m.lng.toFixed(4)}　[${escapeHtml(getTypeName(m.type))}]</div>
             ${m.desc ? `<div class="marker-item-desc">${escapeHtml(m.desc)}</div>` : ''}
             <div class="marker-item-actions">
                 <button class="pixel-btn" onclick="event.stopPropagation();editMarker(${m.id})">編輯</button>
@@ -969,10 +1071,15 @@ function renderMarkerList(markers) {
         </div>`).join('');
 }
 
+// ★ 設定篩選
+function setTypeFilter(id) {
+    typeFilter = (id === 'all') ? 'all' : parseInt(id);
+    renderMarkerList(currentMarkers);
+}
+
 function flyToMarker(id) {
     const m = currentMarkers.find(m => m.id === id);
     if (!m) return;
-    // 從列表點擊時，桌面版先摺疊側欄以看清地圖
     if (!sidebarCollapsed && window.innerWidth > 768) toggleSidebar();
     map.flyTo([m.lat, m.lng], 16, { duration: 1.2 });
     setTimeout(() => mapMarkers[id] && mapMarkers[id].openPopup(), 1300);
@@ -993,17 +1100,136 @@ function copyCoords(lat, lng) {
     }
 }
 
+// ==================== 類型 CRUD ====================
+function openTypeManager() {
+    renderTypeList();
+    openModal('type-manager-modal');
+}
+
+function renderTypeList() {
+    const c = document.getElementById('type-list');
+    if (!currentTypes.length) {
+        c.innerHTML = '<div style="text-align:center;padding:16px;font-size:11px;">尚無類型，請於下方新增</div>';
+        return;
+    }
+    c.innerHTML = currentTypes.map(t => {
+        const count = currentMarkers.filter(m => m.type === t.id).length;
+        return `
+        <div class="type-item">
+            <div class="type-color-box" style="background:${t.color}"></div>
+            <div class="type-name">${escapeHtml(t.name)}</div>
+            <div class="type-count">${count} 處</div>
+            <button class="pixel-btn" onclick="editType(${t.id})">編輯</button>
+            <button class="pixel-btn danger" onclick="deleteType(${t.id})">刪除</button>
+        </div>`;
+    }).join('');
+}
+
+function addType() {
+    const name = document.getElementById('new-type-name').value.trim();
+    const color = document.getElementById('new-type-color').value;
+
+    if (!name) return showToast('請填寫類型名稱');
+    if (!isValidColor(color)) return showToast('顏色格式錯誤');
+    if (currentTypes.some(t => t.name === name)) return showToast('類型名稱重複');
+
+    const tx = db.transaction(['types'], 'readwrite');
+    tx.objectStore('types').add({ name, color });
+    tx.oncomplete = () => {
+        document.getElementById('new-type-name').value = '';
+        refreshTypes();
+        showToast('類型已新增!');
+    };
+    tx.onerror = () => showToast('新增失敗');
+}
+
+function editType(id) {
+    const t = currentTypes.find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('edit-type-id').value = t.id;
+    document.getElementById('edit-type-name').value = t.name;
+    document.getElementById('edit-type-color').value = t.color;
+    openModal('edit-type-modal');
+}
+
+function updateType() {
+    const id = parseInt(document.getElementById('edit-type-id').value);
+    const name = document.getElementById('edit-type-name').value.trim();
+    const color = document.getElementById('edit-type-color').value;
+
+    if (!name) return showToast('請填寫類型名稱');
+    if (!isValidColor(color)) return showToast('顏色格式錯誤');
+    if (currentTypes.some(t => t.name === name && t.id !== id)) return showToast('類型名稱重複');
+
+    const tx = db.transaction(['types'], 'readwrite');
+    tx.objectStore('types').put({ id, name, color });
+    tx.oncomplete = () => {
+        closeModal('edit-type-modal');
+        refreshTypes();
+        showToast('類型已更新!');
+    };
+    tx.onerror = () => showToast('更新失敗');
+}
+
+function deleteType(id) {
+    const t = currentTypes.find(t => t.id === id);
+    if (!t) return;
+    if (currentTypes.length <= 1) return showToast('至少保留一個類型');
+
+    const usedCount = currentMarkers.filter(m => m.type === id).length;
+    const firstOther = currentTypes.find(x => x.id !== id);
+
+    const msg = usedCount > 0
+        ? `類型「${t.name}」有 ${usedCount} 個場所，刪除後這些場所將改歸「${firstOther.name}」。確定刪除？`
+        : `確定要刪除類型「${t.name}」？`;
+
+    if (!confirm(msg)) return;
+
+    // 先遷移場所到其他類型，再刪除類型
+    const tx = db.transaction(['markers', 'types'], 'readwrite');
+    const markerStore = tx.objectStore('markers');
+
+    currentMarkers.filter(m => m.type === id).forEach(m => {
+        markerStore.put({ ...m, type: firstOther.id });
+    });
+
+    tx.objectStore('types').delete(id);
+
+    tx.oncomplete = () => {
+        if (typeFilter === id) typeFilter = 'all';
+        refreshTypes();
+        closeModal('type-manager-modal');
+        showToast('類型已刪除!');
+    };
+    tx.onerror = () => showToast('刪除失敗');
+}
+
+// 重新載入類型並刷新所有畫面
+function refreshTypes() {
+    const tx = db.transaction(['types'], 'readonly');
+    const req = tx.objectStore('types').getAll();
+    req.onsuccess = () => {
+        currentTypes = req.result;
+        refreshTypeSelects();
+        renderTypeList();
+        loadMarkers();  // 重繪地圖標記顏色 + 列表
+    };
+}
+
 // ==================== JSON 匯入 / 匯出 ====================
 function exportJSON() {
-    const tx = db.transaction(['markers'], 'readonly');
-    const req = tx.objectStore('markers').getAll();
-    req.onsuccess = () => {
+    const tx = db.transaction(['markers', 'types'], 'readonly');
+    const markersReq = tx.objectStore('markers').getAll();
+    const typesReq = tx.objectStore('types').getAll();
+
+    tx.oncomplete = () => {
         const data = {
             app: 'pixel-map',
-            version: '1.0',
+            version: '2.0',
             exportedAt: new Date().toISOString(),
-            count: req.result.length,
-            markers: req.result
+            count: markersReq.result.length,
+            types: typesReq.result,
+            markers: markersReq.result
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1014,7 +1240,7 @@ function exportJSON() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast(`已匯出 ${data.count} 個場所`);
+        showToast(`已匯出 ${data.count} 個場所 / ${data.types.length} 個類型`);
     };
 }
 
@@ -1036,20 +1262,42 @@ function importJSON(event) {
 
             if (!confirm(`即將匯入 ${valid.length} 個場所，繼續？`)) return;
 
-            const tx = db.transaction(['markers'], 'readwrite');
-            const store = tx.objectStore('markers');
+            // 匯入類型（若有）
+            const importTypes = (data.types && Array.isArray(data.types)) ? data.types : [];
+            const validTypes = importTypes.filter(t => t && t.name && (t.color || true));
+
+            const tx = db.transaction(['markers', 'types'], 'readwrite');
+            const typeStore = tx.objectStore('types');
+            const markerStore = tx.objectStore('markers');
+
+            // 建立新 ID 對照表：匯入類型 → 新增後的 ID
+            const typeIdMap = {};
+            validTypes.forEach(t => {
+                const color = isValidColor(t.color) ? t.color : '#e94560';
+                const addReq = typeStore.add({ name: String(t.name).slice(0, 20), color });
+                addReq.onsuccess = () => { typeIdMap[t.id] = addReq.result; };
+            });
+
+            const fallbackType = currentTypes.length ? currentTypes[0].id : null;
+
             valid.forEach(m => {
                 delete m.id;
-                store.add({
-                    name: m.name,
+                markerStore.add({
+                    name: String(m.name).slice(0, 50),
                     desc: typeof m.desc === 'string' ? m.desc : '',
                     lat: m.lat,
                     lng: m.lng,
-                    type: ['default', 'poi', 'star', 'secret'].includes(m.type) ? m.type : 'default',
+                    type: typeIdMap[m.type] !== undefined ? typeIdMap[m.type]
+                        : (currentTypes.some(t => t.id === m.type) ? m.type : fallbackType),
                     createdAt: m.createdAt || new Date().toISOString()
                 });
             });
-            tx.oncomplete = () => { showToast(`成功匯入 ${valid.length} 個場所!`); loadMarkers(); };
+
+            tx.oncomplete = () => {
+                showToast(`成功匯入 ${valid.length} 個場所!`);
+                typeFilter = 'all';
+                refreshTypes();
+            };
             tx.onerror = () => showToast('匯入失敗');
         } catch (err) {
             showToast('匯入失敗: ' + err.message);
@@ -1078,12 +1326,14 @@ function switchTab(tab, btn) {
                 <p style="margin-top:20px;margin-bottom:6px;color:var(--pixel-yellow);">方法二：手動輸入座標</p>
                 <p style="margin-bottom:12px;font-size:10px;">直接開啟表單填寫名稱、座標</p>
                 <button class="pixel-btn" onclick="openAddModal()">📝 手動填寫表單</button>
+                <p style="margin-top:20px;font-size:10px;">🏷️ 類型可在工具列「類型」中管理</p>
             </div>`;
     } else if (tab === 'info') {
         c.innerHTML = `
             <div class="info-section">
                 <div class="info-title">📊 統計</div>
                 <div class="info-row"><span class="k">場所數量</span><span class="v">${currentMarkers.length}</span></div>
+                <div class="info-row"><span class="k">類型數量</span><span class="v">${currentTypes.length}</span></div>
                 <div class="info-row"><span class="k">持久化儲存</span><span class="v" id="persistence-status">檢查中...</span></div>
                 <div class="info-row"><span class="k">當前圖層</span><span class="v">${LAYER_NAMES[currentLayer]}</span></div>
             </div>
@@ -1092,17 +1342,19 @@ function switchTab(tab, btn) {
                 <div class="info-text">
                     1. 「➕新增」後點地圖選位置<br>
                     2. 點標記可查看 / 編輯 / 刪除<br>
-                    3. 「📍定位」跳到當前位置<br>
-                    4. 「🗺️圖層」循環切換底圖<br>
-                    5. 「⬇/⬆」備份與還原資料<br>
-                    6. 側欄可摺疊，需要時再打開
+                    3. 「🏷️類型」管理自訂類型<br>
+                    4. 列表上方可依類型篩選<br>
+                    5. 「📍定位」跳到當前位置<br>
+                    6. 「⬇/⬆」備份與還原資料<br>
+                    7. 側欄可摺疊，需要時再打開
                 </div>
             </div>
             <div class="info-section">
                 <div class="info-title">⚙️ 技術</div>
                 <div class="info-text">
                     Leaflet.js v1.9.4 · Canvas 渲染<br>
-                    IndexedDB + navigator.storage.persist()<br>
+                    IndexedDB（markers + types）<br>
+                    navigator.storage.persist()<br>
                     JSON 匯入匯出 · Geolocation API<br>
                     響應式（768px 斷點）· 8-bit 像素風
                 </div>
@@ -1113,6 +1365,7 @@ function switchTab(tab, btn) {
 
 function openAddModal() {
     clearAddMarkerForm();
+    refreshTypeSelects();
     openModal('add-marker-modal');
     document.getElementById('marker-name').focus();
 }
@@ -1122,12 +1375,10 @@ function updateToggleArrow() {
     const btn = document.getElementById('sidebar-toggle');
     if (!btn) return;
     const isMobile = window.innerWidth <= 768;
-    // 桌面版：按鈕在左側，展開時箭頭指右（▶ 表示可收起→其實表示目前狀態）
-    // 統一一邏輯：顯示「點擊後會執行的動作方向」
     if (isMobile) {
-        btn.textContent = sidebarCollapsed ? '▲' : '▼';  // 往上展開 / 往下收起
+        btn.textContent = sidebarCollapsed ? '▲' : '▼';
     } else {
-        btn.textContent = sidebarCollapsed ? '◀' : '▶';  // 往左展開 / 往右收起
+        btn.textContent = sidebarCollapsed ? '◀' : '▶';
     }
 }
 
@@ -1138,21 +1389,15 @@ function toggleSidebar() {
 
     sidebar.classList.toggle('collapsed', sidebarCollapsed);
 
-    // 桌面版：摺疊時工具列延伸到右邊緣
     if (window.innerWidth > 768) {
         toolbar.classList.toggle('full', sidebarCollapsed);
     }
 
-    // 行動版：調整 A2HS 提示位置，避免被收起的側欄蓋住
     const a2hs = document.getElementById('a2hs-prompt');
     if (a2hs) a2hs.classList.toggle('raised', sidebarCollapsed && a2hs.classList.contains('active'));
 
     updateToggleArrow();
-
-    // 記住狀態
     localStorage.setItem('sidebar-collapsed', sidebarCollapsed ? '1' : '0');
-
-    // 動畫結束後讓地圖重算尺寸，避免標記偏移
     setTimeout(() => map && map.invalidateSize(), 300);
 }
 
@@ -1195,11 +1440,9 @@ function clearAddMarkerForm() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    const type = document.getElementById('marker-type');
-    if (type) type.value = 'default';
 }
 
-// ==================== A2HS（加入主畫面） ====================
+// ==================== A2HS ====================
 function getA2HSInstructions() {
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1233,7 +1476,6 @@ function showA2HSPrompt() {
     document.getElementById('a2hs-instructions').innerHTML = getA2HSInstructions();
     const a2hs = document.getElementById('a2hs-prompt');
     a2hs.classList.add('active');
-    // 若側欄已摺疊（行動版），提示位置上移
     if (sidebarCollapsed) a2hs.classList.add('raised');
 }
 
@@ -1249,12 +1491,13 @@ async function init() {
     try {
         await initDB();
         await requestPersistentStorage();
+        await loadTypes();          // 先載入類型
+        refreshTypeSelects();       // 填入下拉選單
         initMap();
         loadMarkers();
         switchTab('markers', document.getElementById('tab-markers'));
         initA2HS();
 
-        // 還原側欄摺疊狀態
         if (localStorage.getItem('sidebar-collapsed') === '1') {
             toggleSidebar();
         } else {
