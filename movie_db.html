@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<!-- ═══════════════════════════════════════════════════════════
+     ★ PWA 相關 meta 標籤 — 這是「Add to Home Screen」的基礎
+     manifest 以 data URI 內嵌，因此只需要這一個檔案！
+     ═══════════════════════════════════════════════════════════ -->
+<title>PIXEL MOVIE DB ⭐ 8-bit 電影資料庫</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   技術說明 1：8-Bit 像素風 CSS 技巧
+   ─────────────────────────────────────────────────────────────
+   1. 字體：使用 Google Fonts 的 "Press Start 2P"，它是經典
+      的任天堂紅白機風格像素字體，瞬間建立 8-bit 氛圍。
+   2. image-rendering: pixelated — 讓縮放的圖片保持像素鋸齒感，
+      不會被瀏覽器平滑化。
+   3. 所有圓角 = 0，改用「雙層 box-shadow 疊加」模擬像素邊框，
+      這是復古 UI 的經典手法（4px 實心邊 + 4px 陰影）。
+   4. 對話框 / 按鈕都用硬邊框 + 大偏移陰影，模仿 FC 遊戲選單。
+   ═══════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root{
+  --bg:#1a1a2e; --bg2:#16213e; --panel:#0f3460;
+  --accent:#e94560; --yellow:#ffd32a; --green:#05c46b;
+  --cyan:#0abde3; --text:#f5f6fa; --shadow:#000;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+html{scroll-behavior:smooth;}
+
+body{
+  font-family:'VT323',monospace;
+  background:var(--bg);
+  color:var(--text);
+  font-size:20px;
+  min-height:100vh;
+  /* ═══ 技術說明 2：像素星空背景 ═══
+     用多層 radial-gradient 疊出小方點，配合 image-rendering
+     營造 FC 遊戲星空捲動的感覺，完全不需要圖片檔案 */
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #fff 50%, transparent 51%),
+    radial-gradient(2px 2px at 100px 70px, #ffd32a 50%, transparent 51%),
+    radial-gradient(2px 2px at 140px 140px, #0abde3 50%, transparent 51%),
+    radial-gradient(2px 2px at 60px 180px, #fff 50%, transparent 51%);
+  background-size:200px 200px;
+}
+
+img{image-rendering:pixelated;}
+
+h1,h2,h3,.btn,.nav-tab{font-family:'Press Start 2P',cursive;}
+
+/* ─── 像素邊框通用樣式 ─── */
+.pixel-box{
+  border:4px solid var(--text);
+  box-shadow:4px 4px 0 var(--shadow);
+  background:var(--panel);
+}
+
+/* ─── 頂部標題 ─── */
+header{
+  background:var(--bg2);
+  border-bottom:4px solid var(--accent);
+  padding:20px 16px;
+  text-align:center;
+  position:sticky;top:0;z-index:100;
+}
+header h1{
+  font-size:clamp(14px,3.5vw,28px);
+  color:var(--yellow);
+  text-shadow:3px 3px 0 var(--accent);
+  letter-spacing:2px;
+}
+header .sub{color:var(--cyan);font-size:18px;margin-top:8px;}
+
+/* ─── 導覽列 ─── */
+nav{
+  display:flex;flex-wrap:wrap;justify-content:center;
+  gap:8px;padding:16px;background:var(--bg2);
+  border-bottom:4px solid var(--cyan);
+  position:sticky;top:0;z-index:99;
+}
+.nav-tab{
+  font-size:10px;padding:12px 14px;cursor:pointer;
+  background:var(--panel);color:var(--text);
+  border:3px solid var(--text);
+  box-shadow:3px 3px 0 var(--shadow);
+  transition:transform .05s;
+}
+.nav-tab:hover{background:var(--cyan);color:#000;transform:translate(-1px,-1px);}
+.nav-tab.active{background:var(--yellow);color:#000;}
+
+/* ─── 主容器：響應式核心 ─── */
+/* ═══ 技術說明 3：響應式策略 ═══
+   CSS Grid + auto-fill：桌面自動排成多欄卡片，
+   手機自動降為單欄，media query 只需處理細節 */
+main{max-width:1200px;margin:0 auto;padding:20px 12px;}
+
+.view{display:none;}
+.view.active{display:block;}
+
+/* ─── 搜尋與篩選列 ─── */
+.filter-bar{
+  display:flex;flex-wrap:wrap;gap:10px;
+  padding:16px;margin-bottom:20px;
+}
+.filter-bar input,.filter-bar select{
+  font-family:'VT323',monospace;font-size:20px;
+  padding:10px;background:var(--bg);color:var(--text);
+  border:3px solid var(--text);flex:1;min-width:140px;
+}
+.filter-bar input:focus,.filter-bar select:focus{
+  outline:none;border-color:var(--yellow);
+}
+
+/* ─── 按鈕 ─── */
+.btn{
+  font-size:10px;padding:12px 16px;cursor:pointer;
+  background:var(--accent);color:#fff;
+  border:3px solid var(--text);
+  box-shadow:3px 3px 0 var(--shadow);
+  transition:transform .05s;
+  user-select:none;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--shadow);}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow);}
+.btn.green{background:var(--green);color:#000;}
+.btn.cyan{background:var(--cyan);color:#000;}
+.btn.yellow{background:var(--yellow);color:#000;}
+.btn.small{font-size:8px;padding:8px 10px;}
+
+/* ─── 電影卡片 Grid ─── */
+#movie-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:16px;
+}
+.movie-card{
+  background:var(--panel);border:4px solid var(--text);
+  box-shadow:4px 4px 0 var(--shadow);
+  cursor:pointer;overflow:hidden;
+  transition:transform .1s;
+  display:flex;flex-direction:column;
+}
+.movie-card:hover{transform:translate(-3px,-3px);box-shadow:7px 7px 0 var(--shadow);border-color:var(--yellow);}
+.movie-card .poster-wrap{
+  aspect-ratio:2/3;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.movie-card img{width:100%;height:100%;object-fit:cover;}
+.movie-card .no-poster{color:var(--cyan);font-size:16px;text-align:center;padding:10px;}
+.movie-card .score-badge{
+  position:absolute;top:8px;right:8px;
+  font-family:'Press Start 2P';font-size:9px;
+  background:#000;color:var(--yellow);
+  padding:6px 8px;border:2px solid var(--yellow);
+}
+.movie-card .fav-star{
+  position:absolute;top:8px;left:8px;
+  font-size:20px;cursor:pointer;
+  text-shadow:2px 2px 0 #000;user-select:none;
+}
+.movie-card .card-info{padding:10px;flex:1;}
+.movie-card .title{font-size:18px;line-height:1.2;font-weight:bold;min-height:44px;}
+.movie-card .meta{font-size:16px;color:var(--cyan);margin-top:4px;}
+.movie-card .genres{font-size:14px;color:#a4b0be;margin-top:4px;}
+
+/* ─── 詳情彈窗 ─── */
+#detail-modal{
+  position:fixed;inset:0;background:rgba(10,10,20,.92);
+  display:none;z-index:200;padding:20px;
+  overflow-y:auto;
+}
+#detail-modal.open{display:flex;align-items:flex-start;justify-content:center;}
+.modal-content{
+  max-width:800px;width:100%;
+  background:var(--bg2);
+  border:4px solid var(--yellow);
+  box-shadow:8px 8px 0 var(--shadow);
+  padding:20px;position:relative;
+  margin:auto 0;
+}
+.modal-close{
+  position:absolute;top:10px;right:10px;
+  font-family:'Press Start 2P';font-size:12px;
+  background:var(--accent);border:3px solid #fff;
+  padding:8px 10px;cursor:pointer;color:#fff;
+}
+.modal-body{display:grid;grid-template-columns:200px 1fr;gap:20px;}
+.modal-body img{width:100%;border:3px solid var(--text);}
+.modal-body h2{font-size:14px;color:var(--yellow);margin-bottom:10px;line-height:1.5;}
+.modal-body .ov{font-size:18px;line-height:1.4;margin-top:10px;}
+.modal-body .kv{margin:6px 0;font-size:17px;}
+.modal-body .kv b{color:var(--cyan);}
+@media(max-width:600px){
+  .modal-body{grid-template-columns:1fr;}
+  .modal-body img{max-width:200px;margin:0 auto;}
+}
+
+/* ─── 進度/狀態列 ─── */
+.status-line{
+  font-family:'Press Start 2P';font-size:9px;
+  color:var(--green);padding:12px;
+}
+.loading-bar{
+  height:16px;border:3px solid var(--text);background:var(--bg);
+  position:relative;overflow:hidden;margin:10px 0;
+}
+.loading-bar::after{
+  content:'';position:absolute;inset:0;
+  width:40%;background:repeating-linear-gradient(90deg,var(--cyan) 0 8px,transparent 8px 16px);
+  animation:scroll .5s linear infinite;
+}
+@keyframes scroll{to{transform:translateX(250%);}}
+
+/* ─── Toast 提示 ─── */
+#toast-box{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;}
+.toast{
+  font-family:'Press Start 2P';font-size:9px;
+  background:var(--bg2);border:3px solid var(--green);
+  color:var(--green);padding:12px 16px;
+  box-shadow:4px 4px 0 #000;animation:pop .2s;
+}
+.toast.err{border-color:var(--accent);color:var(--accent);}
+@keyframes pop{from{transform:scale(.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+/* ─── 收藏 / 觀影標籤 ─── */
+.tag{
+  display:inline-block;font-family:'Press Start 2P';font-size:8px;
+  padding:4px 8px;margin:2px;border:2px solid;
+}
+.tag.want{color:var(--yellow);border-color:var(--yellow);}
+.tag.seen{color:var(--green);border-color:var(--green);}
+
+/* ─── A2HS 提示橫幅 ─── */
+#a2hs-banner{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--yellow);color:#000;
+  padding:14px;z-index:300;
+  border-top:4px solid #000;
+  text-align:center;
+}
+#a2hs-banner.show{display:block;}
+#a2hs-banner .btn{margin:0 6px;}
+
+/* ─── 技術資訊面板 ─── */
+.tech-panel{padding:20px;font-size:18px;line-height:1.5;}
+.tech-panel h2{color:var(--yellow);font-size:12px;margin-bottom:16px;}
+.tech-panel code{background:var(--bg);color:var(--green);padding:2px 6px;border:1px solid var(--green);}
+.tech-panel .stat{color:var(--cyan);}
+
+/* ─── 空狀態 ─── */
+.empty-state{text-align:center;padding:60px 20px;color:#a4b0be;}
+.empty-state .icon{font-size:64px;display:block;margin-bottom:20px;}
+
+/* ─── 頁碼 ─── */
+.pagination{display:flex;justify-content:center;gap:8px;margin:24px 0;flex-wrap:wrap;}
+
+@media(max-width:600px){
+  body{font-size:18px;}
+  #movie-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+  #toast-box{left:20px;right:20px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>★ PIXEL MOVIE DB ★</h1>
+  <div class="sub">&gt;&gt; POWERED BY TMDB API &lt;&lt;</div>
+</header>
+
+<nav>
+  <button class="nav-tab active" data-view="discover">發現</button>
+  <button class="nav-tab" data-view="favorites">★ 收藏</button>
+  <button class="nav-tab" data-view="seen">已觀看</button>
+  <button class="nav-tab" data-view="manage">資料管理</button>
+  <button class="nav-tab" data-view="tech">技術說明</button>
+</nav>
+
+<main>
+
+  <!-- ═══════════ 發現/搜尋視圖 ═══════════ -->
+  <section id="view-discover" class="view active">
+    <div class="filter-bar pixel-box">
+      <input id="search-input" type="text" placeholder="► 輸入電影名稱搜尋...">
+      <select id="filter-genre">
+        <option value="">全部類型</option>
+        <option value="28">動作</option><option value="12">冒險</option>
+        <option value="16">動畫</option><option value="35">喜劇</option>
+        <option value="80">犯罪</option><option value="99">紀錄</option>
+        <option value="18">劇情</option><option value="14">奇幻</option>
+        <option value="27">恐怖</option><option value="9648">懸疑</option>
+        <option value="10749">愛情</option><option value="878">科幻</option>
+        <option value="53">驚悚</option><option value="10752">戰爭</option>
+      </select>
+      <select id="filter-sort">
+        <option value="popularity.desc">熱門程度 ↓</option>
+        <option value="vote_average.desc">評分 ↓</option>
+        <option value="primary_release_date.desc">上映日期 ↓</option>
+        <option value="title.asc">片名 A→Z</option>
+      </select>
+      <select id="filter-year">
+        <option value="">全部年份</option>
+      </select>
+      <button class="btn yellow" id="search-btn">搜尋</button>
+    </div>
+    <div id="loading-area"></div>
+    <div id="movie-grid"></div>
+    <div class="pagination" id="pagination"></div>
+  </section>
+
+  <!-- ═══════════ 收藏視圖 ═══════════ -->
+  <section id="view-favorites" class="view">
+    <h2 style="color:var(--yellow);font-size:12px;margin-bottom:16px;">★ 我的收藏 ★</h2>
+    <div id="fav-grid" class="movie-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;"></div>
+  </section>
+
+  <!-- ═══════════ 已觀看視圖 ═══════════ -->
+  <section id="view-seen" class="view">
+    <h2 style="color:var(--green);font-size:12px;margin-bottom:16px;">▶ 已觀看紀錄 ▶</h2>
+    <div id="seen-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;"></div>
+  </section>
+
+  <!-- ═══════════ 資料管理視圖 ═══════════ -->
+  <section id="view-manage" class="view">
+    <div class="tech-panel pixel-box" style="margin-bottom:20px;">
+      <h2>◈ 資料管理 ◈</h2>
+      <p>所有收藏、觀看紀錄與快取均儲存於瀏覽器 <code>IndexedDB</code>。</p>
+      <p>可將資料匯出為 JSON 備份，或從 JSON 檔案匯入還原。</p>
+      <p class="stat" id="storage-status"></p>
+      <p class="stat" id="record-count"></p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;">
+      <button class="btn green" id="export-btn">▼ 匯出 JSON</button>
+      <button class="btn cyan" id="import-btn">▲ 匯入 JSON</button>
+      <button class="btn" id="persist-btn" style="background:var(--yellow);color:#000;">🔒 申請持久化儲存</button>
+      <button class="btn" id="clear-btn">✖ 清除所有資料</button>
+      <input type="file" id="import-file" accept=".json" style="display:none;">
+    </div>
+  </section>
+
+  <!-- ═══════════ 技術說明視圖 ═══════════ -->
+  <section id="view-tech" class="view">
+    <div class="tech-panel pixel-box">
+      <h2>◈ 技術架構說明 ◈</h2>
+      <p><b>1. 前端</b>：單一 HTML 檔案（SPA 模式），原生 JavaScript + CSS Grid 響應式佈局，無任何框架依賴，可直接部署到 GitHub Pages。</p>
+      <p><b>2. 資料來源</b>：透過 <code>fetch</code> 呼叫 TMDB REST API（<code>/discover/movie</code>、<code>/search/movie</code>、<code>/movie/{id}</code>）。<span style="color:var(--accent)">※ 注意：本示範將 API Key 放在前端，正式部署建議改用代理服務隱藏 Key。</span></p>
+      <p><b>3. 離線資料庫</b>：使用 <code>IndexedDB</code>（非同步、容量大、支援物件儲存），存放三個 store：<code>movies</code>（詳情快取）、<code>favList</code>（收藏）、<code>seenList</code>（觀看紀錄）。</p>
+      <p><b>4. 持久化</b>：呼叫 <code>navigator.storage.persist()</code>，要求瀏覽器承諾在儲存壓力下不自動清除本站資料（預設 IndexedDB 可能被「逐出」eviction）。狀態可由 <code>navigator.storage.persisted()</code> 查詢。</p>
+      <p><b>5. 匯入匯出</b>：匯出 = 讀取所有 store → <code>JSON.stringify</code> → <code>Blob</code> + <code>URL.createObjectURL</code> 觸發下載。匯入 = <code>FileReader</code> 讀取 → <code>JSON.parse</code> → 逐筆 <code>put</code> 回資料庫。</p>
+      <p><b>6. A2HS</b>：監聽 <code>beforeinstallprompt</code> 事件，延遲顯示自訂安裝橫幅；按下後呼叫保留的 <code>prompt()</code>。iOS Safari 不支援此事件，因此提供額外的操作指引。</p>
+      <p><b>7. 圖片</b>：海報使用 TMDB 圖片 CDN，設定 <code>loading="lazy"</code> 懶加載；CSS <code>image-rendering:pixelated</code> 保持像素感。</p>
+    </div>
+  </section>
+
+</main>
+
+<!-- 詳情彈窗 -->
+<div id="detail-modal">
+  <div class="modal-content">
+    <button class="modal-close" id="modal-close">X</button>
+    <div class="modal-body" id="modal-body"></div>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;" id="modal-actions"></div>
+  </div>
+</div>
+
+<div id="toast-box"></div>
+
+<!-- A2HS 橫幅 -->
+<div id="a2hs-banner">
+  <span style="font-family:'Press Start 2P';font-size:10px;">★ 加入主畫面，離線也OK！</span>
+  <button class="btn green small" id="a2hs-install">安裝</button>
+  <button class="btn small" id="a2hs-close" style="background:#000;color:#fff;">稍後</button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ★★★ 請將這裡換成你自己的 TMDB API Key ★★★
+   ═══════════════════════════════════════════════════════════ */
+const TMDB_API_KEY = 'e0f1ec5d678ef0136c12fed80060e88a';
+const TMDB_BASE    = 'https://api.themoviedb.org/3';
+const TMDB_IMG     = 'https://image.tmdb.org/t/p/w500';
+
+/* ═══════════════════════════════════════════════════════════
+   技術說明（JS 部分）
+   ───────────────────────────────────────────────────────────
+   [架構] 整支程式分為六個模組：
+     1. IDB     — IndexedDB 封裝（open / get / put / getAll / del）
+     2. TMDB    — API 呼叫層
+     3. UI      — 渲染與 Toast
+     4. ROUTER  — 單頁式視圖切換（data-view 切 class）
+     5. STORAGE — persist() 持久化 + JSON 匯入匯出
+     6. A2HS    — Add to Home Screen
+   ═══════════════════════════════════════════════════════════ */
+
+/* ═══════════ 模組 1：IndexedDB 封裝 ═══════════
+   IndexedDB 是瀏覽器的 NoSQL 資料庫：
+   - open() 回傳 Promise，解決原生大量 callback 的問題
+   - 三個 object store 都以 tmdbId 為主鍵（keyPath）
+   - put() = upsert（存在即覆寫），適合匯入合併 */
+const DB_NAME = 'pixelMovieDB', DB_VER = 1;
+let db;
+
+function openDB(){
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    // onupgradeneeded 只在首次建立/版本升級時執行，用來定義 schema
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('movies'))   d.createObjectStore('movies',  {keyPath:'id'});
+      if(!d.objectStoreNames.contains('favList'))  d.createObjectStore('favList', {keyPath:'id'});
+      if(!d.objectStoreNames.contains('seenList')) d.createObjectStore('seenList',{keyPath:'id'});
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+const tx = (store, mode='readonly') => db.transaction(store, mode).objectStore(store);
+const idbPut    = (store, obj) => new Promise((res,rej)=>{ const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const idbGet    = (store, id)  => new Promise((res,rej)=>{ const r=tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const idbGetAll = (store)      => new Promise((res,rej)=>{ const r=tx(store).getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
+const idbDel    = (store, id)  => new Promise((res,rej)=>{ const r=tx(store,'readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const idbClear  = (store)      => new Promise((res,rej)=>{ const r=tx(store,'readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+
+/* ═══════════ 模組 2：TMDB API 層 ═══════════ */
+async function tmdb(path, params = {}){
+  const qs = new URLSearchParams({api_key: TMDB_API_KEY, language: 'zh-TW', ...params});
+  const res = await fetch(`${TMDB_BASE}${path}?${qs}`);
+  if(!res.ok) throw new Error(`TMDB API 錯誤: ${res.status}`);
+  return res.json();
+}
+
+/* ═══════════ 模組 3：UI 工具 ═══════════ */
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+function toast(msg, isErr=false){
+  const t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.textContent = msg;
+  $('#toast-box').appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+function loading(show){
+  $('#loading-area').innerHTML = show
+    ? '<div class="status-line">LOADING...</div><div class="loading-bar"></div>' : '';
+}
+
+const GENRE_MAP = {28:'動作',12:'冒險',16:'動畫',35:'喜劇',80:'犯罪',99:'紀錄',18:'劇情',
+  10751:'家庭',14:'奇幻',36:'歷史',27:'恐怖',9648:'懸疑',10749:'愛情',878:'科幻',
+  10770:'電視電影',53:'驚悚',10752:'戰爭',37:'西部'};
+
+/* ═══════════ 模組 4：視圖路由（SPA） ═══════════ */
+$$('.nav-tab').forEach(btn => btn.addEventListener('click', () => {
+  $$('.nav-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  $$('.view').forEach(v => v.classList.remove('active'));
+  $('#view-' + btn.dataset.view).classList.add('active');
+  // 切到收藏/已觀看時重新渲染本地資料
+  if(btn.dataset.view === 'favorites') renderLocalGrid('favList',  '#fav-grid',  '★ 尚無收藏，去發現頁找好片吧！');
+  if(btn.dataset.view === 'seen')      renderLocalGrid('seenList', '#seen-grid', '▶ 尚無觀看紀錄！');
+  if(btn.dataset.view === 'manage')    refreshStorageInfo();
+}));
+
+/* ═══════════ 電影卡片渲染 ═══════════ */
+async function renderCards(movies, container){
+  const favs  = new Set((await idbGetAll('favList')).map(m => m.id));
+  const seens = new Set((await idbGetAll('seenList')).map(m => m.id));
+  container.innerHTML = '';
+  if(!movies.length){
+    container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><span class="icon">👾</span>找不到符合的電影...</div>';
+    return;
+  }
+  for(const m of movies){
+    const card = document.createElement('div');
+    card.className = 'movie-card';
+    const poster = m.poster_path
+      ? `<img src="${TMDB_IMG}${m.poster_path}" alt="${m.title}" loading="lazy">`
+      : '<div class="no-poster">無海報</div>';
+    const genres = (m.genre_ids || m.genres || []).slice(0,2)
+      .map(g => GENRE_MAP[g.id || g] || '').filter(Boolean).join(' / ');
+    card.innerHTML = `
+      <div class="poster-wrap">
+        ${poster}
+        <span class="fav-star" data-fav>${favs.has(m.id) ? '★' : '☆'}</span>
+        <span class="score-badge">${(m.vote_average || 0).toFixed(1)}</span>
+      </div>
+      <div class="card-info">
+        <div class="title">${m.title}</div>
+        <div class="meta">${(m.release_date || '').slice(0,4) || '----'}</div>
+        <div class="genres">${genres}</div>
+        ${seens.has(m.id) ? '<span class="tag seen">SEEN</span>' : ''}
+      </div>`;
+    // 點擊星星 → 切換收藏（stopPropagation 避免觸發詳情）
+    card.querySelector('[data-fav]').addEventListener('click', async e => {
+      e.stopPropagation();
+      if(favs.has(m.id)){ await idbDel('favList', m.id); favs.delete(m.id); e.target.textContent='☆'; toast('已移除收藏'); }
+      else { await idbPut('favList', m); favs.add(m.id); e.target.textContent='★'; toast('★ 已加入收藏！'); }
+    });
+    // 點卡片 → 開啟詳情
+    card.addEventListener('click', () => openDetail(m.id));
+    container.appendChild(card);
+  }
+}
+
+/* ═══════════ 發現頁：搜尋 + 篩選 + 分頁 ═══════════ */
+let currentPage = 1, totalPages = 1, isSearchMode = false;
+
+async function loadMovies(page = 1){
+  loading(true);
+  try{
+    const query = $('#search-input').value.trim();
+    let data;
+    if(query){
+      // 搜尋模式：/search/movie
+      isSearchMode = true;
+      data = await tmdb('/search/movie', {query, page});
+    } else {
+      // 探索模式：/discover/movie 支援豐富篩選
+      isSearchMode = false;
+      const params = {
+        page,
+        sort_by: $('#filter-sort').value,
+        'vote_count.gte': 50, // 避免冷門片灌水評分
+      };
+      const g = $('#filter-genre').value;  if(g) params.with_genres = g;
+      const y = $('#filter-year').value;   if(y) params.primary_release_year = y;
+      data = await tmdb('/discover/movie', params);
+    }
+    currentPage = data.page; totalPages = Math.min(data.total_pages, 500);
+    await renderCards(data.results, $('#movie-grid'));
+    renderPagination();
+  } catch(err){
+    console.error(err);
+    toast('載入失敗，請檢查 API Key！', true);
+  } finally { loading(false); }
+}
+
+function renderPagination(){
+  const p = $('#pagination');
+  p.innerHTML = '';
+  const mk = (label, page, disabled=false, active=false) => {
+    const b = document.createElement('button');
+    b.className = 'btn small' + (active ? ' yellow' : ' cyan');
+    b.textContent = label; b.disabled = disabled;
+    if(!disabled) b.onclick = () => { loadMovies(page); window.scrollTo({top:0}); };
+    p.appendChild(b);
+  };
+  mk('◀ PREV', currentPage - 1, currentPage <= 1);
+  for(let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++)
+    mk(String(i), i, false, i === currentPage);
+  mk('NEXT ▶', currentPage + 1, currentPage >= totalPages);
+}
+
+/* ═══════════ 詳情彈窗（含 IndexedDB 快取） ═══════════
+   技術說明：詳情先查 IndexedDB 快取，若無才打 API 並回寫快取。
+   這樣收藏頁可離線瀏覽詳情，也減少 API 呼叫。 */
+async function openDetail(id){
+  try{
+    let movie = await idbGet('movies', id);
+    if(!movie){
+      movie = await tmdb(`/movie/${id}`);
+      await idbPut('movies', movie); // 寫入快取
+    }
+    const fav  = await idbGet('favList', id);
+    const seen = await idbGet('seenList', id);
+    const cast = movie.credits || {};
+    $('#modal-body').innerHTML = `
+      ${movie.poster_path ? `<img src="${TMDB_IMG}${movie.poster_path}">` : ''}
+      <div>
+        <h2>${movie.title}${movie.original_title && movie.original_title !== movie.title ? '<br><small style="color:#a4b0be">'+movie.original_title+'</small>' : ''}</h2>
+        <div class="kv"><b>評分：</b>⭐ ${movie.vote_average || '-'} / 10 (${movie.vote_count || 0} 票)</div>
+        <div class="kv"><b>年份：</b>${(movie.release_date||'').slice(0,4) || '未知'}</div>
+        <div class="kv"><b>片長：</b>${movie.runtime ? movie.runtime + ' 分鐘' : '未知'}</div>
+        <div class="kv"><b>類型：</b>${(movie.genres||[]).map(g=>GENRE_MAP[g.id]||g.name).join('、') || '未知'}</div>
+        <div class="ov">${movie.overview || '（無中文簡介）'}</div>
+        ${fav  ? '<span class="tag want">★ 已收藏</span>' : ''}
+        ${seen ? '<span class="tag seen">▶ 已觀看</span>' : ''}
+      </div>`;
+    // 動作按鈕
+    const actions = $('#modal-actions');
+    actions.innerHTML = '';
+    const bFav = document.createElement('button');
+    bFav.className = 'btn yellow';
+    bFav.textContent = fav ? '★ 取消收藏' : '☆ 加入收藏收藏';
+    '.length; // placeholder removed below
+    bFav.textContent = fav ? '★ 取消收藏' : '☆ 加入收藏';
+    bFav.onclick = async () => {
+      const base = {id: movie.id, title: movie.title, poster_path: movie.poster_path,
+                    release_date: movie.release_date, vote_average: movie.vote_average,
+                    genre_ids: (movie.genres||[]).map(g=>g.id)};
+      if(fav){ await idbDel('favList', id); toast('已移除收藏'); }
+      else   { await idbPut('favList', base); toast('★ 已加入收藏！'); }
+      openDetail(id); // 重新渲染
+    };
+    const bSeen = document.createElement('button');
+    bSeen.className = 'btn green';
+    bSeen.textContent = seen ? '✓ 取消觀看' : '▶ 標記已觀看';
+    bSeen.onclick = async () => {
+      const base = {id: movie.id, title: movie.title, poster_path: movie.poster_path,
+                    release_date: movie.release_date, vote_average: movie.vote_average,
+                    genre_ids: (movie.genres||[]).map(g=>g.id), seen_at: Date.now()};
+      if(seen){ await idbDel('seenList', id); toast('已取消觀看紀錄'); }
+      else    { await idbPut('seenList', base); toast('▶ 已標記觀看！'); }
+      openDetail(id);
+    };
+    actions.append(bFav, bSeen);
+    $('#detail-modal').classList.add('open');
+  } catch(err){
+    console.error(err);
+    // 離線 fallback：如果快取有最小資料也可顯示
+    const fav = await idbGet('favList', id) || await idbGet('seenList', id);
+    if(fav){
+      $('#modal-body').innerHTML = `<div><h2>${fav.title}</h2><div class="ov">（離線模式：僅顯示本地快取的基本資料）</div></div>`;
+      $('#modal-actions').innerHTML = '';
+      $('#detail-modal').classList.add('open');
+    } else toast('無法載入詳情（離線且無快取）', true);
+  }
+}
+
+$('#modal-close').addEventListener('click', () => $('#detail-modal').classList.remove('open'));
+$('#detail-modal').addEventListener('click', e => { if(e.target.id === 'detail-modal') e.target.classList.remove('open'); });
+
+/* ═══════════ 收藏 / 已觀看 本地渲染 ═══════════ */
+async function renderLocalGrid(store, sel, emptyMsg){
+  const list = await idbGetAll(store);
+  const grid = $(sel);
+  if(!list.length){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><span class="icon">📼</span>${emptyMsg}</div>`;
+    return;
+  }
+  // 觀看紀錄依時間倒序
+  if(store === 'seenList') list.sort((a,b) => (b.seen_at||0) - (a.seen_at||0));
+  await renderCards(list, grid);
+}
+
+/* ═══════════ 模組 5：持久化 + JSON 匯入匯出 ═══════════ */
+async function requestPersist(){
+  /* 技術說明：瀏覽器在儲存空間不足時可能自動清除 IndexedDB（eviction）。
+     navigator.storage.persist() 是「請求式」API——
+     使用者常訪問的網站、已安裝 PWA 通常會被核准。
+     回傳 true 表示已進入持久化狀態。 */
+  if(navigator.storage && navigator.storage.persist){
+    const already = await navigator.storage.persisted();
+    if(already){ toast('✔ 儲存空間已是持久化狀態'); return; }
+    const granted = await navigator.storage.persist();
+    toast(granted ? '🔒 持久化已核准！資料不會被自動清除' : '✖ 瀏覽器未核准持久化（可能需要互動更多或安裝 PWA）', !granted);
+  } else {
+    toast('此瀏覽器不支援 Storage Persistence API', true);
+  }
+  refreshStorageInfo();
+}
+
+async function refreshStorageInfo(){
+  let persisted = false;
+  if(navigator.storage?.persisted) persisted = await navigator.storage.persisted();
+  $('#storage-status').textContent = `持久化狀態: ${persisted ? '✔ 已啟用' : '✖ 未啟用'}`;
+  const [f, s, m] = await Promise.all([idbGetAll('favList'), idbGetAll('seenList'), idbGetAll('movies')]);
+  $('#record-count').textContent = `收藏: ${f.length} 筆 ｜ 已觀看: ${s.length} 筆 ｜ 詳情快取: ${m.length} 筆`;
+}
+
+async function exportJSON(){
+  /* 匯出：讀取三個 store → 包成單一 JSON → Blob 下載 */
+  const data = {
+    app: 'PixelMovieDB', version: 1, exportedAt: new Date().toISOString(),
+    favList:  await idbGetAll('favList'),
+    seenList: await idbGetAll('seenList'),
+    movies:   await idbGetAll('movies'),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pixel-movie-db-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href); // 釋放記憶體
+  toast('▼ JSON 已匯出！');
+}
+
+async function importJSON(file){
+  /* 匯入：FileReader → parse → 驗證格式 → 逐筆 put（upsert 合併，不會刪除既有資料） */
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(data.app !== 'PixelMovieDB') throw new Error('格式不符');
+    let n = 0;
+    for(const m of (data.favList  || [])){ await idbPut('favList',  m); n++; }
+    for(const m of (data.seenList || [])){ await idbPut('seenList', m); n++; }
+    for(const m of (data.movies   || [])){ await idbPut('movies',   m); n++; }
+    toast(`▲ 成功匯入 ${n} 筆資料！`);
+    refreshStorageInfo();
+  } catch(err){
+    toast('匯入失敗：檔案格式錯誤', true);
+  }
+}
+
+$('#export-btn').addEventListener('click', exportJSON);
+$('#import-btn').addEventListener('click', () => $('#import-file').click());
+$('#import-file').addEventListener('change', e => { if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ''; });
+$('#persist-btn').addEventListener('click', requestPersist);
+$('#clear-btn').addEventListener('click', async () => {
+  if(!confirm('確定清除所有本地資料？（收藏、觀看紀錄、快取）')) return;
+  await Promise.all([idbClear('favList'), idbClear('seenList'), idbClear('movies')]);
+  toast('已清除所有本地資料');
+  refreshStorageInfo();
+});
+
+/* ═══════════ 模組 6：Add to Home Screen ═══════════
+   技術說明：
+   - Chrome/Edge 安裝 PWA 需要：manifest + HTTPS + service worker。
+     但「單一檔案 + GitHub Pages」情境下，我們用 data URI manifest，
+     並用 beforeinstallprompt 事件攔截瀏覽器原生安裝提示，
+     改為顯示自訂像素風橫幅，點擊後呼叫 event.prompt()。
+   - iOS Safari 不支援 beforeinstallprompt，用戶需手動「加入主畫面」，
+     橫幅會在 iOS 上顯示操作指引文字。
+   - 注意：無 service worker 時部分瀏覽器不出發 beforeinstallprompt；
+     若偵測不到事件，改顯示手動安裝指引，功能仍完整可用。 */
+let deferredPrompt = null;
+
+function injectManifest(){
+  // 用 data URI 內嵌 manifest.json —— 單檔部署的關鍵技巧！
+  const manifest = {
+    name: 'Pixel Movie DB',
+    short_name: 'PixelMovie',
+    display: 'standalone',
+    background_color: '#1a1a2e',
+    theme_color: '#1a1a2e',
+    start_url: '.',
+    icons: [{
+      // 內嵌一個 8-bit 風格 SVG 圖示（★ 星星）作為 app icon
+      src: 'data:image/svg+xml,' + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192">
+           <rect width="192" height="192" fill="#1a1a2e"/>
+           <polygon points="96,20 118,74 176,78 132,116 146,174 96,142 46,174 60,116 16,78 74,74"
+                    fill="#ffd32a" stroke="#e94560" stroke-width="6"/>
+         </svg>`),
+      sizes: '192x192', type: 'image/svg+xml', purpose: 'any'
+    }]
+  };
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(link);
+}
+
+function setupA2HS(){
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();          // 攔截原生提示
+    deferredPrompt = e;          // 保留事件供稍後觸發
+    setTimeout(() => $('#a2hs-banner').classList.add('show'), 3000); // 延遲3秒顯示
+  });
+  if(isIOS){
+    // iOS：顯示手動操作指引
+    setTimeout(() => {
+      const b = $('#a2hs-banner');
+      b.querySelector('span').textContent = ' iOS: 點分享 →「加入主畫面」';
+      b.querySelector('#a2hs-install').style.display = 'none';
+      b.classList.add('show');
+    }, 3000);
+  }
+  $('#a2hs-close').addEventListener('click', () => $('#a2hs-banner').classList.remove('show'));
+  $('#a2hs-install').addEventListener('click', async () => {
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      const {outcome} = await deferredPrompt.userChoice;
+      toast(outcome === 'accepted' ? '✔ 安裝成功！' : '已取消安裝');
+      deferredPrompt = null;
+    }
+    $('#a2hs-banner').classList.remove('show');
+  });
+}
+
+/* ═══════════ 事件綁定與初始化 ═══════════ */
+$('#search-btn').addEventListener('click', () => loadMovies(1));
+$('#search-input').addEventListener('keydown', e => { if(e.key === 'Enter') loadMovies(1); });
+['#filter-genre', '#filter-sort', '#filter-year'].forEach(s =>
+  $(s).addEventListener('change', () => loadMovies(1)));
+
+// 年份下拉選單：今年 ~ 1970
+(() => {
+  const sel = $('#filter-year');
+  for(let y = new Date().getFullYear(); y >= 1970; y--){
+    const o = document.createElement('option'); o.value = o.textContent = y; sel.appendChild(o);
+  }
+})();
+
+(async function init(){
+  // 1. 內嵌 manifest（供 A2HS 使用）
+  injectManifest();
+  // 2. 開啟 IndexedDB
+  await openDB();
+  // 3. 註冊 A2HS
+  setupA2HS();
+  // 4. 載入第一頁電影
+  if(TMDB_API_KEY === 'YOUR_TMDB_API_KEY'){
+    $('#movie-grid').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><span class="icon">⚠️</span>請先將程式碼中的 YOUR_TMDB_API_KEY 換成你的 TMDB API Key！</div>';
+    return;
+  }
+  loadMovies(1);
+})();
+</script>
+</body>
+</html>
