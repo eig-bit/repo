@@ -82,7 +82,11 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     gap: 6px;
     flex-wrap: wrap;
     align-items: center;
+    transition: right 0.25s ease;
 }
+
+/* ★ 側欄摺疊時，工具列延伸到右邊 */
+#toolbar.full { right: 60px; }
 
 #toolbar h1 {
     font-size: 10px;
@@ -121,12 +125,46 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     z-index: 1001;
     display: flex;
     flex-direction: column;
+    transition: transform 0.25s ease;
 }
+
+/* ★ 摺疊狀態：往右滑出，只露出切換鈕 */
+#sidebar.collapsed {
+    transform: translateX(calc(100% - 46px));
+}
+
+#sidebar.collapsed .sidebar-header h2 { opacity: 0; }
+
+/* ★ 摺疊/展開切換鈕 */
+#sidebar-toggle {
+    position: absolute;
+    left: -42px;
+    top: 0;
+    width: 38px;
+    height: 38px;
+    background: var(--pixel-accent);
+    color: #fff;
+    border: 3px solid var(--pixel-border);
+    box-shadow: -3px 3px 0 rgba(0,0,0,0.4);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    z-index: 10;
+    transition: background 0.15s;
+}
+
+#sidebar-toggle:hover {
+    background: var(--pixel-yellow);
+    color: var(--pixel-bg);
+}
+
+#sidebar-toggle:active { transform: translate(-1px, 1px); }
 
 .sidebar-header {
     padding: 12px;
     border-bottom: 2px solid var(--pixel-accent);
     background: var(--pixel-bg);
+    transition: opacity 0.2s;
 }
 
 .sidebar-header h2 {
@@ -403,7 +441,10 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
     #toolbar {
         right: 10px;
         padding: 6px;
+        right: 10px;
     }
+
+    #toolbar.full { right: 10px; }
 
     #toolbar h1 { font-size: 8px; }
 
@@ -418,7 +459,25 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
         max-height: 42vh;
     }
 
-    .sidebar-header { padding: 8px; }
+    /* ★ 行動版摺疊：往下收，只露出頂部一條 */
+    #sidebar.collapsed {
+        transform: translateY(calc(100% - 46px));
+    }
+
+    #sidebar.collapsed .sidebar-header h2 { opacity: 1; }
+
+    /* ★ 行動版切換鈕：移到側欄頂部右側 */
+    #sidebar-toggle {
+        left: auto;
+        right: 6px;
+        top: 6px;
+        width: 30px;
+        height: 30px;
+        font-size: 9px;
+        box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+    }
+
+    .sidebar-header { padding: 8px; padding-right: 44px; }
     .sidebar-header h2 { font-size: 9px; }
     .tab-btn { font-size: 7px; padding: 6px 2px; }
 
@@ -429,7 +488,11 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
         right: 10px;
         max-width: none;
         bottom: calc(42vh + 20px);
+        transition: bottom 0.25s ease;
     }
+
+    /* ★ 側欄摺疊時 A2HS 提示位置跟著調整 */
+    #a2hs-prompt.raised { bottom: 66px; }
 }
 </style>
 </head>
@@ -452,8 +515,9 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
 <!-- 地圖 -->
 <div id="map"></div>
 
-<!-- 側邊欄 -->
+<!-- 側邊欄（含摺疊切換鈕） -->
 <div id="sidebar">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" title="摺疊/展開">▶</button>
     <div class="sidebar-header">
         <h2>場所列表</h2>
     </div>
@@ -509,7 +573,8 @@ h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
                 <div class="info-text">
                     採用 <strong>流體佈局 + 媒體查詢</strong>（768px 斷點）：
                     桌面版為「地圖 + 右側欄」，行動版側欄改為底部抽屜，
-                    並自動調整縮放級別與控制項大小，支援觸控手勢（雙指勢（雙指縮放、單指拖曳）。
+                    兩者皆支援<strong>摺疊/展開</strong>（狀態以 localStorage 記憶），
+                    並自動調整縮放級別與控制項大小，支援觸控手勢。
                 </div>
             </div>
             <div class="info-section">
@@ -617,6 +682,7 @@ let mapMarkers = {};
 let currentMarkers = [];
 let deferredPrompt = null;
 let currentTab = 'markers';
+let sidebarCollapsed = false;
 
 const LAYER_NAMES = { street: '街道', dark: '暗黑', light: '明亮', terrain: '地形' };
 const TYPE_NAMES = { default: '場所', poi: '興趣點', star: '最愛', secret: '秘密基地' };
@@ -712,7 +778,10 @@ function initMap() {
         }
     });
 
-    window.addEventListener('resize', () => map.invalidateSize());
+    window.addEventListener('resize', () => {
+        map.invalidateSize();
+        updateToggleArrow();  // 跨斷點時更新箭頭方向
+    });
 }
 
 function toggleLayer() {
@@ -757,7 +826,8 @@ function addMarkerMode() {
     isAddMarkerMode = true;
     document.getElementById('map').style.cursor = 'crosshair';
     showToast('點擊地圖選擇位置');
-    if (currentTab === 'add') switchTab('markers', document.getElementById('tab-markers'));
+    // 側欄若開著，自動摺疊以方便點地圖
+    if (!sidebarCollapsed) toggleSidebar();
 }
 
 function exitAddMarkerMode() {
@@ -902,6 +972,8 @@ function renderMarkerList(markers) {
 function flyToMarker(id) {
     const m = currentMarkers.find(m => m.id === id);
     if (!m) return;
+    // 從列表點擊時，桌面版先摺疊側欄以看清地圖
+    if (!sidebarCollapsed && window.innerWidth > 768) toggleSidebar();
     map.flyTo([m.lat, m.lng], 16, { duration: 1.2 });
     setTimeout(() => mapMarkers[id] && mapMarkers[id].openPopup(), 1300);
 }
@@ -997,7 +1069,6 @@ function switchTab(tab, btn) {
     if (tab === 'markers') {
         renderMarkerList(currentMarkers);
     } else if (tab === 'add') {
-        // 不產生重複 ID 的表單，只顯示說明與按鈕
         c.innerHTML = `
             <div style="padding:20px;text-align:center;font-size:11px;line-height:1.9;">
                 <p style="margin-bottom:16px;">🏠 新增場所的方式：</p>
@@ -1024,7 +1095,7 @@ function switchTab(tab, btn) {
                     3. 「📍定位」跳到當前位置<br>
                     4. 「🗺️圖層」循環切換底圖<br>
                     5. 「⬇/⬆」備份與還原資料<br>
-                    6. 資料存在本機 IndexedDB
+                    6. 側欄可摺疊，需要時再打開
                 </div>
             </div>
             <div class="info-section">
@@ -1040,11 +1111,49 @@ function switchTab(tab, btn) {
     }
 }
 
-// 手動開啟新增彈窗
 function openAddModal() {
     clearAddMarkerForm();
     openModal('add-marker-modal');
     document.getElementById('marker-name').focus();
+}
+
+// ==================== 側邊欄摺疊 ====================
+function updateToggleArrow() {
+    const btn = document.getElementById('sidebar-toggle');
+    if (!btn) return;
+    const isMobile = window.innerWidth <= 768;
+    // 桌面版：按鈕在左側，展開時箭頭指右（▶ 表示可收起→其實表示目前狀態）
+    // 統一一邏輯：顯示「點擊後會執行的動作方向」
+    if (isMobile) {
+        btn.textContent = sidebarCollapsed ? '▲' : '▼';  // 往上展開 / 往下收起
+    } else {
+        btn.textContent = sidebarCollapsed ? '◀' : '▶';  // 往左展開 / 往右收起
+    }
+}
+
+function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    const sidebar = document.getElementById('sidebar');
+    const toolbar = document.getElementById('toolbar');
+
+    sidebar.classList.toggle('collapsed', sidebarCollapsed);
+
+    // 桌面版：摺疊時工具列延伸到右邊緣
+    if (window.innerWidth > 768) {
+        toolbar.classList.toggle('full', sidebarCollapsed);
+    }
+
+    // 行動版：調整 A2HS 提示位置，避免被收起的側欄蓋住
+    const a2hs = document.getElementById('a2hs-prompt');
+    if (a2hs) a2hs.classList.toggle('raised', sidebarCollapsed && a2hs.classList.contains('active'));
+
+    updateToggleArrow();
+
+    // 記住狀態
+    localStorage.setItem('sidebar-collapsed', sidebarCollapsed ? '1' : '0');
+
+    // 動畫結束後讓地圖重算尺寸，避免標記偏移
+    setTimeout(() => map && map.invalidateSize(), 300);
 }
 
 // ==================== 彈窗 / Toast / 工具 ====================
@@ -1122,7 +1231,10 @@ function initA2HS() {
 
 function showA2HSPrompt() {
     document.getElementById('a2hs-instructions').innerHTML = getA2HSInstructions();
-    document.getElementById('a2hs-prompt').classList.add('active');
+    const a2hs = document.getElementById('a2hs-prompt');
+    a2hs.classList.add('active');
+    // 若側欄已摺疊（行動版），提示位置上移
+    if (sidebarCollapsed) a2hs.classList.add('raised');
 }
 
 function hideA2HSPrompt(done) {
@@ -1141,6 +1253,13 @@ async function init() {
         loadMarkers();
         switchTab('markers', document.getElementById('tab-markers'));
         initA2HS();
+
+        // 還原側欄摺疊狀態
+        if (localStorage.getItem('sidebar-collapsed') === '1') {
+            toggleSidebar();
+        } else {
+            updateToggleArrow();
+        }
     } catch (err) {
         console.error('初始化失敗:', err);
         showToast('初始化失敗: ' + err.message);
