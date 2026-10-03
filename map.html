@@ -837,12 +837,14 @@ function initMap() {
 
     map.on('click', (e) => {
         if (isAddMarkerMode) {
+            exitAddMarkerMode();
+            openAddModal(true);
             document.getElementById('marker-lat').value = e.latlng.lat.toFixed(6);
             document.getElementById('marker-lng').value = e.latlng.lng.toFixed(6);
-            exitAddMarkerMode();
-            openAddModal();
+            document.getElementById('marker-name').focus();
         }
     });
+
 
     window.addEventListener('resize', () => {
         map.invalidateSize();
@@ -1363,12 +1365,15 @@ function switchTab(tab, btn) {
     }
 }
 
-function openAddModal() {
+function openAddModal(keepCoords) {
     clearAddMarkerForm();
     refreshTypeSelects();
     openModal('add-marker-modal');
-    document.getElementById('marker-name').focus();
+    if (!keepCoords) {
+        document.getElementById('marker-name').focus();
+    }
 }
+
 
 // ==================== 側邊欄摺疊 ====================
 function updateToggleArrow() {
