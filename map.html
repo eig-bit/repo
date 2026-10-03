@@ -1,4 +1,613 @@
-<!-- 1. 找到 <script> 標籤，將整段 JavaScript 換成以下內容 -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<title>8-BIT 像素地圖探險</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+    --pixel-bg: #1a1a2e;
+    --pixel-panel: #2d2d44;
+    --pixel-accent: #e94560;
+    --pixel-yellow: #f9d923;
+    --pixel-green: #4ade80;
+    --pixel-blue: #38bdf8;
+    --pixel-pink: #f472b6;
+    --pixel-border: #c8c8d8;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background: var(--pixel-bg);
+    color: var(--pixel-border);
+    overflow: hidden;
+    height: 100vh;
+}
+
+h1, h2, h3, .pixel-btn, .tab-btn, .form-label {
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+/* ========== 按鈕 ========== */
+.pixel-btn {
+    background: var(--pixel-panel);
+    color: var(--pixel-border);
+    border: 2px solid var(--pixel-border);
+    padding: 8px 10px;
+    font-size: 8px;
+    cursor: pointer;
+    transition: all 0.1s;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0 var(--pixel-accent);
+}
+
+.pixel-btn:hover {
+    background: var(--pixel-accent);
+    color: #fff;
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--pixel-yellow);
+}
+
+.pixel-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--pixel-accent);
+}
+
+.pixel-btn.primary { background: var(--pixel-accent); color: #fff; }
+.pixel-btn.success { background: var(--pixel-green); color: var(--pixel-bg); }
+.pixel-btn.danger { background: #8b1538; color: #fff; }
+
+/* ========== 工具列 ========== */
+#toolbar {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 350px;
+    z-index: 1001;
+    background: var(--pixel-panel);
+    border: 3px solid var(--pixel-border);
+    box-shadow: 4px 4px 0 var(--pixel-accent);
+    padding: 8px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+#toolbar h1 {
+    font-size: 10px;
+    color: var(--pixel-yellow);
+    text-shadow: 2px 2px 0 var(--pixel-accent);
+    width: 100%;
+}
+
+.btn-group {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+/* ========== 地圖 ========== */
+#map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    z-index: 1;
+}
+
+/* ========== 側邊欄 ========== */
+#sidebar {
+    position: fixed;
+    right: 10px;
+    top: 10px;
+    width: 330px;
+    max-height: calc(100vh - 20px);
+    background: var(--pixel-panel);
+    border: 3px solid var(--pixel-border);
+    box-shadow: -4px 4px 0 var(--pixel-accent);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 12px;
+    border-bottom: 2px solid var(--pixel-accent);
+    background: var(--pixel-bg);
+}
+
+.sidebar-header h2 {
+    font-size: 11px;
+    color: var(--pixel-yellow);
+}
+
+.sidebar-tabs { display: flex; border-bottom: 2px solid var(--pixel-accent); }
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 4px;
+    background: var(--pixel-panel);
+    border: none;
+    border-right: 2px solid var(--pixel-accent);
+    color: var(--pixel-border);
+    font-size: 8px;
+    cursor: pointer;
+}
+
+.tab-btn:last-child { border-right: none; }
+.tab-btn.active { background: var(--pixel-accent); color: #fff; }
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.sidebar-content::-webkit-scrollbar { width: 8px; }
+.sidebar-content::-webkit-scrollbar-track { background: var(--pixel-bg); }
+.sidebar-content::-webkit-scrollbar-thumb { background: var(--pixel-accent); }
+
+/* ========== 場所列表項 ========== */
+.marker-item {
+    background: var(--pixel-bg);
+    border: 2px solid var(--pixel-border);
+    padding: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.marker-item:hover {
+    border-color: var(--pixel-yellow);
+    transform: translateX(-3px);
+}
+
+.marker-item-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--pixel-yellow);
+    margin-bottom: 4px;
+    word-break: break-all;
+}
+
+.marker-item-coords { font-size: 10px; color: var(--pixel-green); margin-bottom: 4px; }
+.marker-item-desc { font-size: 11px; line-height: 1.4; }
+.marker-item-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+
+.marker-item-actions .pixel-btn {
+    font-size: 7px;
+    padding: 4px 6px;
+    box-shadow: 2px 2px 0 var(--pixel-accent);
+}
+
+/* ========== 表單 ========== */
+.form-group { margin-bottom: 12px; }
+
+.form-label {
+    display: block;
+    font-size: 8px;
+    color: var(--pixel-yellow);
+    margin-bottom: 4px;
+}
+
+.form-input {
+    width: 100%;
+    background: var(--pixel-bg);
+    border: 2px solid var(--pixel-border);
+    color: var(--pixel-border);
+    padding: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.form-input:focus { outline: none; border-color: var(--pixel-yellow); }
+
+/* ========== 彈窗 ========== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 2000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+    background: var(--pixel-panel);
+    border: 3px solid var(--pixel-border);
+    box-shadow: 8px 8px 0 var(--pixel-accent);
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--pixel-yellow);
+    margin-bottom: 16px;
+    text-align: center;
+    border-bottom: 2px dashed var(--pixel-accent);
+    padding-bottom: 8px;
+}
+
+.modal-content { margin-bottom: 16px; line-height: 1.8; font-size: 12px; }
+.modal-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* ========== Leaflet 像素化樣式 ========== */
+.leaflet-popup-content-wrapper {
+    background: var(--pixel-panel) !important;
+    color: var(--pixel-border) !important;
+    border-radius: 0 !important;
+    border: 3px solid var(--pixel-border) !important;
+    box-shadow: 4px 4px 0 var(--pixel-accent) !important;
+}
+
+.leaflet-popup-tip { background: var(--pixel-border) !important; }
+
+.leaflet-popup-content {
+    margin: 12px 14px !important;
+    font-family: 'Courier New', monospace !important;
+}
+
+.popup-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--pixel-yellow);
+    margin-bottom: 8px;
+    border-bottom: 2px solid var(--pixel-accent);
+    padding-bottom: 4px;
+}
+
+.popup-coords { color: var(--pixel-green); font-size: 10px; margin-bottom: 4px; }
+.popup-desc { margin-top: 6px; line-height: 1.4; font-size: 11px; }
+.popup-actions { margin-top: 10px; display: flex; gap: 6px; }
+.popup-actions .pixel-btn { font-size: 7px; padding: 4px 6px; box-shadow: 2px 2px 0 var(--pixel-accent); }
+
+.leaflet-control-zoom {
+    border: 2px solid var(--pixel-border) !important;
+    box-shadow: 4px 4px 0 var(--pixel-accent) !important;
+    margin: 10px !important;
+    border-radius: 0 !important;
+}
+
+.leaflet-control-zoom a {
+    background: var(--pixel-panel) !important;
+    color: var(--pixel-border) !important;
+    border-bottom: 2px solid var(--pixel-border) !important;
+    font-family: 'Press Start 2P', monospace !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 34px !important;
+    border-radius: 0 !important;
+}
+
+.leaflet-control-zoom a:hover { background: var(--pixel-accent) !important; color: #fff !important; }
+
+.leaflet-control-attribution {
+    background: rgba(26, 26, 46, 0.85) !important;
+    color: var(--pixel-border) !important;
+    font-size: 10px !important;
+    border: 1px solid var(--pixel-border);
+}
+
+.leaflet-control-attribution a { color: var(--pixel-yellow) !important; }
+
+/* ========== 像素標記 ========== */
+.pixel-marker-icon { background: transparent; border: none; }
+
+@keyframes userPulse {
+    0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.8); }
+    100% { box-shadow: 0 0 0 14px rgba(56, 189, 248, 0); }
+}
+
+.pixel-user-icon .user-dot {
+    width: 22px; height: 22px;
+    background: var(--pixel-blue);
+    border: 3px solid #fff;
+    animation: userPulse 1.5s infinite;
+}
+
+/* ========== A2HS 提示 ========== */
+#a2hs-prompt {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: var(--pixel-panel);
+    border: 3px solid var(--pixel-yellow);
+    box-shadow: 4px 4px 0 var(--pixel-accent);
+    padding: 12px;
+    z-index: 1500;
+    display: none;
+    max-width: 360px;
+}
+
+#a2hs-prompt.active { display: block; }
+
+.a2hs-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--pixel-yellow);
+    margin-bottom: 8px;
+}
+
+.a2hs-text { font-size: 11px; line-height: 1.6; margin-bottom: 10px; }
+.a2hs-text strong { color: var(--pixel-green); }
+.a2hs-actions { display: flex; gap: 6px; }
+
+/* ========== Toast ========== */
+#toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--pixel-green);
+    color: var(--pixel-bg);
+    padding: 10px 18px;
+    border: 2px solid var(--pixel-border);
+    box-shadow: 4px 4px 0 var(--pixel-accent);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    z-index: 4000;
+    display: none;
+}
+
+#toast.show { display: block; }
+
+/* ========== 資訊頁 ========== */
+.info-section { margin-bottom: 14px; }
+
+.info-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--pixel-yellow);
+    margin-bottom: 8px;
+    border-bottom: 1px dashed var(--pixel-accent);
+    padding-bottom: 4px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 3px 0;
+}
+
+.info-row .k { color: var(--pixel-green); }
+.info-row .v { color: var(--pixel-border); text-align: right; }
+
+.info-text { font-size: 11px; line-height: 1.7; }
+.info-text strong { color: var(--pixel-yellow); }
+
+/* ========== 響應式 ========== */
+@media (max-width: 768px) {
+    #toolbar {
+        right: 10px;
+        padding: 6px;
+    }
+
+    #toolbar h1 { font-size: 8px; }
+
+    .pixel-btn { padding: 6px 7px; font-size: 7px; box-shadow: 2px 2px 0 var(--pixel-accent); }
+
+    #sidebar {
+        left: 10px;
+        right: 10px;
+        top: auto;
+        bottom: 10px;
+        width: auto;
+        max-height: 42vh;
+    }
+
+    .sidebar-header { padding: 8px; }
+    .sidebar-header h2 { font-size: 9px; }
+    .tab-btn { font-size: 7px; padding: 6px 2px; }
+
+    .leaflet-control-zoom a { width: 32px !important; height: 32px !important; line-height: 30px !important; }
+
+    #a2hs-prompt {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        bottom: calc(42vh + 20px);
+    }
+}
+</style>
+</head>
+<body>
+
+<!-- 工具列 -->
+<div id="toolbar">
+    <h1>8-BIT 地圖探險</h1>
+    <div class="btn-group">
+        <button class="pixel-btn" onclick="addMarkerMode()">➕新增</button>
+        <button class="pixel-btn" onclick="locateUser()">📍定位</button>
+        <button class="pixel-btn" onclick="toggleLayer()">🗺️圖層</button>
+        <button class="pixel-btn" onclick="exportJSON()">⬇匯出</button>
+        <button class="pixel-btn" onclick="document.getElementById('import-file').click()">⬆匯入</button>
+        <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importJSON(event)">
+        <button class="pixel-btn" onclick="showTechInfo()">ℹ說明</button>
+    </div>
+</div>
+
+<!-- 地圖 -->
+<div id="map"></div>
+
+<!-- 側邊欄 -->
+<div id="sidebar">
+    <div class="sidebar-header">
+        <h2>場所列表</h2>
+    </div>
+    <div class="sidebar-tabs">
+        <button class="tab-btn active" id="tab-markers" onclick="switchTab('markers', this)">場所</button>
+        <button class="tab-btn" id="tab-add" onclick="switchTab('add', this)">新增</button>
+        <button class="tab-btn" id="tab-info" onclick="switchTab('info', this)">資訊</button>
+    </div>
+    <div class="sidebar-content" id="sidebar-content"></div>
+</div>
+
+<!-- A2HS 提示 -->
+<div id="a2hs-prompt">
+    <div class="a2hs-title">📱 加入主畫面？</div>
+    <div class="a2hs-text" id="a2hs-instructions"></div>
+    <div class="a2hs-actions">
+        <button class="pixel-btn success" onclick="hideA2HSPrompt(true)">我已加入</button>
+        <button class="pixel-btn" onclick="hideA2HSPrompt(false)">稍後</button>
+    </div>
+</div>
+
+<!-- 技術說明彈窗 -->
+<div class="modal-overlay" id="tech-info-modal">
+    <div class="modal">
+        <h3 class="modal-title">地圖技術說明</h3>
+        <div class="modal-content">
+            <div class="info-section">
+                <div class="info-title">渲染引擎</div>
+                <div class="info-text">
+                    使用 <strong>Leaflet.js v1.9.4</strong> 開源地圖庫，以 Canvas 模式渲染（<strong>preferCanvas</strong>），
+                    提升大量標記時的繪製效能。瓦片來源採用 <strong>OpenStreetMap</strong> 與 <strong>CARTO</strong>，
+                    共四種圖層可循環切換（街道 / 暗黑 / 明亮 / 地形）。
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="info-title">資料儲存</div>
+                <div class="info-text">
+                    場所資料儲存於 <strong>IndexedDB</strong>（物件儲存庫名稱：markers），
+                    支援索引查詢（lat / lng / type / name）。啟動時呼叫
+                    <strong>navigator.storage.persist()</strong> 申請<strong>持久化儲存</strong>，
+                    防止瀏覽器在儲存空間不足時自動清除資料。
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="info-title">匯入 / 匯出</div>
+                <div class="info-text">
+                    以 <strong>JSON</strong> 格式匯出全部場所（含版本號與匯出時間），
+                    匯入時自動驗證格式並重編 ID，避免主鍵衝突。適合備份與跨裝置搬移。
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="info-title">響應式設計</div>
+                <div class="info-text">
+                    採用 <strong>流體佈局 + 媒體查詢</strong>（768px 斷點）：
+                    桌面版為「地圖 + 右側欄」，行動版側欄改為底部抽屜，
+                    並自動調整縮放級別與控制項大小，支援觸控手勢（雙指勢（雙指縮放、單指拖曳）。
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="info-title">其他技術</div>
+                <div class="info-text">
+                    ・定位：<strong>Geolocation API</strong>（高精度模式）<br>
+                    ・加入主畫面：教學式提示（偵測 iOS / Android / 桌面平台）<br>
+                    ・安全：<strong>escapeHtml</strong> 防 XSS 注入<br>
+                    ・風格：8-bit 像素風 UI，字體 Press Start 2P
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="pixel-btn primary" onclick="closeModal('tech-info-modal')">關閉</button>
+        </div>
+    </div>
+</div>
+
+<!-- 新增場所彈窗（唯一的表單，無重複 ID） -->
+<div class="modal-overlay" id="add-marker-modal">
+    <div class="modal">
+        <h3 class="modal-title">新增場所</h3>
+        <div class="modal-content">
+            <div class="form-group">
+                <label class="form-label" for="marker-name">名稱 *</label>
+                <input type="text" id="marker-name" class="form-input" placeholder="場所名稱" maxlength="50">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="marker-desc">描述</label>
+                <textarea id="marker-desc" class="form-input" rows="3" placeholder="場所描述..." maxlength="300"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="marker-lat">緯度 *</label>
+                <input type="number" id="marker-lat" class="form-input" step="any" placeholder="25.0330">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="marker-lng">經度 *</label>
+                <input type="number" id="marker-lng" class="form-input" step="any" placeholder="121.5654">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="marker-type">類型</label>
+                <select id="marker-type" class="form-input">
+                    <option value="default">一般場所</option>
+                    <option value="poi">興趣點</option>
+                    <option value="star">最愛</option>
+                    <option value="secret">秘密基地</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="pixel-btn primary" onclick="saveMarker()">儲存</button>
+            <button class="pixel-btn" onclick="closeModal('add-marker-modal')">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 編輯場所彈窗 -->
+<div class="modal-overlay" id="edit-marker-modal">
+    <div class="modal">
+        <h3 class="modal-title">編輯場所</h3>
+        <div class="modal-content">
+            <input type="hidden" id="edit-marker-id">
+            <div class="form-group">
+                <label class="form-label" for="edit-marker-name">名稱 *</label>
+                <input type="text" id="edit-marker-name" class="form-input" maxlength="50">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="edit-marker-desc">描述</label>
+                <textarea id="edit-marker-desc" class="form-input" rows="3" maxlength="300"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="edit-marker-lat">緯度 *</label>
+                <input type="number" id="edit-marker-lat" class="form-input" step="any">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="edit-marker-lng">經度 *</label>
+                <input type="number" id="edit-marker-lng" class="form-input" step="any">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="edit-marker-type">類型</label>
+                <select id="edit-marker-type" class="form-input">
+                    <option value="default">一般場所</option>
+                    <option value="poi">興趣點</option>
+                    <option value="star">最愛</option>
+                    <option value="secret">秘密基地</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="pixel-btn success" onclick="updateMarker()">更新</button>
+            <button class="pixel-btn" onclick="closeModal('edit-marker-modal')">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
 <script>
 // ==================== 全域變數 ====================
 let map, db, markersLayer;
@@ -148,7 +757,6 @@ function addMarkerMode() {
     isAddMarkerMode = true;
     document.getElementById('map').style.cursor = 'crosshair';
     showToast('點擊地圖選擇位置');
-    // 若側欄開著「新增」分頁，切回「場所」列表
     if (currentTab === 'add') switchTab('markers', document.getElementById('tab-markers'));
 }
 
@@ -177,7 +785,7 @@ function locateUser() {
     );
 }
 
-// ==================== 標記 CRUD（僅使用彈窗表單，ID 唯一） ====================
+// ==================== 標記 CRUD ====================
 function saveMarker() {
     const name = document.getElementById('marker-name').value.trim();
     const desc = document.getElementById('marker-desc').value.trim();
@@ -220,7 +828,8 @@ function updateMarker() {
     const lng = parseFloat(document.getElementById('edit-marker-lng').value);
     const type = document.getElementById('edit-marker-type').value;
 
-    if (!name || isNaN(lat) || isNaN(lng)) return showToast('請填寫名稱與座標');
+    if (!name) return showToast('請填寫名稱');
+    if (isNaN(lat) || isNaN(lng)) return showToast('請填寫座標');
 
     const tx = db.transaction(['markers'], 'readwrite');
     tx.objectStore('markers').put({ id, name, desc, lat, lng, type });
@@ -388,7 +997,7 @@ function switchTab(tab, btn) {
     if (tab === 'markers') {
         renderMarkerList(currentMarkers);
     } else if (tab === 'add') {
-        // ★ 關鍵修正：不再產生重複 ID 的表單，只顯示說明與按鈕
+        // 不產生重複 ID 的表單，只顯示說明與按鈕
         c.innerHTML = `
             <div style="padding:20px;text-align:center;font-size:11px;line-height:1.9;">
                 <p style="margin-bottom:16px;">🏠 新增場所的方式：</p>
@@ -431,7 +1040,7 @@ function switchTab(tab, btn) {
     }
 }
 
-// 手動開啟新增彈窗（座標留空由使用者填寫）
+// 手動開啟新增彈窗
 function openAddModal() {
     clearAddMarkerForm();
     openModal('add-marker-modal');
@@ -481,7 +1090,7 @@ function clearAddMarkerForm() {
     if (type) type.value = 'default';
 }
 
-// ==================== A2HS ====================
+// ==================== A2HS（加入主畫面） ====================
 function getA2HSInstructions() {
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -540,3 +1149,5 @@ async function init() {
 
 window.addEventListener('DOMContentLoaded', init);
 </script>
+</body>
+</html>
