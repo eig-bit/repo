@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="8-Bit 像素風遊戲資料庫 - Retro Game Library">
+<meta name="theme-color" content="#1a1a2e">
+<title>👾 RETRO GAME DB</title>
+
+<!-- ============================================================
+     [技術說明] A2HS（Add to Home Screen）與 PWA 相關
+     - manifest 必須以 JSON 內嵌（單檔案限制下用 data URI）
+     - 需要 service worker 才能觸發 install 事件，這裡用 Blob URL 註冊
+       （注意：部分瀏覽器要求 SW 與頁面同源且為真實檔案，
+        GitHub Pages 上建議額外放置 sw.js；此處以 inline SW 作示範）
+     ============================================================ -->
+<link rel="manifest" id="manifestLink">
+<style>
+/* ============================================================
+   [設計說明] 8-Bit 像素風實現要點：
+   1. 像素字體：Press Start 2P（Google Fonts）
+   2. image-rendering: pixelated — 圖片縮放時保持像素感
+   3. 硬邊框 + 無圓角 + 粗黑邊框 + 掃描線背景 = CRT 螢幕感
+   4. 色彩：NTSC 復古色板（深藍底、亮綠/黃/洋紅點綴）
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root{
+  --bg:#1a1a2e; --bg2:#16213e; --panel:#0f3460;
+  --green:#00ff41; --yellow:#ffd700; --magenta:#ff2a6d;
+  --cyan:#05d9e8; --white:#eaeaea; --gray:#8892a0;
+  --border:#051018;
+}
+[data-theme="light"]{
+  --bg:#e8e4d8; --bg2:#d8d4c8; --panel:#f5f1e5;
+  --green:#007a1f; --yellow:#a06800; --magenta:#c4125a;
+  --cyan:#0080a8; --white:#1a1a2e; --gray:#555;
+  --border:#333;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+img{image-rendering:pixelated}
+body{
+  font-family:'Press Start 2P',monospace;
+  background:var(--bg);
+  color:var(--white);
+  font-size:12px;
+  line-height:1.8;
+  /* CRT 掃描線效果：重複的半透明漸層 */
+  background-image:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.15) 2px 4px);
+  min-height:100vh;
+}
+a{color:var(--cyan)}
+button,select,input{font-family:inherit;font-size:10px}
+
+/* ---------- 通用像素元件 ---------- */
+.pixel-panel{
+  background:var(--panel);
+  border:4px solid var(--border);
+  box-shadow:0 0 0 4px var(--cyan), 6px 6px 0 var(--border);
+  padding:16px;
+  margin:16px auto;
+  max-width:1200px;
+}
+.pixel-btn{
+  background:var(--panel); color:var(--green);
+  border:4px solid var(--border);
+  box-shadow:4px 4px 0 var(--border);
+  padding:10px 14px; cursor:pointer;
+  text-transform:uppercase;
+  transition:transform .05s;
+}
+.pixel-btn:hover{background:var(--cyan);color:var(--border)}
+.pixel-btn:active{transform:translate(4px,4px);box-shadow:none}
+.pixel-btn.danger{color:var(--magenta)}
+
+header{max-width:1200px;margin:0 auto;padding:24px 16px;text-align:center}
+header h1{
+  color:var(--yellow);
+  text-shadow:4px 4px 0 var(--magenta);
+  font-size:clamp(16px,4vw,32px);
+  animation:blink 2s steps(2) infinite;
+}
+@keyframes blink{50%{text-shadow:4px 4px 0 var(--cyan)}}
+
+/* ---------- 搜尋列：響應式 Grid ---------- */
+.search-bar{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;
+  max-width:1200px;margin:0 auto;padding:0 16px;
+}
+.search-bar input,.search-bar select{
+  background:var(--bg2);color:var(--green);
+  border:4px solid var(--border);
+  padding:10px 8px;width:100%;
+}
+.search-bar input:focus{outline:4px solid var(--yellow)}
+
+/* ---------- 遊戲卡片 Grid ---------- */
+#gameGrid{
+  display:grid;
+  /* [響應式核心] auto-fill + minmax：螢幕寬度自動決定欄數，
+     無需寫死媒體斷點。320px 約為一張遊戲封面寬度 */
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:20px;
+  max-width:1200px;margin:0 auto;padding:16px;
+}
+.game-card{
+  background:var(--panel);
+  border:4px solid var(--border);
+  box-shadow:0 0 0 4px var(--cyan),6px 6px 0 var(--border);
+  cursor:pointer;
+  transition:transform .1s;
+  overflow:hidden;
+}
+.game-card:hover{transform:translate(-4px,-4px);box-shadow:0 0 0 4px var(--magenta),10px 10px 0 var(--border)}
+.game-card img{width:100%;aspect-ratio:16/9;object-fit:cover;border-bottom:4px solid var(--border)}
+.game-card .info{padding:12px}
+.game-card .title{color:var(--yellow);font-size:10px;min-height:2.8em}
+.game-card .meta{color:var(--gray);font-size:8px;margin-top:8px}
+.rating{color:var(--green)}
+
+/* ---------- 分頁 ---------- */
+.pagination{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:24px}
+
+/* ---------- 詳細頁 Modal ---------- */
+#modalOverlay{
+  position:fixed;inset:0;background:rgba(5,16,24,.92);
+  display:none;z-index:100;padding:16px;overflow-y:auto;
+}
+#modalOverlay.open{display:flex;align-items:flex-start;justify-content:center}
+.modal-content{max-width:800px;width:100%;margin-top:5vh}
+.modal-content .screenshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin:12px 0}
+.modal-content .screenshots img{width:100%;border:4px solid var(--border)}
+
+/* ---------- Toast 提示 ---------- */
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--panel);border:4px solid var(--yellow);
+  color:var(--yellow);padding:12px 20px;z-index:200;
+  box-shadow:4px 4px 0 var(--border);display:none;
+  max-width:90vw;text-align:center;font-size:10px;
+}
+
+/* ---------- A2HS 提示橫幅 ---------- */
+#a2hsBanner{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--panel);border-top:4px solid var(--green);
+  padding:14px;display:none;z-index:150;
+  text-align:center;font-size:10px;
+}
+#a2hsBanner.show{display:block}
+
+/* ---------- 收藏標記 ---------- */
+.star{color:var(--yellow);float:right;cursor:pointer;font-size:14px}
+
+@media(max-width:600px){
+  body{font-size:10px}
+  .modal-content .info-row{display:block}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>👾 RETRO GAME DB</h1>
+  <p style="color:var(--gray);font-size:9px;margin-top:12px">POWERED BY RAWG.API</p>
+  <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <button class="pixel-btn" id="themeBtn">🌓 THEME</button>
+    <button class="pixel-btn" id="exportBtn">💾 EXPORT JSON</button>
+    <label class="pixel-btn" style="display:inline-block">📥 IMPORT JSON
+      <input type="file" id="importFile" accept=".json" hidden>
+    </label>
+    <button class="pixel-btn" id="favBtn">⭐ MY FAVORITES</button>
+    <button class="pixel-btn" id="homeBtn">🏠 HOME</button>
+    <span id="storageStatus" style="color:var(--cyan);font-size:8px;align-self:center"></span>
+  </div>
+</header>
+
+<!-- 搜尋 + 篩選 + 排序 -->
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="🔎 SEARCH GAME..." style="grid-column:1/-1">
+  <select id="platformFilter">
+    <option value="">ALL PLATFORMS</option>
+    <option value="4">PC</option><option value="1">XBOX</option>
+    <option value="18">PLAYSTATION</option><option value="7">SWITCH</option>
+    <option value="3">iOS</option><option value="21">ANDROID</option>
+  </select>
+  <select id="genreFilter">
+    <option value="">ALL GENRES</option>
+    <option value="action">ACTION</option><option value="adventure">ADVENTURE</option>
+    <option value="role-playing-games-rpg">RPG</option><option value="strategy">STRATEGY</option>
+    <option value="shooter">SHOOTER</option><option value="puzzle">PUZZLE</option>
+    <option value="racing">RACING</option><option value="sports">SPORTS</option>
+  </select>
+  <select id="sortSelect">
+    <option value="-added">🔥 POPULARITY</option>
+    <option value="-rating">⭐ RATING HIGH→LOW</option>
+    <option value="rating">⭐ RATING LOW→HIGH</option>
+    <option value="-released">📅 NEWEST</option>
+    <option value="name">🔤 NAME A→Z</option>
+  </select>
+  <select id="pageSize">
+    <option value="20">20 / PAGE</option>
+    <option value="40">40 / PAGE</option>
+  </select>
+</div>
+
+<div id="gameGrid"></div>
+<div class="pagination">
+  <button class="pixel-btn" id="prevBtn">◀ PREV</button>
+  <span id="pageInfo" style="align-self:center;color:var(--green)"></span>
+  <button class="pixel-btn" id="nextBtn">NEXT ▶</button>
+</div>
+
+<!-- 遊戲詳細資料 Modal -->
+<div id="modalOverlay">
+  <div class="pixel-panel modal-content" id="modalContent"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- A2HS 提示橫幅 -->
+<div id="a2hsBanner">
+  <p>🎮 ADD THIS GAME DB TO YOUR HOME SCREEN!</p>
+  <div style="margin-top:10px">
+    <button class="pixel-btn" id="a2hsBtn">YES! INSTALL</button>
+    <button class="pixel-btn danger" id="a2hsDismiss">NO THX</button>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   設定區
+================================================================ */
+const RAWG_API_KEY = '48fe482b9c55459aaf9ee2059501aa6a'; // ←←← 換成你的 Key
+const RAWG_BASE    = 'https://api.rawg.io/api';
+const DB_NAME      = 'retro_game_db';
+const STORE_CACHE  = 'api_cache';   // 存放 API 回應快取
+const STORE_FAV    = 'favorites';   // 存放收藏的遊戲
+
+/* ================================================================
+   [技術說明 1] IndexedDB 封裝
+   --------------------------------------------------------------
+   為什麼用 IndexedDB 而非 localStorage？
+   - 容量大（數百 MB vs 5MB），可存圖片、完整 JSON 回應
+   - 非同步 API，不會阻塞主執行緒
+   - 支援索引查詢
+
+   架構：
+   - api_cache  store：以「請求 URL」為主鍵，快取 RAWG 回應
+     → 離線也能瀏覽曾查過的結果；重複查詢不消耗 API 額度
+   - favorites  store：以遊戲 slug 為主鍵，保存使用者收藏
+   ================================================================ */
+const db = {
+  _db: null,
+
+  async open(){
+    if(this._db) return this._db;
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      // 第一次建立（或版本升級）時，建立兩個 object store
+      req.onupgradeneeded = e => {
+        const d = e.target.result;
+        if(!d.objectStoreNames.contains(STORE_CACHE))
+          d.createObjectStore(STORE_CACHE); // keyPath: url 字串
+        if(!d.objectStoreNames.contains(STORE_FAV))
+          d.createObjectStore(STORE_FAV, { keyPath: 'slug' });
+      };
+      req.onsuccess = e => res(this._db = e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+  },
+
+  async put(store, key, val){
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const tx = d.transaction(store, 'readwrite');
+      tx.objectStore(store).put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror    = e => rej(e.target.error);
+    });
+  },
+
+  async get(store, key){
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const req = d.transaction(store, 'readonly')
+                    .objectStore(store).get(key);
+      req.onsuccess = () => res(req.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+  },
+
+  async getAll(store){
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const req = d.transaction(store, 'readonly')
+                    .objectStore(store).getAll();
+      req.onsuccess = () => res(req.result || []);
+      req.onerror   = e => rej(e.target.error);
+    });
+  },
+
+  async del(store, key){
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const tx = d.transaction(store, 'readwrite');
+      tx.objectStore(store).delete(key);
+      tx.oncomplete = () => res();
+      tx.onerror    = e => rej(e.target.error);
+    });
+  },
+
+  async clear(store){
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const tx = d.transaction(store, 'readwrite');
+      tx.objectStore(store).clear();
+      tx.oncomplete = () => res();
+      tx.onerror    = e => rej(e.target.error);
+    });
+  }
+};
+
+/* ================================================================
+   [技術說明 2] 持久化儲存申請
+   --------------------------------------------------------------
+   瀏覽器在儲存空間不足時，可能自動清除 IndexedDB 資料！
+   navigator.storage.persist() 向瀏覽器申請「持久化」，
+   承諾後資料不會被自動清除（除非使用者主動刪除）。
+   回傳 Promise<boolean>：true = 已 granted。
+   最佳實踐：在使用者互動後（如收藏遊戲時）再申請，成功率較高。
+   ================================================================ */
+async function requestPersistentStorage(){
+  if(navigator.storage && navigator.storage.persist){
+    const already = await navigator.storage.persisted();
+    const granted = await navigator.storage.persist();
+    const el = document.getElementById('storageStatus');
+    el.textContent = granted ? '💾 PERSISTENT: ON'
+                             : `💾 PERSISTENT: ${already ? 'ON' : 'OFF'}`;
+    return granted;
+  }
+  document.getElementById('storageStatus').textContent = '💾 PERSIST: N/A';
+  return false;
+}
+requestPersistentStorage();
+
+/* ================================================================
+   [技術說明 3] PWA / A2HS（Add to Home Screen）
+   --------------------------------------------------------------
+   流程：
+   1. 動態產生 manifest（data URI），宣告 name / icons / display
+   2. 監聂 beforeinstallprompt 事件，攔截瀏覽器原生安裝提示
+   3. 攔截後顯示自訂像素風橫幅，讓使用者點擊觸發 prompt()
+   4. dismissed 後以 localStorage 記住 7 天內不再顯示
+   注意：HTTPS（GitHub Pages 符合）+ manifest + SW 為必要條件
+   ================================================================ */
+(function setupPWA(){
+  // --- 動態產生 manifest ---
+  const manifest = {
+    name: 'Retro Game DB',
+    short_name: 'GameDB',
+    start_url: '.',
+    display: 'standalone',
+    background_color: '#1a1a2e',
+    theme_color: '#1a1a2e',
+    icons: [{
+      // 內嵌 SVG 轉 data URI 作為圖示（單檔案限制的变通做法）
+      src: 'data:image/svg+xml,' + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192">
+         <rect width="192" height="192" fill="#1a1a2e"/>
+         <text x="96" y="120" font-size="80" text-anchor="middle" fill="#ffd700">👾</text></svg>`),
+      sizes: '192x192', type: 'image/svg+xml'
+    }]
+  };
+  document.getElementById('manifestLink').href =
+    'data:application/json,' + encodeURIComponent(JSON.stringify(manifest));
+
+  // --- 註冊 inline Service Worker（示範用；正式部署建議獨立 sw.js）---
+  if('serviceWorker' in navigator){
+    const swCode = `self.addEventListener('fetch', e => e.respondWith(
+      caches.open('gamedb-v1').then(async cache => {
+        try{
+          const net = await fetch(e.request);
+          if(e.request.method === 'GET') cache.put(e.request, net.clone());
+          return net;
+        }catch(err){
+          const cached = await cache.match(e.request);
+          if(cached) return cached;
+          throw err;
+        }
+      })
+    ));`;
+    // Blob URL 註冊在部分瀏覽器會失敗，用 try/catch 保護
+    try{
+      const swURL = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'}));
+      navigator.serviceWorker.register(swURL).catch(()=>{});
+    }catch(e){ /* 靜默失敗，A2HS 由 manifest 支撐 */ }
+  }
+})();
+
+// --- 攔截安裝提示，顯示自訂橫幅 ---
+let deferredPrompt = null;
+const HIDE_KEY = 'a2hs_dismissed_until';
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();               // 阻止瀏覽器原生小橫幅
+  deferredPrompt = e;
+  // 7 天內被使用者拒絕過就不再打擾
+  if(Number(localStorage.getItem(HIDE_KEY) || 0) > Date.now()) return;
+  document.getElementById('a2hsBanner').classList.add('show');
+});
+
+document.getElementById('a2hsBtn').onclick = async () => {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;  // 等待使用者選擇
+  deferredPrompt = null;
+  document.getElementById('a2hsBanner').classList.remove('show');
+};
+document.getElementById('a2hsDismiss').onclick = () => {
+  localStorage.setItem(HIDE_KEY, Date.now() + 7*24*3600*1000);
+  document.getElementById('a2hsBanner').classList.remove('show');
+};
+
+/* ================================================================
+   [技術說明 4] API 層 — IndexedDB 快取策略
+   --------------------------------------------------------------
+   fetchOrCache(url)：
+   1. 先查 IndexedDB 快取，命中且未過期（快取 24 小時）→ 直接回傳
+   2. 未命中 → 發起網路請求 → 寫入快取 → 回傳
+   好處：節省 RAWG 免費額度（20,000 次/月）+ 離線可用
+   ================================================================ */
+const CACHE_TTL = 24 * 3600 * 1000; // 24 小時
+
+async function fetchOrCache(url){
+  const cached = await db.get(STORE_CACHE, url);
+  if(cached && Date.now() - cached.ts < CACHE_TTL){
+    toast('📦 LOADED FROM CACHE');
+    return cached.data;
+  }
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`API ${res.status}`);
+  const data = await res.json();
+  await db.put(STORE_CACHE, url, { ts: Date.now(), data });
+  return data;
+}
+
+/* ================================================================
+   狀態與 UI
+   ================================================================ */
+const state = {
+  page: 1, totalPages: 1, count: 0,
+  favoritesOnly: false
+};
+
+const $ = id => document.getElementById(id);
+function toast(msg, ms = 2000){
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.style.display = 'none', ms);
+}
+
+/* ---------- 建構 RAWG 查詢 URL ---------- */
+function buildURL(){
+  const p = new URLSearchParams({
+    key: RAWG_API_KEY,
+    page: state.page,
+    page_size: $('pageSize').value,
+    ordering: $('sortSelect').value
+  });
+  const q = $('searchInput').value.trim();
+  if(q) p.set('search', q);
+  if($('platformFilter').value) p.set('platforms', $('platformFilter').value);
+  if($('genreFilter').value)    p.set('genres', $('genreFilter').value);
+  return `${RAWG_BASE}/games?${p}`;
+}
+
+/* ---------- 主要載入流程 ---------- */
+async function loadGames(){
+  $('gameGrid').innerHTML = '<p style="color:var(--cyan)">LOADING...</p>';
+  try{
+    const data = await fetchOrCache(buildURL());
+    state.totalPages = Math.min(data.count ? Math.ceil(data.count / $('pageSize').value) : 1, 500);
+    state.count = data.count;
+    renderGrid(data.results);
+    updatePagination();
+  }catch(err){
+    $('gameGrid').innerHTML = `<p style="color:var(--magenta)">ERROR: ${err.message}<br>請檢查 API KEY</p>`;
+  }
+}
+
+/* ---------- 渲染遊戲卡片 ---------- */
+async function renderGrid(games){
+  const grid = $('gameGrid');
+  if(!games.length){
+    grid.innerHTML = '<p style="color:var(--yellow)">NO GAMES FOUND</p>';
+    return;
+  }
+  const favs = new Set((await db.getAll(STORE_FAV)).map(g => g.slug));
+  grid.innerHTML = games.map(g => `
+    <div class="game-card" data-slug="${g.slug}">
+      <img src="${g.background_image || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="225"%3E%3Crect width="400" height="225" fill="%230f3460"/%3E%3C/svg%3E'}"
+           alt="${g.name}" loading="lazy">
+      <div class="info">
+        <span class="star" data-fav="${g.slug}">${favs.has(g.slug) ? '★' : '☆'}</span>
+        <div class="title">${g.name}</div>
+        <div class="meta">
+          <span class="rating">${g.rating ? '★ ' + g.rating : 'N/A'}</span><br>
+          ${g.released || ''}<br>
+          ${(g.platforms || []).map(p => p.platform.name).slice(0,3).join(', ')}
+        </div>
+      </div>
+    </div>`).join('');
+
+  // 事件委派：一個 listener 處理所有卡片點擊
+  grid.onclick = async e => {
+    const star = e.target.closest('.star');
+    if(star){ await toggleFav(star.dataset.fav, games); return; }
+    const card = e.target.closest('.game-card');
+    if(card) showDetail(card.dataset.slug);
+  };
+}
+
+/* ---------- 收藏切換 ---------- */
+async function toggleFav(slug, games){
+  const game = games.find(g => g.slug === slug) ||
+               (await db.get(STORE_FAV, slug));
+  if(!game) return;
+  const existing = await db.get(STORE_FAV, slug);
+  if(existing){
+    await db.del(STORE_FAV, slug);
+    toast('💔 REMOVED FROM FAVORITES');
+  }else{
+    await db.put(STORE_FAV, slug, game); // 注意：favorites store 以 slug 為 keyPath，值內含 slug
+    toast('⭐ ADDED TO FAVORITES!');
+    // 收藏是重要的使用者互動 → 順勢申請持久化
+    requestPersistentStorage();
+  }
+  // 若目前顯示收藏清單，重渲染
+  if(state.favoritesOnly) showFavorites();
+  else loadGames();
+}
+
+/* ---------- 收藏清單 ---------- */
+async function showFavorites(){
+  state.favoritesOnly = true;
+  const favs = await db.getAll(STORE_FAV);
+  $('pageInfo').textContent = `FAVORITES: ${favs.length}`;
+  $('prevBtn').style.display = $('nextBtn').style.display = 'none';
+  renderGrid(favs);
+}
+
+/* ---------- 詳細資料 ---------- */
+async function showDetail(slug){
+  const url = `${RAWG_BASE}/games/${slug}?key=${RAWG_API_KEY}`;
+  try{
+    const g = await fetchOrCache(url);
+    // 取截圖
+    let shots = [];
+    try{
+      const ss = await fetchOrCache(`${RAWG_BASE}/games/${slug}/screenshots?key=${RAWG_API_KEY}`);
+      shots = (ss.results || []).slice(0, 6);
+    }catch(e){}
+    const favs = new Set((await db.getAll(STORE_FAV)).map(x => x.slug));
+    const stores = (g.stores || []).map(s =>
+      `<a href="https://${s.store.domain}" target="_blank" rel="noopener">[${s.store.name}]</a>`).join(' ');
+
+    $('modalContent').innerHTML = `
+      <span class="star" id="modalFav">${favs.has(slug) ? '★' : '☆'}</span>
+      <h2 style="color:var(--yellow);font-size:14px">${g.name}</h2>
+      <img src="${g.background_image || ''}" style="width:100%;margin:12px 0;border:4px solid var(--border)" alt="${g.name}">
+      <p style="font-size:10px;color:var(--gray);margin:12px 0">
+        ⭐ ${g.rating}/5 (${g.ratings_count} votes) &nbsp;
+        📅 ${g.released || 'N/A'}<br>
+        🏢 ${(g.developers || []).map(d => d.name).join(', ') || 'N/A'}<br>
+        🎮 ${(g.platforms || []).map(p => p.platform.name).join(', ')}
+      </p>
+      <p style="font-size:10px;line-height:2;color:var(--white)">${(g.description_raw || '').slice(0, 600)}...</p>
+      <div class="screenshots">
+        ${shots.map(s => `<img src="${s.image}" loading="lazy" alt="screenshot">`).join('')}
+      </div>
+      <p style="font-size:10px">🛒 ${stores || 'NO STORE LINKS'}</p>
+      <button class="pixel-btn" onclick="document.getElementById('modalOverlay').classList.remove('open')">◀ CLOSE</button>`;
+    $('modalOverlay').classList.add('open');
+    $('modalFav').onclick = async () => {
+      const existing = await db.get(STORE_FAV, slug);
+      if(existing){ await db.del(STORE_FAV, slug); toast('💔 REMOVED'); }
+      else { await db.put(STORE_FAV, slug, { slug, name: g.name, rating: g.rating, released: g.released, background_image: g.background_image, platforms: g.platforms }); toast('⭐ ADDED!'); requestPersistentStorage(); }
+      $('modalFav').textContent = existing ? '☆' : '★';
+    };
+  }catch(err){ toast('ERROR: ' + err.message); }
+}
+$('modalOverlay').onclick = e => {
+  if(e.target === $('modalOverlay')) $('modalOverlay').classList.remove('open');
+};
+
+/* ---------- 分頁 ---------- */
+function updatePagination(){
+  $('pageInfo').textContent = `PAGE ${state.page}/${state.totalPages} (${state.count})`;
+  $('prevBtn').disabled = state.page <= 1;
+  $('nextBtn').disabled = state.page >= state.totalPages;
+}
+$('prevBtn').onclick = () => { if(state.page > 1){ state.page--; loadGames(); window.scrollTo(0,0);} };
+$('nextBtn').onclick = () => { if(state.page < state.totalPages){ state.page++; loadGames(); window.scrollTo(0,0);} };
+
+/* ================================================================
+   [技術說明 5] JSON 匯入 / 匯出
+   ---------------------------------------------------------------
+   匯出：讀取兩個 store（收藏 + 快取統計），包裝成
+   { version, exportedAt, favorites, cacheCount } 後觸發下載。
+   匯入：FileReader 解析 JSON → 逐筆寫回 IndexedDB。
+   用途：備份、跨裝置遷移、與他人分享收藏清單。
+   ================================================================ */
+$('exportBtn').onclick = async () => {
+  const favorites = await db.getAll(STORE_FAV);
+  const cacheKeys = []; // 列出快取筆數作統計
+  const d = await db.open();
+  await new Promise(res => {
+    const req = d.transaction(STORE_CACHE, 'readonly').objectStore(STORE_CACHE).getAllKeys();
+    req.onsuccess = () => { cacheKeys.push(...req.result); res(); };
+  });
+  const payload = {
+    app: 'retro-game-db', version: 1,
+    exportedAt: new Date().toISOString(),
+    cacheCount: cacheKeys.length,
+    favorites
+  };
+  // Blob + a[download] 觸發瀏覽器下載
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `gamedb-backup-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`💾 EXPORTED ${favorites.length} FAVORITES`);
+};
+
+$('importFile').onchange = e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!Array.isArray(data.favorites)) throw new Error('格式錯誤');
+      let n = 0;
+      for(const g of data.favorites){
+        if(g.slug){ await db.put(STORE_FAV, g.slug, g); n++; }
+      }
+      toast(`📥 IMPORTED ${n} FAVORITES`);
+      if(state.favoritesOnly) showFavorites();
+    }catch(err){ toast('❌ IMPORT FAILED: ' + err.message, 3000); }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // 允許重複匯入同一檔案
+};
+
+/* ================================================================
+   [技術說明 6] 搜尋防抖
+   --------------------------------------------------------------
+   使用者每敲一個字都發 API 會浪費額度且體驗差。
+   debounce：停止輸入 500ms 後才真正執行查詢。
+   ================================================================ */
+let debounceTimer;
+$('searchInput').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => { state.page = 1; exitFavMode(); loadGames(); }, 500);
+});
+['platformFilter','genreFilter','sortSelect','pageSize'].forEach(id =>
+  $(id).addEventListener('change', () => { state.page = 1; exitFavMode(); loadGames(); })
+);
+
+function exitFavMode(){
+  if(state.favoritesOnly){
+    state.favoritesOnly = false;
+    $('prevBtnPrev') = yes';
+    $('prevBtn').style.display = $('nextBtn').style.display = '';
+  }
+}
+
+/* ---------- 主題切換 ---------- */
+$('themeBtn').onclick = () => {
+  const next = document.documentElement.dataset.theme === 'light' ? '' : 'light';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('theme', next);
+};
+if(localStorage.getItem('theme'))
+  document.documentElement.dataset.theme = localStorage.getItem('theme');
+
+/* ---------- 收藏 / 回首頁按鈕 ---------- */
+$('favBtn').onclick = showFavorites;
+$('homeBtn').onclick = () => { exitFavMode(); state.page = 1; loadGames(); };
+
+/* ---------- 啟動 ---------- */
+loadGames();
+</script>
+</body>
+</html>
