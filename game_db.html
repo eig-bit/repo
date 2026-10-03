@@ -125,7 +125,7 @@ header h1{
 .modal-content .screenshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin:12px 0}
 .modal-content .screenshots img{width:100%;border:4px solid var(--border)}
 
-/* ---------- 詳情頁收藏按鈕（清楚可見的大按鈕） ---------- */
+/* ---------- 詳情頁收藏按鈕 ---------- */
 #modalFavBtn{
   display:inline-block; margin:12px 0;
   font-size:12px; padding:12px 20px;
@@ -176,7 +176,7 @@ header h1{
 
 <!-- 搜尋 + 篩選 + 排序 -->
 <div class="search-bar">
-  <input type="text" id="searchInput" placeholder="🔎 SEARCH GAME (EXACT MATCH)..." style="grid-column:1/-1">
+  <input type="text" id="searchInput" placeholder="🔎 SEARCH GAME..." style="grid-column:1/-1">
   <select id="platformFilter">
     <option value="">ALL PLATFORMS</option>
     <optgroup label="💻 PC">
@@ -271,6 +271,7 @@ const STORE_FAV    = 'favorites';
 /* ================================================================
    [技術說明 1] IndexedDB 封裝
    - api_cache：以請求 URL 為主鍵，快取 RAWG 回應（24hr TTL）
+     → 離線可瀏覽曾查過的結果；重複查詢不消耗 API 額度
    - favorites：以遊戲 slug 為主鍵，保存使用者收藏
    ================================================================ */
 const db = {
@@ -335,8 +336,9 @@ const db = {
 
 /* ================================================================
    [技術說明 2] 持久化儲存申請
-   navigator.storage.persist() 防止瀏覽器自動清除 IndexedDB。
-   在使用者互動後（收藏遊戲）再申請，成功率較高。
+   navigator.storage.persist() 防止瀏覽器在空間不足時
+   自動清除 IndexedDB 資料。在使用者互動後（收藏遊戲）
+   再申請一次，成功率較高。
    ================================================================ */
 async function requestPersistentStorage(){
   if(navigator.storage && navigator.storage.persist){
@@ -351,8 +353,10 @@ async function requestPersistentStorage(){
 requestPersistentStorage();
 
 /* ================================================================
-   [技術說明 3] PWA / A2HS
-   動態 manifest + beforeinstallprompt 攔截 + 自訂橫幅
+   [技術說明 3] PWA / A2HS（Add to Home Screen）
+   - 動態產生 manifest（data URI，單檔案限制下的變通做法）
+   - beforeinstallprompt 攔截原生提示 → 顯示自訂像素橫幅
+   - 拒絕後 7 天內不再顯示
    ================================================================ */
 (function setupPWA(){
   const manifest = {
@@ -398,6 +402,7 @@ document.getElementById('a2hsDismiss').onclick = () => {
 
 /* ================================================================
    [技術說明 4] API 層 — IndexedDB 快取策略（24hr TTL）
+   先查快取 → 命中且未過期直接回傳；否則發網路請求並寫入快取。
    ================================================================ */
 const CACHE_TTL = 24 * 3600 * 1000;
 
@@ -418,8 +423,7 @@ async function fetchOrCache(url){
    ================================================================ */
 const state = {
   page: 1, totalPages: 1, count: 0,
-  favoritesOnly: false,
-  currentGame: null // 當前詳情頁的遊戲（供收藏切換用）
+  favoritesOnly: false
 };
 
 const $ = id => document.getElementById(id);
@@ -431,7 +435,9 @@ function toast(msg, ms = 2000){
   t._h = setTimeout(() => t.style.display = 'none', ms);
 }
 
-/* ---------- 建構 RAWG 查詢 URL ---------- */
+/* ---------- 建構 RAWG 查詢 URL ----------
+   [已撤回] 完全匹配模式：移除 search_precise 與客戶端過濾，
+   恢復 RAWG 原生模糊搜尋（輸入部分名稱即可找到相關遊戲） */
 function buildURL(){
   const p = new URLSearchParams({
     key: RAWG_API_KEY,
@@ -440,10 +446,7 @@ function buildURL(){
     ordering: $('sortSelect').value
   });
   const q = $('searchInput').value.trim();
-  if(q){
-    p.set('search', q);
-    p.set('search_precise', 'true'); // RAWG 精準模式
-  }
+  if(q) p.set('search', q);
   if($('platformFilter').value) p.set('platforms', $('platformFilter').value);
   if($('genreFilter').value)    p.set('genres', $('genreFilter').value);
   return `${RAWG_BASE}/games?${p}`;
@@ -453,22 +456,9 @@ function buildURL(){
 async function loadGames(){
   $('gameGrid').innerHTML = '<p style="color:var(--cyan)">LOADING...</p>';
   try{
-    let data = await fetchOrCache(buildURL());
-
-    // [完全匹配過濾] 名稱必須與輸入完全相同（忽略大小寫）
-    const q = $('searchInput').value.trim().toLowerCase();
-    if(q){
-      const before = data.results.length;
-      data = { ...data, results: data.results.filter(g =>
-        g.name.trim().toLowerCase() === q
-      )};
-      if(before > 0 && data.results.length === 0){
-        toast(`❌ NO EXACT MATCH (${before} FUZZY RESULTS FILTERED OUT)`, 3000);
-      }
-    }
-
-    state.totalPages = q ? 1 : Math.min(data.count ? Math.ceil(data.count / $('pageSize').value) : 1, 500);
-    state.count = q ? data.results.length : data.count;
+    const data = await fetchOrCache(buildURL());
+    state.totalPages = Math.min(data.count ? Math.ceil(data.count / $('pageSize').value) : 1, 500);
+    state.count = data.count;
     renderGrid(data.results);
     updatePagination();
   }catch(err){
@@ -499,6 +489,7 @@ async function renderGrid(games){
       </div>
     </div>`).join('');
 
+  // 事件委派：一個 listener 處理所有卡片點擊
   grid.onclick = async e => {
     const star = e.target.closest('.star');
     if(star){
@@ -511,9 +502,7 @@ async function renderGrid(games){
   };
 }
 
-/* ---------- 收藏切換（統一入口） ----------
-   [修正重點] 統一卡片星號與詳情頁按鈕的收藏邏輯：
-   直接接收完整 game 物件，收藏後刷新 UI 對應部分 */
+/* ---------- 收藏切換（統一入口） ---------- */
 async function toggleFav(g){
   if(!g || !g.slug) return;
   const existing = await db.get(STORE_FAV, g.slug);
@@ -563,7 +552,6 @@ async function showDetail(slug){
     const stores = (g.stores || []).map(s =>
       `<a href="https://${s.store.domain}" target="_blank" rel="noopener">[${s.store.name}]</a>`).join(' ');
 
-    // [修正重點] 詳情頁收藏改為明顯的大按鈕，放在標題正下方
     $('modalContent').innerHTML = `
       <span class="star" style="cursor:default">${fav ? '★' : '☆'}</span>
       <h2 style="color:var(--yellow);font-size:14px">${g.name}</h2>
@@ -629,7 +617,9 @@ $('nextBtn').onclick = () => { if(state.page < state.totalPages){ state.page++; 
 
 /* ================================================================
    [技術說明 5] JSON 匯入 / 匯出
-   匯出 favorites 成 JSON 檔；匯入時逐筆寫回 IndexedDB。
+   匯出：favorites 打包成 JSON 檔（Blob + a[download] 觸發下載）
+   匯入：FileReader 解析 → 逐筆寫回 IndexedDB
+   用途：備份、跨裝置遷移、分享收藏清單
    ================================================================ */
 $('exportBtn').onclick = async () => {
   const favorites = await db.getAll(STORE_FAV);
@@ -669,6 +659,7 @@ $('importFile').onchange = e => {
 
 /* ================================================================
    [技術說明 6] 搜尋防抖（500ms）
+   停止輸入 500ms 後才發 API，避免逐字請求浪費額度
    ================================================================ */
 let debounceTimer;
 $('searchInput').addEventListener('input', () => {
@@ -679,7 +670,7 @@ $('searchInput').addEventListener('input', () => {
   $(id).addEventListener('change', () => { state.page = 1; exitFavMode(); loadGames(); })
 );
 
-/* ---------- [修正] 退出收藏模式（修正原語法錯誤） ---------- */
+/* ---------- 退出收藏模式 ---------- */
 function exitFavMode(){
   if(state.favoritesOnly){
     state.favoritesOnly = false;
