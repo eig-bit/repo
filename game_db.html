@@ -677,10 +677,11 @@ $('searchInput').addEventListener('input', () => {
 function exitFavMode(){
   if(state.favoritesOnly){
     state.favoritesOnly = false;
-    $('prevBtnPrev') = yes';
-    $('prevBtn').style.display = $('nextBtn').style.display = '';
+    $('prevBtn').style.display = '';
+    $('nextBtn').style.display = '';
   }
 }
+
 
 /* ---------- 主題切換 ---------- */
 $('themeBtn').onclick = () => {
