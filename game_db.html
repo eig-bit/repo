@@ -262,7 +262,7 @@ header h1{
 /* ================================================================
    設定區
 ================================================================ */
-const RAWG_API_KEY = '48fe482b9c55459aaf9ee2059501aa6a'; // ←←← 換成你的 Key
+const RAWG_API_KEY = '在此貼上你的RAWG_API_KEY'; // ←←← 換成你的 Key
 const RAWG_BASE    = 'https://api.rawg.io/api';
 const DB_NAME      = 'retro_game_db';
 const STORE_CACHE  = 'api_cache';
@@ -270,9 +270,14 @@ const STORE_FAV    = 'favorites';
 
 /* ================================================================
    [技術說明 1] IndexedDB 封裝
-   - api_cache：以請求 URL 為主鍵，快取 RAWG 回應（24hr TTL）
-     → 離線可瀏覽曾查過的結果；重複查詢不消耗 API 額度
-   - favorites：以遊戲 slug 為主鍵，保存使用者收藏
+   - api_cache：無 keyPath（out-of-line key），以請求 URL 為主鍵
+     快取 RAWG 回應（24hr TTL）→ 離線可用 + 節省 API 額度
+   - favorites：有 keyPath:'slug'（in-line key）
+     主鍵自動從物件的 slug 欄位擷取
+
+   [重要修正] keyPath 衝突問題：
+   有 keyPath 的 store，put() 不可再傳顯式 key 參數，
+   否則拋出 DataError。put() 已改為自動判斷兩種模式。
    ================================================================ */
 const db = {
   _db: null,
@@ -284,20 +289,27 @@ const db = {
       req.onupgradeneeded = e => {
         const d = e.target.result;
         if(!d.objectStoreNames.contains(STORE_CACHE))
-          d.createObjectStore(STORE_CACHE);
+          d.createObjectStore(STORE_CACHE);            // out-of-line key
         if(!d.objectStoreNames.contains(STORE_FAV))
-          d.createObjectStore(STORE_FAV, { keyPath: 'slug' });
+          d.createObjectStore(STORE_FAV, { keyPath: 'slug' }); // in-line key
       };
       req.onsuccess = e => res(this._db = e.target.result);
       req.onerror   = e => rej(e.target.error);
     });
   },
 
-  async put(store, key, val){
+  /* [修正] put() 自動處理兩種 store 模式：
+     - api_cache（無 keyPath）：put(value, key)
+     - favorites（有 keyPath）：put(value)，key 從 slug 欄位擷取 */
+  async put(store, keyOrVal, val){
     const d = await this.open();
     return new Promise((res, rej) => {
       const tx = d.transaction(store, 'readwrite');
-      tx.objectStore(store).put(val, key);
+      if(val !== undefined && store !== STORE_FAV){
+        tx.objectStore(store).put(val, keyOrVal);   // out-of-line
+      }else{
+        tx.objectStore(store).put(keyOrVal);        // in-line
+      }
       tx.oncomplete = () => res();
       tx.onerror    = e => rej(e.target.error);
     });
@@ -435,9 +447,7 @@ function toast(msg, ms = 2000){
   t._h = setTimeout(() => t.style.display = 'none', ms);
 }
 
-/* ---------- 建構 RAWG 查詢 URL ----------
-   [已撤回] 完全匹配模式：移除 search_precise 與客戶端過濾，
-   恢復 RAWG 原生模糊搜尋（輸入部分名稱即可找到相關遊戲） */
+/* ---------- 建構 RAWG 查詢 URL（模糊搜尋） ---------- */
 function buildURL(){
   const p = new URLSearchParams({
     key: RAWG_API_KEY,
@@ -502,7 +512,9 @@ async function renderGrid(games){
   };
 }
 
-/* ---------- 收藏切換（統一入口） ---------- */
+/* ---------- 收藏切換（統一入口） ----------
+   [修正] favorites store 有 keyPath:'slug'，
+   put() 只傳物件本身，key 自動擷取 */
 async function toggleFav(g){
   if(!g || !g.slug) return;
   const existing = await db.get(STORE_FAV, g.slug);
@@ -510,8 +522,7 @@ async function toggleFav(g){
     await db.del(STORE_FAV, g.slug);
     toast('💔 REMOVED FROM FAVORITES');
   }else{
-    // 只存必要欄位，保持資料輕量
-    await db.put(STORE_FAV, g.slug, {
+    await db.put(STORE_FAV, {
       slug: g.slug, name: g.name,
       rating: g.rating || null,
       released: g.released || null,
@@ -619,7 +630,7 @@ $('nextBtn').onclick = () => { if(state.page < state.totalPages){ state.page++; 
    [技術說明 5] JSON 匯入 / 匯出
    匯出：favorites 打包成 JSON 檔（Blob + a[download] 觸發下載）
    匯入：FileReader 解析 → 逐筆寫回 IndexedDB
-   用途：備份、跨裝置遷移、分享收藏清單
+   [修正] 匯入時 put() 只傳物件（keyPath 自動擷取 slug）
    ================================================================ */
 $('exportBtn').onclick = async () => {
   const favorites = await db.getAll(STORE_FAV);
@@ -647,7 +658,7 @@ $('importFile').onchange = e => {
       if(!Array.isArray(data.favorites)) throw new Error('格式錯誤');
       let n = 0;
       for(const g of data.favorites){
-        if(g.slug){ await db.put(STORE_FAV, g.slug, g); n++; }
+        if(g.slug){ await db.put(STORE_FAV, g); n++; }
       }
       toast(`📥 IMPORTED ${n} FAVORITES`);
       if(state.favoritesOnly) showFavorites();
