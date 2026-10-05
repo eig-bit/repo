@@ -239,7 +239,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--gree
 .olmsg{padding:26px;text-align:center;color:var(--dim);font-size:12px;border:2px dashed var(--line2)}
 .srch-row{display:flex;gap:12px;align-items:center;border:2px solid var(--line2);background:var(--bg2);padding:10px;margin:8px 0;flex-wrap:wrap}
 .srch-row.playing{border-color:var(--green)}
-.srch-art{width:52px;height:52px;flex:none;border:2px solid #000;box-shadow:0 0 0 2px var(--line2);object-fit:cover;image-rendering:pixelated}
+.srch-art{width:52px;height:52px;flex:none;border:2px solid #000;box-shadow:0 0 0 2px var(--line2);object-fit:cover}
 .srch-art.px{image-rendering:pixelated}
 .srch-info{flex:1;min-width:150px;overflow:hidden}
 .srch-info b{display:block;font-weight:400;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -252,7 +252,7 @@ input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--gree
 #toasts{position:fixed;top:14px;right:14px;z-index:400;display:flex;flex-direction:column;gap:10px;max-width:min(360px,calc(100vw - 28px))}
 .toast{padding:12px 14px;font-size:12px;background:var(--panel);border:3px solid var(--line2);
   box-shadow:0 0 0 3px var(--bg),6px 6px 0 3px rgba(0,0,0,.35);border-left:8px solid var(--green);
-  animation:dropin .3s steps(4)}
+  animation:dropin .3s steps(4);word-break:break-word}
 .toast.warn{border-left-color:var(--amber)} .toast.err{border-left-color:var(--red)} .toast.info{border-left-color:var(--cyan)}
 
 footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Start 2P",monospace;padding:18px 16px 10px;line-height:2}
@@ -306,8 +306,8 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
   <!-- A2HS 提示橫幅 -->
   <div id="a2hs" class="panel" role="dialog" aria-label="安裝提示">
     <div class="txt" id="a2hsText"></div>
-    <button class="btn btn-cyan" id="a2hsInstall" hidden>INSTALL</button>
-    <button class="icbtn" id="a2hsClose" aria-label="關閉提示"></button>
+    <button type="button" class="btn btn-cyan" id="a2hsInstall" hidden>INSTALL</button>
+    <button type="button" class="icbtn" id="a2hsClose" aria-label="關閉提示"></button>
   </div>
 
   <!-- 工具列 -->
@@ -323,10 +323,10 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
       <option value="bpm">BPM 高→低</option>
     </select>
     <div class="btns">
-      <button class="btn btn-pink" id="btnAdd"><span id="iAdd"></span>ADD 新增</button>
-      <button class="btn btn-cyan" id="btnOnline"><span id="iOnline"></span>線上搜尋</button>
-      <button class="btn btn-cyan" id="btnImport"><span id="iImport"></span>匯入</button>
-      <button class="btn btn-cyan" id="btnExport"><span id="iExport"></span>匯出</button>
+      <button type="button" class="btn btn-pink" id="btnAdd"><span id="iAdd"></span>ADD 新增</button>
+      <button type="button" class="btn btn-cyan" id="btnOnline"><span id="iOnline"></span>線上搜尋</button>
+      <button type="button" class="btn btn-cyan" id="btnImport"><span id="iImport"></span>匯入</button>
+      <button type="button" class="btn btn-cyan" id="btnExport"><span id="iExport"></span>匯出</button>
     </div>
   </div>
 
@@ -400,7 +400,7 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
             <p>瀏覽器在儲存空間吃緊時可能自動清除未被標記的來源資料──這是 IndexedDB 資料「憑空消失」的最常見原因。呼叫 <code>navigator.storage.persist()</code> 可將本站標記為<b>持久儲存</b>，納入不被自動清除的保護；Chromium 會依站點重要性（互動頻率、是否安裝成 PWA）決定是否核准。本頁<b>載入時會自動申請一次</b>，也可隨時手動申請，並以 <code>navigator.storage.estimate()</code> 即時顯示用量與配額。把本站「安裝到主畫面」會大幅提升核准機率。</p>
             <div class="statebox">
               目前狀態：持久化 <b class="jsPersist">--</b>｜空間用量 <b class="jsUsage">--</b>
-              <div style="margin-top:10px"><button class="btn btn-amber btn-sm" id="btnPersist">申請持久化</button></div>
+              <div style="margin-top:10px"><button type="button" class="btn btn-amber btn-sm" id="btnPersist">申請持久化</button></div>
             </div>
           </div>
         </details>
@@ -424,9 +424,10 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
         </details>
 
         <details class="tdet">
-          <summary>06 ▸ 響應式與無障礙</summary>
+          <summary>06 ▸ 除錯防護、響應式與無障礙</summary>
           <div>
-            <p>版面以 CSS Grid <code>auto-fill</code> 自動斷行，手機 1 欄、平板 2 欄、桌面 3 欄以上；播放列在窄螢幕收合均衡器並預留 iOS 安全區（<code>env(safe-area-inset-bottom)</code>）。像素外框與按鈕立體感全部由 box-shadow 疊加構成、掃描線為 2px 重複紋理覆蓋層，不使用任何圖片資源；動畫尊重 <code>prefers-reduced-motion</code>；表單聚焦有明顯 outline、操作按鈕均有 aria-label；輸入框字級在行動裝置固定 16px 防 iOS 聚焦縮放。</p>
+            <p><b>錯誤可視化</b>：頁面掛載 <code>window</code> 的 <code>error</code> 與 <code>unhandledrejection</code> 監聽器──任何未捕捉的腳本錯誤或 Promise 拒絕，都會以右上角紅色 toast 顯示（資源載入失敗如封面圖 404 則靜默略過），方便在 GitHub Pages 上第一時間發現問題；按 F12 開啟 Console 亦可看到完整堆疊。所有事件綁集中在腳本執行期完成，初始化（DB 開啟、偏好還原）非同步進行且個別以 try/catch 防護，單一環節失敗不會拖垮其他按鈕。</p>
+            <p><b>響應式</b>：版面以 CSS Grid <code>auto-fill</code> 自動斷行，手機 1 欄、平板 2 欄、桌面 3 欄以上；播放列在窄螢幕收合均衡器並預留 iOS 安全區（<code>env(safe-area-inset-bottom)</code>）。像素外框與按鈕立體感全部由 box-shadow 疊加構成、掃描線為 2px 重複紋理覆蓋層；動畫尊重 <code>prefers-reduced-motion</code>；表單聚焦有明顯 outline、操作按鈕均有 aria-label；輸入框字級在行動裝置固定 16px 防 iOS 聚焦縮放。</p>
           </div>
         </details>
 
@@ -435,7 +436,7 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
           <div>
             <p>① 將本檔存成 <code>index.html</code>，上傳到 GitHub repository。<br>
                ② 進入 Repo <b>Settings → Pages</b>，Source 選 <b>main branch / root</b>，按 Save。<br>
-               ③ 數分鐘後即可透過 <code>https://&lt;帳號&gt;.github.io/&lt;repo&gt;/</code> 開啟。https 環境下，A2HS 安裝提示、Storage Persistence 與 iTunes API（要求安全環境的瀏覽器政策）都會完整運作。</p>
+               ③ 數分鐘後即可透過 <code>https://&lt;帳號&gt;.github.io/&lt;repo&gt;/</code> 開啟。https 環境下，A2HS 安裝提示、Storage Persistence 與 iTunes API（要求安全環境的瀏覽器政策）都會完整運作。更新檔案後若畫面未變，請以 Ctrl+F5（Mac：Cmd+Shift+R）強制重新載入，避開舊快取。</p>
           </div>
         </details>
       </div>
@@ -456,8 +457,8 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
       <div id="pcTime">0:00 / 0:00</div>
     </div>
     <span class="eq" id="pcEq"><i></i><i></i><i></i><i></i></span>
-    <button class="btn btn-green btn-sm" id="pcToggle"></button>
-    <button class="btn btn-red btn-sm" id="pcStop"><span id="iStop"></span>STOP</button>
+    <button type="button" class="btn btn-green btn-sm" id="pcToggle"></button>
+    <button type="button" class="btn btn-red btn-sm" id="pcStop"><span id="iStop"></span>STOP</button>
     <div class="volbox"><span id="iVol"></span><input type="range" id="volRange" min="0" max="100" value="55" aria-label="音量"></div>
   </div>
 </div>
@@ -475,11 +476,11 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
         <option value="JP">日本</option>
         <option value="GB">英國</option>
       </select>
-      <button class="btn btn-cyan" id="olGo"><span id="iOlGo"></span>SEARCH</button>
+      <button type="button" class="btn btn-cyan" id="olGo"><span id="iOlGo"></span>SEARCH</button>
     </div>
     <div id="olState">輸入關鍵字後按 SEARCH；結果可先試聽再加入曲庫。</div>
     <div id="olResults"></div>
-    <div class="actions"><button class="btn btn-ghost" id="olClose">關閉</button></div>
+    <div class="actions"><button type="button" class="btn btn-ghost" id="olClose">關閉</button></div>
   </div>
 </div>
 
@@ -550,8 +551,8 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
     <p style="font-size:13px">確定要刪除 <b id="delName" style="color:var(--amber)"></b> 嗎？</p>
     <p style="font-size:11px;color:var(--dim);margin-top:6px">此操作會從 IndexedDB 永久移除資料，無法復原。</p>
     <div class="actions">
-      <button class="btn btn-ghost" id="btnDelCancel">取消</button>
-      <button class="btn btn-red" id="btnDelYes"><span id="iTrash"></span>DEL 刪除</button>
+      <button type="button" class="btn btn-ghost" id="btnDelCancel">取消</button>
+      <button type="button" class="btn btn-red" id="btnDelYes"><span id="iTrash"></span>DEL 刪除</button>
     </div>
   </div>
 </div>
@@ -567,7 +568,7 @@ footer{text-align:center;color:var(--dim);font-size:10px;font-family:"Press Star
     <div id="dropZone">拖放 .json 檔到此，或點擊選擇檔案</div>
     <input type="file" id="fileInput" accept=".json,application/json" hidden>
     <p style="font-size:11px;color:var(--dim)">匯入前請確認檔案來自如本頁匯出的備份，格式不符會被拒絕。</p>
-    <div class="actions"><button class="btn btn-ghost" id="btnImportCancel">關閉</button></div>
+    <div class="actions"><button type="button" class="btn btn-ghost" id="btnImportCancel">關閉</button></div>
   </div>
 </div>
 
@@ -832,118 +833,8 @@ $('#volRange').addEventListener('input',e=>{
 });
 
 /* =====================================================
-   線上搜尋
+   IndexedDB 封裝
    ===================================================== */
-const searchState={results:[],loading:false,more:false,offset:0,q:''};
-function openSearch(q){
-  openModal('#mSearch');
-  if(q!=null&&q!==''){ $('#olq').value=q; }
-  setTimeout(()=>$('#olq').focus(),50);
-  if(q) runSearch(true);
-}
-function existsInLib(r){
-  const t=norm(r.trackName), a=norm(r.artistName);
-  return state.songs.some(s=>norm(s.title)===t&&norm(s.artist)===a);
-}
-async function runSearch(reset=true){
-  const q=$('#olq').value.trim();
-  if(!q){ toast('請輸入搜尋關鍵字','warn'); return; }
-  if(reset){ searchState.offset=0; searchState.results=[]; }
-  searchState.q=q; searchState.loading=true;
-  $('#olState').innerHTML='<span class="blink">正在搜尋 iTunes…</span>';
-  renderSearchResults();
-  const rs=await itunesSearch(q,$('#olCountry').value,25,searchState.offset);
-  searchState.loading=false;
-  const seen=new Set(searchState.results.map(r=>r.trackId));
-  const fresh=(rs||[]).filter(r=>!seen.has(r.trackId));
-  searchState.results=searchState.results.concat(fresh);
-  searchState.more=fresh.length>0&&rs.length===25;
-  if(!reset&&fresh.length===0) toast('沒有更多結果了','info');
-  searchState.offset+=25;
-  const store=$('#olCountry').selectedOptions[0].textContent;
-  $('#olState').innerHTML=searchState.results.length
-    ?`「<b>${esc(q)}</b>」@${esc(store)}商店：${searchState.results.length} 筆結果 · 點試聽播 30 秒官方片段`
-    :`「<b>${esc(q)}</b>」沒有結果──換個關鍵字，或切換上方商店再試。`;
-  renderSearchResults();
-}
-function renderSearchResults(){
-  const box=$('#olResults');
-  if(searchState.loading){ box.innerHTML='<div class="olmsg"><span class="blink">LOADING…</span></div>'; return; }
-  if(!searchState.results.length){ box.innerHTML=''; return; }
-  box.innerHTML=searchState.results.map((r,i)=>{
-    const rid='srch-'+(r.trackId||('i'+i));
-    const active=Player.songId===rid;
-    const running=active&&!audio.paused;
-    const added=existsInLib(r);
-    const yr=r.releaseDate?String(r.releaseDate).slice(0,4):'';
-    const dur=r.trackTimeMillis?fmt(r.trackTimeMillis/1000):'';
-    const seed=(Number(r.trackId)||i)%0xFFFFFFFF;
-    const art=r.artworkUrl100
-      ?`<img class="srch-art" src="${esc(r.artworkUrl100)}" alt="" loading="lazy" width="52" height="52">`
-      :`<canvas class="srch-art px" data-seed="${seed}" width="12" height="12"></canvas>`;
-    return `<div class="srch-row${active?' playing':''}">
-      ${art}
-      <div class="srch-info">
-        <b>${esc(r.trackName||'未知曲目')}</b>
-        <span>${esc(r.artistName||'—')}${r.collectionName?' · '+esc(r.collectionName):''}</span>
-        <small>${esc(yr)}${r.primaryGenreName?' · '+esc(r.primaryGenreName):''}${dur?' · '+dur:''} · 30S PREVIEW</small>
-      </div>
-      <div class="srch-actions">
-        <button class="btn btn-green btn-sm" data-splay="${i}">${icon(running?'pause':'play',10)}${running?'暫停':'試聽'}</button>
-        ${added
-          ?`<span class="btn btn-ghost btn-sm added">${icon('note',10)}已在曲庫</span>`
-          :`<button class="btn btn-pink btn-sm" data-sadd="${i}">${icon('plus',10)}加入曲庫</button>`}
-      </div>
-    </div>`;
-  }).join('')+(searchState.more?'<button class="btn btn-ghost" id="olMore">載入更多結果</button>':'');
-  box.querySelectorAll('canvas.srch-art').forEach(cv=>drawCover(cv,+cv.dataset.seed));
-}
-function playFromSearch(i){
-  const r=searchState.results[i]; if(!r) return;
-  if(!r.previewUrl){ toast('這首沒有提供試聽片段','warn'); return; }
-  playSong({
-    id:'srch-'+(r.trackId||('i'+i)),
-    title:r.trackName||'未知曲目', artist:r.artistName||'', album:r.collectionName||'',
-    seed:(Number(r.trackId)||i)%0xFFFFFFFF, genre:r.primaryGenreName||'',
-    year:r.releaseDate?+String(r.releaseDate).slice(0,4):null, notes:'',
-    previewUrl:r.previewUrl, previewSrc:'itunes', artUrl:r.artworkUrl100||null
-  });
-}
-async function addFromSearch(i){
-  const r=searchState.results[i]; if(!r) return;
-  const song={
-    id:uuid(),
-    title:String(r.trackName||'未知曲目').slice(0,80),
-    artist:String(r.artistName||'').slice(0,60),
-    album:String(r.collectionName||'').slice(0,60),
-    genre:String(r.primaryGenreName||'').slice(0,20), keySig:'',
-    year:r.releaseDate?+String(r.releaseDate).slice(0,4):null,
-    bpm:120, notes:'',
-    previewUrl:r.previewUrl||null, previewSrc:r.previewUrl?'itunes':null,
-    artUrl:/^https?:/i.test(String(r.artworkUrl100||''))?r.artworkUrl100:null,
-    seed:randSeed(), favorite:false,
-    createdAt:Date.now(), updatedAt:Date.now()
-  };
-  try{
-    await DB.put(song);
-    state.songs.push(song);
-    renderAll(); renderSearchResults();
-    toast('已加入曲庫：'+song.title,'ok');
-  }catch(err){ toast('加入失敗：'+err,'err'); }
-}
-$('#olResults').addEventListener('click',e=>{
-  const btn=e.target.closest('button'); if(!btn) return;
-  if(btn.id==='olMore'){ runSearch(false); return; }
-  if(btn.dataset.splay!=null) playFromSearch(+btn.dataset.splay);
-  else if(btn.dataset.sadd!=null) addFromSearch(+btn.dataset.sadd);
-});
-$('#olGo').addEventListener('click',()=>runSearch(true));
-$('#olq').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(true); } });
-$('#olCountry').addEventListener('change',()=>{ if($('#olq').value.trim()) runSearch(true); });
-$('#olClose').addEventListener('click',()=>closeModal('#mSearch'));
-$('#btnOnline').addEventListener('click',()=>openSearch(''));
-
-/* ---------- IndexedDB 封裝 ---------- */
 const DB=(()=>{
   let db=null;
   const open=()=>new Promise((res,rej)=>{
@@ -1017,7 +908,7 @@ function renderGrid(){
     grid.innerHTML=''; empty.classList.add('show');
     $('#emptyTitle').textContent='資料庫是空的';
     $('#emptyDesc').innerHTML='<span class="blink">PRESS START</span> ── 用 iTunes 線上搜尋把歌加進來（自動帶入資料＋30 秒試聽）。';
-    $('#emptyActions').innerHTML='<button class="btn btn-cyan" data-act="online">iTunes 線上搜尋</button><button class="btn btn-amber" data-act="sample">載入示範曲目</button><button class="btn btn-pink" data-act="add">手動新增</button>';
+    $('#emptyActions').innerHTML='<button type="button" class="btn btn-cyan" data-act="online">iTunes 線上搜尋</button><button type="button" class="btn btn-amber" data-act="sample">載入示範曲目</button><button type="button" class="btn btn-pink" data-act="add">手動新增</button>';
     return;
   }
   empty.classList.remove('show');
@@ -1027,10 +918,10 @@ function renderGrid(){
     $('#emptyTitle').textContent='本機曲庫沒有這首歌';
     if(q){
       $('#emptyDesc').innerHTML=`沒有符合「<b style="color:var(--amber)">${esc(q)}</b>」的本機曲目。改用 iTunes 線上搜尋，找到後一鍵加入曲庫。`;
-      $('#emptyActions').innerHTML=`<button class="btn btn-cyan" data-act="online">到 iTunes 搜尋「${esc(q)}」</button><button class="btn btn-ghost" data-act="clear">清除搜尋</button>`;
+      $('#emptyActions').innerHTML=`<button type="button" class="btn btn-cyan" data-act="online">到 iTunes 搜尋「${esc(q)}」</button><button type="button" class="btn btn-ghost" data-act="clear">清除搜尋</button>`;
     }else{
       $('#emptyDesc').textContent='目前過濾條件下沒有歌曲，試試清除過濾。';
-      $('#emptyActions').innerHTML='<button class="btn btn-ghost" data-act="clear">清除搜尋與過濾</button>';
+      $('#emptyActions').innerHTML='<button type="button" class="btn btn-ghost" data-act="clear">清除搜尋與過濾</button>';
     }
     return;
   }
@@ -1047,13 +938,13 @@ function renderGrid(){
           <p class="artist">${esc(s.artist||'未知演出者')}${s.album?' · '+esc(s.album):''}</p>
           <div class="tags">${tagHTML(s)}</div>
         </div>
-        <button class="icbtn favbtn${s.favorite?' on':''}" data-fav aria-label="收藏">${icon('heart',16)}</button>
+        <button type="button" class="icbtn favbtn${s.favorite?' on':''}" data-fav aria-label="收藏">${icon('heart',16)}</button>
       </div>
       ${s.notes?`<p class="notes">${esc(s.notes)}</p>`:''}
       <div class="card-actions">
-        <button class="btn btn-green btn-sm" data-play>${icon(ic,10)}${label}</button>
-        <button class="btn btn-amber btn-sm" data-edit>${icon('edit',10)}編輯</button>
-        <button class="btn btn-red btn-sm" data-del>${icon('trash',10)}刪除</button>
+        <button type="button" class="btn btn-green btn-sm" data-play>${icon(ic,10)}${label}</button>
+        <button type="button" class="btn btn-amber btn-sm" data-edit>${icon('edit',10)}編輯</button>
+        <button type="button" class="btn btn-red btn-sm" data-del>${icon('trash',10)}刪除</button>
         <span class="eq${running?' run':''}"><i></i><i></i><i></i><i></i></span>
       </div>
     </article>`;
@@ -1071,11 +962,29 @@ function renderChips(){
   });
   if(favs) chips.push({v:'__fav',label:'收藏 '+favs,on:state.genre==='__fav'});
   $('#chipBar').innerHTML=chips.map(c=>
-    `<button class="chip${c.on?' on':''}" data-chip="${esc(c.v)}">${esc(c.label)}</button>`).join('');
+    `<button type="button" class="chip${c.on?' on':''}" data-chip="${esc(c.v)}">${esc(c.label)}</button>`).join('');
 }
 function renderAll(){ renderChips(); renderGrid(); updateCount(); }
 
-/* ---------- 事件 ---------- */
+/* ---------- Toast ---------- */
+function toast(msg,type='ok'){
+  const t=document.createElement('div');
+  t.className='toast '+type; t.textContent=msg;
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); },4200);
+}
+
+/* ---------- 彈窗 ---------- */
+function openModal(id){ $(id).classList.add('open'); }
+function closeModal(id){ $(id).classList.remove('open'); }
+$$('.modal-back').forEach(m=>{
+  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') $$('.modal-back.open').forEach(m=>m.classList.remove('open'));
+});
+
+/* ---------- 事件：網格 / 晶片 / 工具列 ---------- */
 $('#grid').addEventListener('click',e=>{
   const btn=e.target.closest('button'); if(!btn) return;
   const card=btn.closest('.card'); if(!card) return;
@@ -1106,15 +1015,117 @@ async function toggleFav(song){
   toast(song.favorite?'已加入收藏':'已取消收藏','info');
 }
 
-/* ---------- 彈窗 ---------- */
-function openModal(id){ $(id).classList.add('open'); }
-function closeModal(id){ $(id).classList.remove('open'); }
-$$('.modal-back').forEach(m=>{
-  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
+/* =====================================================
+   線上搜尋（iTunes Search API）
+   ===================================================== */
+const searchState={results:[],loading:false,more:false,offset:0,q:''};
+function openSearch(q){
+  openModal('#mSearch');
+  if(q!=null&&q!==''){ $('#olq').value=q; }
+  setTimeout(()=>$('#olq').focus(),50);
+  if(q) runSearch(true);
+}
+function existsInLib(r){
+  const t=norm(r.trackName), a=norm(r.artistName);
+  return state.songs.some(s=>norm(s.title)===t&&norm(s.artist)===a);
+}
+async function runSearch(reset=true){
+  const q=$('#olq').value.trim();
+  if(!q){ toast('請輸入搜尋關鍵字','warn'); return; }
+  if(reset){ searchState.offset=0; searchState.results=[]; }
+  searchState.q=q; searchState.loading=true;
+  $('#olState').innerHTML='<span class="blink">正在搜尋 iTunes…</span>';
+  renderSearchResults();
+  const rs=await itunesSearch(q,$('#olCountry').value,25,searchState.offset);
+  searchState.loading=false;
+  const seen=new Set(searchState.results.map(r=>r.trackId));
+  const fresh=(rs||[]).filter(r=>!seen.has(r.trackId));
+  searchState.results=searchState.results.concat(fresh);
+  searchState.more=fresh.length>0&&rs.length===25;
+  if(!reset&&fresh.length===0) toast('沒有更多結果了','info');
+  searchState.offset+=25;
+  const store=$('#olCountry').selectedOptions[0].textContent;
+  $('#olState').innerHTML=searchState.results.length
+    ?`「<b>${esc(q)}</b>」@${esc(store)}商店：${searchState.results.length} 筆結果 · 點試聽播 30 秒官方片段`
+    :`「<b>${esc(q)}</b>」沒有結果──換個關鍵字，或切換上方商店再試。`;
+  renderSearchResults();
+}
+function renderSearchResults(){
+  const box=$('#olResults');
+  if(searchState.loading){ box.innerHTML='<div class="olmsg"><span class="blink">LOADING…</span></div>'; return; }
+  if(!searchState.results.length){ box.innerHTML=''; return; }
+  box.innerHTML=searchState.results.map((r,i)=>{
+    const rid='srch-'+(r.trackId||('i'+i));
+    const active=Player.songId===rid;
+    const running=active&&!audio.paused;
+    const added=existsInLib(r);
+    const yr=r.releaseDate?String(r.releaseDate).slice(0,4):'';
+    const dur=r.trackTimeMillis?fmt(r.trackTimeMillis/1000):'';
+    const seed=(Number(r.trackId)||i)%0xFFFFFFFF;
+    const art=r.artworkUrl100
+      ?`<img class="srch-art" src="${esc(r.artworkUrl100)}" alt="" loading="lazy" width="52" height="52">`
+      :`<canvas class="srch-art px" data-seed="${seed}" width="12" height="12"></canvas>`;
+    return `<div class="srch-row${active?' playing':''}">
+      ${art}
+      <div class="srch-info">
+        <b>${esc(r.trackName||'未知曲目')}</b>
+        <span>${esc(r.artistName||'—')}${r.collectionName?' · '+esc(r.collectionName):''}</span>
+        <small>${esc(yr)}${r.primaryGenreName?' · '+esc(r.primaryGenreName):''}${dur?' · '+dur:''} · 30S PREVIEW</small>
+      </div>
+      <div class="srch-actions">
+        <button type="button" class="btn btn-green btn-sm" data-splay="${i}">${icon(running?'pause':'play',10)}${running?'暫停':'試聽'}</button>
+        ${added
+          ?`<span class="btn btn-ghost btn-sm added">${icon('note',10)}已在曲庫</span>`
+          :`<button type="button" class="btn btn-pink btn-sm" data-sadd="${i}">${icon('plus',10)}加入曲庫</button>`}
+      </div>
+    </div>`;
+  }).join('')+(searchState.more?'<button type="button" class="btn btn-ghost" id="olMore">載入更多結果</button>':'');
+  box.querySelectorAll('canvas.srch-art').forEach(cv=>drawCover(cv,+cv.dataset.seed));
+}
+function playFromSearch(i){
+  const r=searchState.results[i]; if(!r) return;
+  if(!r.previewUrl){ toast('這首沒有提供試聽片段','warn'); return; }
+  playSong({
+    id:'srch-'+(r.trackId||('i'+i)),
+    title:r.trackName||'未知曲目', artist:r.artistName||'', album:r.collectionName||'',
+    seed:(Number(r.trackId)||i)%0xFFFFFFFF, genre:r.primaryGenreName||'',
+    year:r.releaseDate?+String(r.releaseDate).slice(0,4):null, notes:'',
+    previewUrl:r.previewUrl, previewSrc:'itunes', artUrl:r.artworkUrl100||null
+  });
+}
+async function addFromSearch(i){
+  const r=searchState.results[i]; if(!r) return;
+  const song={
+    id:uuid(),
+    title:String(r.trackName||'未知曲目').slice(0,80),
+    artist:String(r.artistName||'').slice(0,60),
+    album:String(r.collectionName||'').slice(0,60),
+    genre:String(r.primaryGenreName||'').slice(0,20), keySig:'',
+    year:r.releaseDate?+String(r.releaseDate).slice(0,4):null,
+    bpm:120, notes:'',
+    previewUrl:r.previewUrl||null, previewSrc:r.previewUrl?'itunes':null,
+    artUrl:/^https?:/i.test(String(r.artworkUrl100||''))?r.artworkUrl100:null,
+    seed:randSeed(), favorite:false,
+    createdAt:Date.now(), updatedAt:Date.now()
+  };
+  try{
+    await DB.put(song);
+    state.songs.push(song);
+    renderAll(); renderSearchResults();
+    toast('已加入曲庫：'+song.title,'ok');
+  }catch(err){ toast('加入失敗：'+err,'err'); }
+}
+$('#olResults').addEventListener('click',e=>{
+  const btn=e.target.closest('button'); if(!btn) return;
+  if(btn.id==='olMore'){ runSearch(false); return; }
+  if(btn.dataset.splay!=null) playFromSearch(+btn.dataset.splay);
+  else if(btn.dataset.sadd!=null) addFromSearch(+btn.dataset.sadd);
 });
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') $$('.modal-back.open').forEach(m=>m.classList.remove('open'));
-});
+$('#olGo').addEventListener('click',()=>runSearch(true));
+$('#olq').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(true); } });
+$('#olCountry').addEventListener('change',()=>{ if($('#olq').value.trim()) runSearch(true); });
+$('#olClose').addEventListener('click',()=>closeModal('#mSearch'));
+$('#btnOnline').addEventListener('click',()=>openSearch(''));
 
 /* ---------- 新增 / 編輯表單 ---------- */
 let editingId=null, clearPreview=false;
@@ -1280,14 +1291,6 @@ async function loadSample(){
   }catch(err){ toast('載入示範資料失敗：'+err,'err'); }
 }
 
-/* ---------- Toast ---------- */
-function toast(msg,type='ok'){
-  const t=document.createElement('div');
-  t.className='toast '+type; t.textContent=msg;
-  $('#toasts').appendChild(t);
-  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); },4200);
-}
-
 /* ---------- 持久化與空間狀態 ---------- */
 async function updateStorageHUD(){
   try{
@@ -1389,12 +1392,26 @@ $('#a2hsClose').addEventListener('click',()=>{
   localStorage.setItem('ptv.a2hs.dismissed','1');
 });
 
+/* ---------- 全域錯誤提示（可視化除錯） ---------- */
+window.addEventListener('error',e=>{
+  if(e&&e.message) toast('腳本錯誤：'+e.message,'err'); // 資源載入失敗（如封面404）無 message，靜默略過
+});
+window.addEventListener('unhandledrejection',e=>{
+  try{
+    const r=(e.reason&&e.reason.message)?e.reason.message:String(e.reason||'');
+    if(r) toast('未處理錯誤：'+r,'err');
+  }catch(err){}
+});
+
 /* ---------- 初始化 ---------- */
+(async()=>{
   injectManifest();
   /* 還原音量 */
-  const sv=localStorage.getItem('ptv.vol');
-  const vol=(sv==null)?55:Math.max(0,Math.min(100,+sv||0));
-  $('#volRange').value=vol; audio.volume=vol/100;
+  try{
+    const sv=localStorage.getItem('ptv.vol');
+    const vol=(sv==null)?55:Math.max(0,Math.min(100,+sv||0));
+    $('#volRange').value=vol; audio.volume=vol/100;
+  }catch(e){}
   /* 還原技術說明摺疊偏好（預設收合） */
   try{
     if(localStorage.getItem('ptv.tech')==='1') $('#techWrap').open=true;
@@ -1402,6 +1419,7 @@ $('#a2hsClose').addEventListener('click',()=>{
       try{localStorage.setItem('ptv.tech',$('#techWrap').open?'1':'0')}catch(e){}
     });
   }catch(e){}
+  /* 開啟 IndexedDB 並載入資料 */
   try{
     await DB.open();
     $('#dotDb').className='dot ok';
@@ -1413,8 +1431,8 @@ $('#a2hsClose').addEventListener('click',()=>{
     toast('IndexedDB 無法開啟（隱私模式？），資料將無法儲存','err');
   }
   renderAll(); updateStorageHUD();
-  requestPersist(false);
-  setTimeout(showA2HS,2500);
+  requestPersist(false);        // 載入時自動申請持久化
+  setTimeout(showA2HS,2500);    // 延遲顯示安裝提示
 })();
 </script>
 </body>
