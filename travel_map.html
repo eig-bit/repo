@@ -17,6 +17,7 @@
   6. 8-bit 風格 - "Press Start 2P" 像素字體 + image-rendering: pixelated
      + 硬邊框 + 無圓角 + 方塊按鈕 + CSS 像素陰影
   部署: 直接放到 GitHub 上用 GitHub Pages (Settings -> Pages) 即可
+  v1.1 修正: 地圖初始化順序錯誤導致 TDZ ReferenceError，整個腳本中斷
 ================================= -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,10 +57,10 @@ body{
 #topbar{
   height:52px; display:flex; align-items:center; gap:8px;
   background:var(--panel); border-bottom:var(--border); padding:0 10px;
-  position:relative; z-index:1001; flex-wrap:wrap;
+  position:relative; z-index:1001; flex-wrap:wrap; overflow-x:auto;
 }
-#topbar h1{font-size:12px; color:var(--accent2); text-shadow:2px 2px 0 #000; margin-right:auto}
-#topbar .px-btn{padding:6px 8px; font-size:8px}
+#topbar h1{font-size:12px; color:var(--accent2); text-shadow:2px 2px 0 #000; margin-right:auto; white-space:nowrap}
+#topbar .px-btn{padding:6px 8px; font-size:8px; white-space:nowrap}
 
 /* ===== 主佈局 ===== */
 #main{display:flex; height:calc(100vh - 52px); position:relative}
@@ -67,7 +68,7 @@ body{
   width:320px; background:var(--panel); border-right:var(--border);
   display:flex; flex-direction:column; z-index:1000;
 }
-#map{flex:1; z-index:1; background:#222}
+#map{flex:1; z-index:1; background:#222; min-height:200px}
 
 /* ===== 側欄 ===== */
 #filters{padding:10px; border-bottom:var(--border); background:var(--panel2)}
@@ -82,7 +83,7 @@ body{
 
 .spot-item{
   border:var(--border); background:var(--bg); margin-bottom:8px;
-  padding:8px; cursor:pointer; position:relative;
+  padding:8px; cursor:pointer;
 }
 .spot-item:hover{background:#252540}
 .spot-item .name{color:var(--accent2); margin-bottom:4px}
@@ -171,7 +172,7 @@ body{
 /* ===== 響應式 ===== */
 @media(max-width:700px){
   #sidebar{position:absolute; left:0; top:0; bottom:0; width:85%; max-width:320px;
-    transform:translateX(-100%); transition:transform .2s}
+    transform:translateX(-100%); transition:transform .2s; z-index:1100}
   #sidebar.open{transform:translateX(0)}
   #sidebarToggle{display:block!important}
   :root{--fs:9px}
@@ -215,7 +216,7 @@ body{
 
 <div id="overlay"><div class="modal" id="modalBox"></div></div>
 <div id="a2hs">
-  📲 ADD TO HOME SCREEN!
+  <span id="a2hsText">📲 ADD TO HOME SCREEN!</span>
   <button class="px-btn ok" id="a2hsYes">INSTALL</button>
   <button class="px-btn danger" id="a2hsNo">✕ LATER</button>
 </div>
@@ -226,6 +227,7 @@ body{
    IndexedDB 封裝 (技術說明)
    - 三個 object store: spots(key id auto), categories(key name), countries(key name)
    - getAll / put / delete / clear 通用化
+   - 所有 db 操作皆回傳 Promise
 ========================================================= */
 const DB_NAME='travelmap8bit', DB_VER=1;
 let db;
@@ -264,27 +266,28 @@ const DEFAULT_CATS=[
 ];
 const DEFAULT_COUNTRIES=['台灣','日本','香港','韓國','泰國','中國','美國','法國','英國'];
 
-/* ===== 全域狀態 ===== */
+/* ===== 全域狀態 (修正: map 與 markerLayer 先宣告，
+   再於 DOMContentLoaded 後初始化，避免 TDZ 錯誤) ===== */
+let map=null;
+let markerLayer=null;
 let spots=[],cats=[],countries=[];
-let markerLayer=L.layerGroup().addTo(map_init());
 let markers={}; // id -> marker
 let geoBtn=null;
-
-/* ===== 地圖初始化 ===== */
-let map;
-function map_init(){
-  map=L.map('map',{zoomControl:true}).setView([23.7,121],7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19, attribution:'© OpenStreetMap'
-  }).addTo(map);
-  return map;
-}
 
 /* ===== 工具 ===== */
 const $=id=>document.getElementById(id);
 function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2200)}
 function catColor(name){const c=cats.find(c=>c.name===name);return c?c.color:'#b2bec3'}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+/* ===== 地圖初始化 (修正: 等待 Leaflet 與 DOM 就緒後才執行) ===== */
+function initMap(){
+  map=L.map('map',{zoomControl:true}).setView([23.7,121],7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19, attribution:'© OpenStreetMap'
+  }).addTo(map);
+  markerLayer=L.layerGroup().addTo(map);
+}
 
 /* ===== 持久化 =====
    技術說明: navigator.storage.persist() 讓瀏覽器承諾不會在
@@ -308,20 +311,24 @@ window.addEventListener('appinstalled',()=>hideA2HS());
 function showA2HS(){
   if(window.matchMedia('(display-mode: standalone)').matches)return;
   if(localStorage.getItem('a2hs_dismissed'))return;
-  $('a2hs').classList.add('show');
   if(deferredPrompt){
-    $('a2hs').firstChild.textContent=' 📲 INSTALL APP? ';
+    $('a2hsText').textContent='📲 INSTALL APP?';
+    $('a2hsYes').style.display='';
   }else{
-    $('a2hs').firstChild.textContent=' 📲 iOS: SHARE → ADD TO HOME SCREEN ';
+    $('a2hsText').textContent='📲 iOS: SHARE → ADD TO HOME SCREEN';
     $('a2hsYes').style.display='none';
   }
+  $('a2hs').classList.add('show');
 }
 function hideA2HS(){$('a2hs').classList.remove('show')}
 $('a2hsYes').onclick=async()=>{
-  if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;hideA2HS();}
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt=null; hideA2HS();
+  }
 };
 $('a2hsNo').onclick=()=>{localStorage.setItem('a2hs_dismissed','1');hideA2HS()};
-setTimeout(showA2HS,3000);
 
 /* ===== 資料渲染 ===== */
 function renderFilters(){
@@ -344,8 +351,11 @@ function renderList(){
       <span class="tag" style="background:${catColor(s.cat)}">${esc(s.cat)}</span>
     </div>`).join('')
     :'<div style="padding:20px;text-align:center;color:#889">NO SPOTS...<br><br>PRESS + ADD!</div>';
-  [...$('spotlist').children].forEach(el=>{
-    el.onclick=()=>{const s=spots.find(x=>x.id==el.dataset.id);if(s){map.setView([s.lat,s.lng],13);openPopup(s)}};
+  [...$('spotlist').querySelectorAll('.spot-item')].forEach(el=>{
+    el.onclick=()=>{
+      const s=spots.find(x=>x.id==el.dataset.id);
+      if(s){map.setView([s.lat,s.lng],13);openPopup(s)}
+    };
   });
 }
 function renderMarkers(){
@@ -376,6 +386,7 @@ function refreshAll(){renderFilters();renderList();renderMarkers()}
 /* ===== 地點 CRUD ===== */
 function spotModal(s={}){
   const isEdit=!!s.id;
+  const center=map.getCenter();
   $('modalBox').innerHTML=`
     <h2>${isEdit?'✏️ EDIT SPOT':'➕ NEW SPOT'}</h2>
     <div class="field"><label>NAME *</label><input id="mName" value="${esc(s.name||'')}"></div>
@@ -386,8 +397,8 @@ function spotModal(s={}){
         <select id="mCat">${cats.map(c=>`<option value="${esc(c.name)}" ${c.name===s.cat?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
     </div>
     <div class="row">
-      <div class="field"><label>LATITUDE</label><input id="mLat" value="${s.lat??map.getCenter().lat}"></div>
-      <div class="field"><label>LONGITUDE</label><input id="mLng" value="${s.lng??map.getCenter().lng}"></div>
+      <div class="field"><label>LATITUDE</label><input id="mLat" value="${s.lat!=null?s.lat:center.lat.toFixed(6)}"></div>
+      <div class="field"><label>LONGITUDE</label><input id="mLng" value="${s.lng!=null?s.lng:center.lng.toFixed(6)}"></div>
     </div>
     <div class="field"><label>RATING (1-5)</label>
       <select id="mRating">${[0,1,2,3,4,5].map(r=>`<option value="${r}" ${r===(s.rating||0)?'selected':''}>${r?'★'.repeat(r):'-'}</option>`).join('')}</select></div>
@@ -406,14 +417,14 @@ function spotModal(s={}){
       lat,lng,rating:+$('mRating').value,note:$('mNote').value.trim()};
     if(isEdit){await dbPut('spots',{...s,...data});toast('✅ UPDATED');}
     else{await dbPut('spots',data);toast('✅ ADDED');}
-    await loadData(); closeModal();
+    await loadData(); refreshAll(); closeModal();
   };
 }
-async function editSpot(id){const s=spots.find(x=>x.id===id);if(s)spotModal(s)}
-async function delSpot(id){
+window.editSpot=function(id){const s=spots.find(x=>x.id===id);if(s)spotModal(s)};
+window.delSpot=async function(id){
   if(!confirm('DELETE THIS SPOT?'))return;
-  await dbDel('spots',id);await loadData();map.closePopup();toast('🗑️ DELETED');
-}
+  await dbDel('spots',id);await loadData();refreshAll();map.closePopup();toast('🗑️ DELETED');
+};
 
 /* ===== 分類管理 ===== */
 function catModal(){
@@ -433,7 +444,7 @@ function catModal(){
   const draw=()=>{
     $('catList').innerHTML=cats.map(c=>`
       <div class="mgr-item">
-        <span style="width:16px;height:16px;border:2px solid #000;background:${c.color};display:inline-block"></span>
+        <span style="width:16px;height:16px;border:2px solid #000;background:${c.color};display:inline-block;flex:none"></span>
         <span class="cname">${esc(c.name)}</span>
         <button class="mini ed" data-ed="${esc(c.name)}">ED</button>
         <button class="mini del" data-del="${esc(c.name)}">DEL</button>
@@ -441,18 +452,22 @@ function catModal(){
     $('catList').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
       const n=b.dataset.del;
       if(spots.some(s=>s.cat===n))return toast('⚠️ IN USE BY SPOTS');
-      await dbDel('categories',n);await loadData();draw();renderFilters();
-      $('fCategory').value='';refreshAll();
+      await dbDel('categories',n);
+      await loadData();
+      $('fCategory').value='';
+      draw(); refreshAll(); toast('🗑️ DELETED');
     });
     $('catList').querySelectorAll('[data-ed]').forEach(b=>b.onclick=async()=>{
-      const n=b.dataset.ed;const c=cats.find(x=>x.name===n);
-      const nn=prompt('NEW NAME:',n); if(!nn||nn===n){return}
+      const n=b.dataset.ed;
+      const c=cats.find(x=>x.name===n);
+      const nn=prompt('NEW NAME:',n);
+      if(!nn||nn===n)return;
       const nc=prompt('HEX COLOR (e.g. #ff0000):',c.color)||c.color;
       await dbDel('categories',n);
       await dbPut('categories',{name:nn,color:nc});
-      // 更新使用中的 spots
+      // 同步更新使用中的 spots
       for(const s of spots.filter(s=>s.cat===n)){s.cat=nn;await dbPut('spots',s)}
-      await loadData();draw();refreshAll();
+      await loadData(); draw(); refreshAll(); toast('✅ UPDATED');
     });
   };
   draw();
@@ -461,7 +476,7 @@ function catModal(){
     if(!n)return toast('⚠️ NAME REQUIRED');
     if(cats.some(c=>c.name===n))return toast('⚠️ EXISTS');
     await dbPut('categories',{name:n,color:$('newCatColor').value});
-    await loadData();draw();$('newCat').value='';toast('✅ ADDED');
+    await loadData(); draw(); $('newCat').value=''; toast('✅ ADDED');
   };
 }
 
@@ -486,14 +501,19 @@ function countryModal(){
     $('cList').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
       const n=b.dataset.del;
       if(spots.some(s=>s.country===n))return toast('⚠️ IN USE BY SPOTS');
-      await dbDel('countries',n);await loadData();draw();
-      $('fCountry').value='';refreshAll();
+      await dbDel('countries',n);
+      await loadData();
+      $('fCountry').value='';
+      draw(); refreshAll(); toast('🗑️ DELETED');
     });
     $('cList').querySelectorAll('[data-ed]').forEach(b=>b.onclick=async()=>{
-      const n=b.dataset.ed;const nn=prompt('NEW NAME:',n);if(!nn||nn===n)return;
-      await dbDel('countries',n);await dbPut('countries',nn);
+      const n=b.dataset.ed;
+      const nn=prompt('NEW NAME:',n);
+      if(!nn||nn===n)return;
+      await dbDel('countries',n);
+      await dbPut('countries',nn);
       for(const s of spots.filter(s=>s.country===n)){s.country=nn;await dbPut('spots',s)}
-      await loadData();draw();refreshAll();
+      await loadData(); draw(); refreshAll(); toast('✅ UPDATED');
     });
   };
   draw();
@@ -501,13 +521,14 @@ function countryModal(){
     const n=$('newC').value.trim();
     if(!n)return toast('⚠️ NAME REQUIRED');
     if(countries.includes(n))return toast('⚠️ EXISTS');
-    await dbPut('countries',n);await loadData();draw();$('newC').value='';toast('✅ ADDED');
+    await dbPut('countries',n);
+    await loadData(); draw(); $('newC').value=''; toast('✅ ADDED');
   };
 }
 
 /* ===== JSON 匯出/匯入 =====
    技術說明: 匯出用 Blob + a.download 產生檔案；
-   匯入用 FileReader 讀 JSON，覆蓋式寫回三個 store。 */
+   匯入用 file.text() 讀 JSON，覆蓋式寫回三個 store。 */
 async function exportJSON(){
   const data={version:1,exportedAt:new Date().toISOString(),
     categories:cats,countries,spots};
@@ -515,36 +536,40 @@ async function exportJSON(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='travelmap-backup.json';
-  a.click();URL.revokeObjectURL(a.href);
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   toast('📤 EXPORTED!');
 }
 async function importJSON(file){
   try{
     const data=JSON.parse(await file.text());
-    if(!data.spots||!Array.isArray(data.spots))throw 0;
+    if(!data.spots||!Array.isArray(data.spots))throw new Error('bad');
     if(!confirm(`IMPORT ${data.spots.length} SPOTS?\n(THIS REPLACES ALL DATA)`))return;
     await dbClear('spots');await dbClear('categories');await dbClear('countries');
-    for(const c of data.categories||[])await dbPut('categories',c);
-    for(const c of data.countries||[])await dbPut('countries',c);
+    for(const c of (data.categories&&data.categories.length?data.categories:DEFAULT_CATS))
+      await dbPut('categories',c);
+    for(const c of (data.countries&&data.countries.length?data.countries:DEFAULT_COUNTRIES))
+      await dbPut('countries',c);
     for(const s of data.spots)await dbPut('spots',s);
-    await loadData();refreshAll();toast('📥 IMPORTED!');
+    await loadData(); refreshAll(); toast('📥 IMPORTED!');
   }catch(e){toast('⚠️ INVALID FILE')}
 }
 
 /* ===== 定位 =====
    技術說明: Geolocation API 需 HTTPS (GitHub Pages 符合)，
-   watchPosition 持續更新藍點。 */
+   失敗時顯示錯誤訊息。 */
 function startLocate(){
   if(!navigator.geolocation)return toast('⚠️ NO GEOLOCATION');
   toast('📡 LOCATING...');
-  if(geoBtn)map.removeLayer(geoBtn);
+  if(geoBtn){map.removeLayer(geoBtn);geoBtn=null}
   navigator.geolocation.getCurrentPosition(pos=>{
     const {latitude:lat,longitude:lng}=pos.coords;
     geoBtn=L.circleMarker([lat,lng],{radius:12,color:'#000',weight:3,fillColor:'#3498db',fillOpacity:1})
       .addTo(map).bindPopup('📍 YOU ARE HERE');
     map.setView([lat,lng],14);
     toast('✅ FOUND!');
-  },err=>toast('⚠️ '+err.message),{enableHighAccuracy:true});
+  },err=>toast('⚠️ '+(err.code===1?'PERMISSION DENIED':err.message)),
+  {enableHighAccuracy:true,timeout:10000});
 }
 
 /* ===== DEMO 資料 ===== */
@@ -562,10 +587,10 @@ async function addDemo(){
     {name:'考山路',country:'泰國',cat:'夜生活',lat:13.7590,lng:100.4977,rating:3},
   ];
   for(const s of demo)await dbPut('spots',s);
-  await loadData();refreshAll();toast('🎮 DEMO ADDED!');
+  await loadData(); refreshAll(); toast('🎮 DEMO ADDED!');
 }
 
-/* ===== 主流程 ===== */
+/* ===== 資料載入 ===== */
 async function loadData(){
   spots=await dbAll('spots');
   cats=await dbAll('categories');
@@ -573,40 +598,53 @@ async function loadData(){
 }
 function closeModal(){$('overlay').classList.remove('show')}
 
-(async function init(){
+/* ===== 事件綁定 (修正: 集中於此，全部在初始化後綁定) ===== */
+function bindEvents(){
+  $('btnAdd').onclick=()=>spotModal();
+  $('btnAdd2').onclick=()=>spotModal();
+  $('btnCat').onclick=catModal;
+  $('btnCountry').onclick=countryModal;
+  $('btnExport').onclick=exportJSON;
+  $('btnImport').onclick=()=>$('importFile').click();
+  $('importFile').onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value=''};
+  $('btnPersist').onclick=requestPersist;
+  $('btnDemo').onclick=addDemo;
+  $('locateBtn').onclick=startLocate;
+  $('addHereBtn').onclick=()=>{
+    const c=map.getCenter();
+    spotModal({lat:+c.lat.toFixed(6),lng:+c.lng.toFixed(6)});
+  };
+  $('fCountry').onchange=refreshAll;
+  $('fCategory').onchange=refreshAll;
+  $('sidebarToggle').onclick=()=>$('sidebar').classList.toggle('open');
+  $('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal()};
+}
+
+/* ===== 主流程 (修正: DOM ready → map → DB → 預設資料 → 渲染) ===== */
+async function init(){
+  // 1. 先初始化地圖 (DOM 已就緒)
+  initMap();
+  // 2. 開啟 IndexedDB
   db=await openDB();
-  // 首次使用：寫入預設分類與國家
+  // 3. 首次使用：寫入預設分類與國家
   if((await dbAll('categories')).length===0)
     for(const c of DEFAULT_CATS)await dbPut('categories',c);
   if((await dbAll('countries')).length===0)
     for(const c of DEFAULT_COUNTRIES)await dbPut('countries',c);
+  // 4. 載入資料並渲染
   await loadData();
+  bindEvents();
   refreshAll();
-})();
+  // 5. A2HS 提示
+  setTimeout(showA2HS,3000);
+  // 6. 電腦上也可初始申請持久化
+  if(navigator.storage&&navigator.storage.persist)
+    navigator.storage.persist().then(ok=>console.log('persisted:',ok));
+}
 
-/* ===== 事件綁定 ===== */
-$('btnAdd').onclick=()=>spotModal();
-$('btnAdd2').onclick=()=>spotModal();
-$('btnCat').onclick=catModal;
-$('btnCountry').onclick=countryModal;
-$('btnExport').onclick=exportJSON;
-$('btnImport').onclick=()=>$('importFile').click();
-$('importFile').onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value=''};
-$('btnPersist').onclick=requestPersist;
-$('btnDemo').onclick=addDemo;
-$('locateBtn').onclick=startLocate;
-$('addHereBtn').onclick=()=>{
-  const c=map.getCenter();spotModal({lat:+c.lat.toFixed(6),lng:+c.lng.toFixed(6)});
-};
-$('fCountry').onchange=refreshAll;
-$('fCategory').onchange=refreshAll;
-$('sidebarToggle').onclick=()=>$('sidebar').classList.toggle('open');
-$('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal()};
-window.editSpot=editSpot; window.delSpot=delSpot;
-
-// 電腦上也可初始申請持久化
-if(navigator.storage&&navigator.storage.persist)
-  navigator.storage.persist().then(ok=>console.log('persisted:',ok));
+if(document.readyState==='loading')
+  document.addEventListener('DOMContentLoaded',init);
+else init();
 </script>
 </body>
 </html>
