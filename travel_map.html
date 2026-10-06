@@ -2,1447 +2,699 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0b16">
-<meta name="description" content="8-bit 像素風的個人旅遊地圖，資料儲存在瀏覽器本機 IndexedDB。">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="像素旅圖">
-<title>像素旅遊地圖 · Pixel Travel Map</title>
-
-<!-- 地圖函式庫 Leaflet -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<title>🗺️ 像素旅遊地圖 Pixel Travel Map</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"像素旅遊地圖","short_name":"旅遊地圖","display":"standalone","background_color":"#1a1a2e","theme_color":"#5bc0be","icons":[]}'>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<!-- 像素字型 DotGothic16（日系點陣字，覆蓋大部分漢字） -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-
 <style>
-/* ============ 8-bit 像素風基礎 ============ */
-:root{
-  --bg:#0b0b16; --panel:#151527; --panel2:#22223c;
-  --ink:#e8e6f0; --muted:#8b8ba8;
-  --yellow:#ffec27; --cyan:#29adff; --red:#ff0066; --green:#00e436;
+/* ═══════════════ 8-BIT 像素風基礎設定 ═══════════════ */
+@font-face { font-family: 'pixel-fallback'; src: local('Courier New'); }
+:root {
+  --bg: #1a1a2e; --bg2: #16213e; --panel: #0f3460;
+  --accent: #5bc0be; --accent2: #f5d76e; --danger: #e94560;
+  --text: #e8e8e8; --text-dim: #8a8aa0; --green: #6ee75c;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100vh;height:100dvh}
-body{
-  background:var(--bg);color:var(--ink);
-  font-family:'DotGothic16','Courier New',monospace;
-  display:flex;flex-direction:column;overflow:hidden;
-  -webkit-tap-highlight-color:transparent;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Courier New', 'Courier', monospace;
+  background: var(--bg); color: var(--text);
+  image-rendering: pixelated; overflow: hidden;
+  font-size: 14px;
 }
-::-webkit-scrollbar{width:12px;height:12px}
-::-webkit-scrollbar-track{background:#0d0d1c}
-::-webkit-scrollbar-thumb{background:#3a3a5c;border:3px solid #000}
-::selection{background:var(--yellow);color:#111}
-a{color:var(--cyan)}
-.hidden{display:none!important}
-.dim{color:var(--muted)}
-.small{font-size:11px}
-.grow{flex:1;min-width:0}
-
-/* CRT 掃描線（純裝飾，不攔截點擊） */
-#crt{position:fixed;inset:0;pointer-events:none;z-index:4000;
-  background:repeating-linear-gradient(0deg,rgba(0,0,0,.13) 0 1px,transparent 1px 3px)}
-
-/* ============ 按鈕 ============ */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  background:var(--panel2);color:var(--ink);border:3px solid #000;
-  font:inherit;font-size:13px;padding:7px 12px;cursor:pointer;
-  box-shadow:0 4px 0 #000;user-select:none;white-space:nowrap}
-.btn:hover{filter:brightness(1.15)}
-.btn:active{transform:translateY(4px);box-shadow:0 0 0 #000}
-.btn.primary{background:var(--yellow);color:#14141f}
-.btn.danger{background:var(--red);color:#fff}
-.btn.sm{padding:4px 9px;font-size:12px;box-shadow:0 3px 0 #000}
-.btn.sm:active{transform:translateY(3px)}
-.btn.ibtn{width:34px;height:34px;padding:4px;box-shadow:0 3px 0 #000}
-.btn.ibtn:active{transform:translateY(3px)}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn svg{display:block}
-
-/* ============ 頂欄 ============ */
-header{display:flex;align-items:center;gap:12px;padding:9px 14px;
-  background:var(--panel);border-bottom:4px solid #000;
-  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
-  background-size:8px 8px;position:relative;z-index:600}
-.logo{display:flex;align-items:center;gap:10px;flex:none}
-h1{font-size:18px;line-height:1.1;color:var(--yellow);text-shadow:3px 3px 0 #000;letter-spacing:2px}
-h1 .sub{display:block;font-size:9px;color:var(--cyan);letter-spacing:4px;margin-top:2px}
-.hbtns{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
-.hbtns::-webkit-scrollbar{display:none}
-
-/* ============ 主版面：地圖 + 側欄 ============ */
-main{flex:1;display:flex;min-height:0}
-#mapPane{flex:1;position:relative;min-width:0}
-#map{position:absolute;inset:0;background:#0b0b16}
-#mapPane.picking #map{cursor:crosshair}
-
-aside{width:400px;flex:none;display:flex;flex-direction:column;min-height:0;
-  border-left:4px solid #000;background:var(--bg);
-  background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);
-  background-size:8px 8px}
-
-.pixelbox{background:var(--panel);border:3px solid #000;
-  box-shadow:4px 4px 0 rgba(0,0,0,.35);margin:10px;padding:10px}
-
-/* 統計 */
-details.stats summary{cursor:pointer;color:var(--yellow);font-size:14px;letter-spacing:1px;list-style:none;user-select:none}
-details.stats summary::-webkit-details-marker{display:none}
-details.stats summary::before{content:'▶ '}
-details.stats[open] summary::before{content:'▼ '}
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
-.stat{background:var(--panel2);border:2px solid #000;text-align:center;padding:6px 2px}
-.stat b{display:block;font-size:18px;color:var(--yellow)}
-.stat span{font-size:10px;color:var(--muted)}
-.bar-row{display:flex;align-items:center;gap:6px;margin:5px 0;font-size:11px}
-.bar-name{width:68px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
-.bar{flex:1;height:14px;border:2px solid #000;background:#0d0d1c;position:relative}
-.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--c)}
-.bar-n{width:22px;text-align:right;flex:none}
-
-/* 篩選 */
-.search-row{display:flex;align-items:center;gap:8px}
-.search-row input{flex:1}
-.sel-row{margin-top:8px}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);
-  border:3px solid #000;color:var(--ink);font:inherit;font-size:12px;
-  padding:4px 8px;cursor:pointer}
-.chip i{width:10px;height:10px;background:var(--c);border:1px solid #000;flex:none}
-.chip.on{background:var(--yellow);color:#10101c}
-.list-meta{font-size:11px;color:var(--muted);margin-top:8px;letter-spacing:1px}
-
-/* 輸入元件 */
-input,select,textarea{background:#0d0d1c;color:var(--ink);border:3px solid #000;
-  padding:7px 9px;font:inherit;font-size:13px;width:100%}
-input:focus,select:focus,textarea:focus{outline:3px solid var(--cyan);outline-offset:-1px}
-textarea{resize:vertical}
-.sel-with-btn{display:flex;gap:6px}
-.sel-with-btn select{flex:1;min-width:0}
-
+/* 像素風邊框：用 box-shadow 疊出硬邊角，禁用圓角與平滑陰影 */
+.px-border {
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 3px var(--bg2), 4px 4px 0 3px rgba(0,0,0,.5);
+  border-radius: 0 !important;
+}
+/* ═══════════════ 版面配置 ═══════════════ */
+#app { display: grid; grid-template-columns: 340px 1fr; height: 100vh; }
+header {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 10px;
+  background: var(--panel); padding: 8px 12px; height: 52px;
+  border-bottom: 3px solid var(--accent);
+}
+header h1 { font-size: 16px; color: var(--accent2); text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+header .spacer { flex: 1; }
+/* ═══════════════ 按鈕 ═══════════════ */
+.btn {
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  background: var(--panel); color: var(--text);
+  border: 3px solid var(--accent); padding: 5px 10px;
+  box-shadow: 3px 3px 0 rgba(0,0,0,.6); border-radius: 0;
+  transition: transform .05s;
+}
+.btn:hover { background: #1a4a7a; }
+.btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 rgba(0,0,0,.6); }
+.btn.small { font-size: 11px; padding: 3px 6px; border-width: 2px; }
+.btn.green { border-color: var(--green); color: var(--green); }
+.btn.yellow { border-color: var(--accent2); color: var(--accent2); }
+.btn.red { border-color: var(--danger); color: var(--danger); }
+/* ═══════════════ 側欄 ═══════════════ */
+#sidebar {
+  background: var(--bg2); overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+#sidebar::-webkit-scrollbar { width: 10px; }
+#sidebar::-webkit-scrollbar-thumb { background: var(--accent); }
+.section-title {
+  font-size: 12px; color: var(--accent2); border-bottom: 2px dashed var(--accent);
+  padding-bottom: 4px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 2px;
+}
+select, input, textarea {
+  font-family: inherit; background: var(--bg); color: var(--text);
+  border: 2px solid var(--accent); padding: 5px; width: 100%;
+  border-radius: 0; font-size: 13px;
+}
+select:focus, input:focus, textarea:focus { outline: 2px solid var(--accent2); }
+.row { display: flex; gap: 6px; }
+.row > * { flex: 1; }
+label { font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 3px; }
 /* 地點列表 */
-#list{flex:1;overflow-y:auto;min-height:0;padding:2px 0 30px}
-.card{display:flex;background:var(--panel);border:3px solid #000;margin:8px 10px;
-  box-shadow:4px 4px 0 rgba(0,0,0,.35);cursor:pointer}
-.card:hover{background:var(--panel2)}
-.card.visited{opacity:.72}
-.card-side{width:12px;background:var(--c);border-right:3px solid #000;flex:none}
-.card-main{flex:1;padding:8px 10px;min-width:0}
-.row1{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.card h3{flex:1;min-width:0;font-size:15px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card-tags{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}
-.card-notes{font-size:12px;color:#b9b9cf;margin-top:3px;overflow:hidden;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.card-sub{font-size:11px;color:var(--muted);margin-top:4px}
-.card-act{display:flex;flex-direction:column;gap:6px;padding:6px;
-  border-left:3px solid #000;background:rgba(0,0,0,.25);flex:none}
-
-.tag{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);
-  border:2px solid #000;padding:1px 6px;font-size:11px;color:var(--ink)}
-.tag::before{content:'';width:8px;height:8px;background:var(--c,#555);flex:none}
-.tag-geo{color:var(--cyan)}
-.tag-done{color:var(--green)}
-
-/* 像素勾選框 */
-.pxcheck{position:relative;display:inline-flex;cursor:pointer;flex:none}
-.pxcheck input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
-.pxcheck i{width:22px;height:22px;background:#10101c;border:3px solid #000;display:block}
-.pxcheck input:checked+i{background:var(--yellow)}
-.pxcheck input:checked+i::after{content:'';position:absolute;left:3px;top:2px;width:9px;height:5px;
-  border-right:3px solid #10101c;border-bottom:3px solid #10101c;transform:rotate(40deg)}
-
-/* 空狀態 */
-.empty{padding:28px 12px;text-align:center}
-.empty svg{display:block;margin:0 auto 10px}
-.empty p{margin:5px 0;font-size:14px}
-.empty .btn{margin-top:12px}
-
-/* ============ 地圖上的元素 ============ */
-#mapTools{position:absolute;top:12px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:8px}
-#pickBanner{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1001;
-  background:var(--yellow);color:#10101c;border:3px solid #000;
-  box-shadow:4px 4px 0 rgba(0,0,0,.5);padding:6px 10px;font-size:13px;
-  display:flex;gap:10px;align-items:center;max-width:92%}
-
-/* 像素圖釘 */
-.px-pin{width:20px;height:20px;background:var(--c);border:3px solid #000;position:relative}
-.px-pin::before{content:'';position:absolute;left:2px;top:2px;width:5px;height:5px;background:rgba(255,255,255,.9)}
-.px-pin::after{content:'';position:absolute;top:calc(100% - 1px);left:50%;transform:translateX(-50%);
-  border-left:7px solid transparent;border-right:7px solid transparent;border-top:8px solid #000}
-.px-pin.visited{filter:grayscale(.85) brightness(.8)}
-/* 定位中的我 */
-.px-me{width:22px;height:22px;background:var(--cyan);border:3px solid #000;position:relative;
-  animation:blink 1s steps(2,end) infinite}
-.px-me::after{content:'';position:absolute;inset:6px;background:#fff}
-@keyframes blink{50%{opacity:.25}}
-
-/* Leaflet 控件像素化 */
-.leaflet-container{background:#0b0b16;font:inherit}
-.leaflet-bar{border:3px solid #000;border-radius:0;box-shadow:4px 4px 0 rgba(0,0,0,.5)}
-.leaflet-bar a{background:var(--panel);color:var(--yellow);border-radius:0;
-  border-bottom:2px solid #000;font-family:inherit}
-.leaflet-bar a:hover{background:var(--panel2)}
-.leaflet-control-attribution{background:rgba(11,11,22,.85);color:var(--muted);font-size:10px}
-.leaflet-control-attribution a{color:var(--cyan)}
-.leaflet-popup-content-wrapper{background:#f2ecd8;color:#14141f;border:4px solid #000;
-  border-radius:0;box-shadow:6px 6px 0 rgba(0,0,0,.55)}
-.leaflet-popup-content{margin:10px 12px;font-family:inherit;line-height:1.5}
-.leaflet-popup-tip{background:#000;box-shadow:none}
-.pop-title{font-size:16px;color:#101020;margin-bottom:2px}
-.pop-meta{display:flex;gap:4px;flex-wrap:wrap;margin:5px 0}
-.pop .tag{background:#10101c;color:#fff}
-.pop-notes{font-size:12px;color:#333;white-space:pre-wrap;margin:4px 0}
-.pop-coord{font-size:11px;color:#666;margin:4px 0 8px}
-.pop-actions{display:flex;gap:8px}
-.pop-q{font-size:13px;color:#101020;margin:2px 0 8px}
-
-/* ============ 彈窗 ============ */
-.modal{position:fixed;inset:0;background:rgba(5,5,12,.78);display:none;
-  align-items:center;justify-content:center;z-index:2000;padding:14px}
-.modal.open{display:flex}
-#modalMini{z-index:2100}
-.modal-box{background:var(--panel);border:4px solid #000;
-  box-shadow:8px 8px 0 rgba(0,0,0,.5);width:100%;max-width:480px;
-  max-height:92vh;max-height:92dvh;overflow-y:auto}
-.modal-box.wide{max-width:660px}
-.modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:10px 14px;background:var(--panel2);border-bottom:4px solid #000;
-  color:var(--yellow);font-size:16px;position:sticky;top:0;z-index:2}
-.modal-body{padding:14px}
-.modal-body label{display:block;margin:10px 0 4px;font-size:12px;
-  color:var(--muted);letter-spacing:1px}
-.frow{display:flex;gap:10px}
-.frow>div{flex:1;min-width:0}
-.pickline{display:flex;align-items:center;gap:10px;margin:12px 0 2px}
-.checkline{display:flex;align-items:center;gap:9px;margin:14px 0 4px;
-  color:var(--ink);font-size:13px;cursor:pointer}
-.form-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
-.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:12px 14px;
-  border-top:4px solid #000;background:var(--panel)}
-.cmsg{font-size:13px;line-height:1.7;padding:4px 2px}
-
-/* 設定頁 tabs */
-.tabs{display:flex;border-bottom:4px solid #000;margin:-14px -14px 14px}
-.tab{flex:1;padding:9px;background:var(--panel2);border:none;border-right:3px solid #000;
-  cursor:pointer;color:var(--muted);font:inherit;font-size:14px}
-.tab:last-child{border-right:none}
-.tab.on{background:var(--yellow);color:#10101c}
-.pane-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap}
-.adm-row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:2px solid rgba(0,0,0,.45)}
-.adm-row b{font-size:13px}
-.swatch{width:18px;height:18px;background:var(--c);border:3px solid #000;flex:none}
-.codetag{font-size:10px;border:2px solid #000;background:var(--panel2);
-  color:var(--cyan);padding:1px 4px;flex:none}
-.sto{margin-top:18px;border-top:4px solid #000;padding-top:12px}
-.sto h4{color:var(--yellow);font-size:14px;margin-bottom:6px}
-.sto .btn{margin:8px 0 8px}
-.ok-t{color:var(--green)} .warn-t{color:var(--yellow)}
-
-/* 色板選擇 */
-.pal{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:6px}
-.pxc{aspect-ratio:1;background:var(--c);border:3px solid #000;cursor:pointer;padding:0}
-.pxc.sel{outline:3px solid var(--yellow);outline-offset:2px}
-
-/* 說明文件 */
-.help h3{margin:16px 0 6px;font-size:15px;color:var(--yellow);
-  border-left:6px solid var(--cyan);padding-left:8px}
-.help p,.help li{font-size:13px;line-height:1.75}
-.help ul,.help ol{padding-left:22px}
-.help li{margin:3px 0}
-.help table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px}
-.help th,.help td{border:2px solid #000;padding:4px 7px;text-align:left;vertical-align:top}
-.help th{background:var(--panel2);color:var(--yellow)}
-.help pre{background:#0d0d1c;border:3px solid #000;padding:10px;font-size:11px;
-  overflow-x:auto;line-height:1.6;color:#9fe0ff;margin:8px 0}
-.help code{color:var(--cyan);font-size:12px}
-
-/* Toast 通知 */
-#toasts{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:3000;
-  display:flex;flex-direction:column;gap:8px;width:min(92vw,440px);pointer-events:none}
-.toast{background:var(--panel);border:3px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,.5);
-  padding:9px 12px;font-size:13px;border-left:6px solid var(--cyan);
-  animation:tin .2s steps(4,end)}
-.toast.ok{border-left-color:var(--green)}
-.toast.err{border-left-color:var(--red)}
-.toast.warn{border-left-color:var(--yellow)}
-@keyframes tin{from{transform:translateY(-14px);opacity:0}}
-
-/* Add to Home Screen 橫幅 */
-#a2hs{position:fixed;left:12px;right:12px;bottom:12px;z-index:2500;
-  background:var(--panel);border:4px solid #000;box-shadow:6px 6px 0 rgba(0,0,0,.5);
-  display:flex;align-items:center;gap:10px;padding:10px 12px}
-#a2hs .grow{font-size:13px;line-height:1.5}
-
-/* ============ 響應式：手機直向 ============ */
-@media (max-width:880px){
-  main{flex-direction:column}
-  #mapPane{height:46vh;flex:none}
-  aside{width:100%;flex:1;min-height:0;border-left:none;border-top:4px solid #000}
-  .btn .lbl{display:none}
-  header{gap:8px;padding:8px 10px}
-  h1 .sub{display:none}
-  h1{font-size:15px}
-  .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
-  .chips::-webkit-scrollbar{display:none}
-  body.banner-on #list{padding-bottom:96px}
+#spot-list { display: flex; flex-direction: column; gap: 8px; }
+.spot-card {
+  background: var(--bg); border: 2px solid var(--accent); padding: 8px;
+  cursor: pointer; position: relative;
+}
+.spot-card:hover { background: #22224a; border-color: var(--accent2); }
+.spot-card .name { color: var(--accent2); font-weight: bold; font-size: 13px; }
+.spot-card .meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+.spot-card .tag {
+  display: inline-block; font-size: 10px; padding: 1px 5px; margin-right: 4px;
+  border: 1px solid; margin-top: 4px;
+}
+.spot-card .del {
+  position: absolute; top: 4px; right: 4px; font-size: 11px;
+  background: none; border: 1px solid var(--danger); color: var(--danger);
+  cursor: pointer; padding: 0 5px;
+}
+/* ═══════════════ 地圖區 ═══════════════ */
+#map-wrap { position: relative; }
+#map { height: 100%; background: var(--bg); }
+/* Leaflet 像素化 */
+.leaflet-container { font-family: inherit; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: var(--bg2); color: var(--text);
+  border: 3px solid var(--accent); border-radius: 0;
+  box-shadow: 4px 4px 0 rgba(0,0,0,.6);
+}
+.leaflet-popup-content { font-family: inherit; margin: 10px; }
+.leaflet-bar a {
+  background: var(--bg2) !important; color: var(--accent) !important;
+  border-bottom: 2px solid var(--accent) !important; border-radius: 0 !important;
+}
+.leaflet-bar { border: 2px solid var(--accent) !important; }
+/* 像素風 marker pin */
+.pixel-pin {
+  width: 18px; height: 18px; border: 3px solid #000;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.4);
+}
+#loc-btn {
+  position: absolute; bottom: 20px; right: 20px; z-index: 1000;
+}
+#status-bar {
+  position: absolute; top: 10px; left: 10px; z-index: 1000;
+  background: var(--bg2); border: 2px solid var(--accent);
+  padding: 4px 8px; font-size: 11px; color: var(--text-dim);
+}
+/* ═══════════════ 模態框 ═══════════════ */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 3000;
+  display: none; align-items: center; justify-content: center;
+}
+.modal-mask.show { display: flex; }
+.modal {
+  background: var(--bg2); width: min(480px, 92vw); max-height: 85vh;
+  overflow-y: auto; padding: 16px;
+}
+.modal h3 { color: var(--accent2); margin-bottom: 12px; font-size: 15px; }
+/* ═══════════════ Toast 提示 ═══════════════ */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--bg2); border: 3px solid var(--accent2); color: var(--accent2);
+  padding: 8px 16px; z-index: 5000; display: none; font-size: 13px;
+  box-shadow: 4px 4px 0 rgba(0,0,0,.6);
+}
+/* A2HS 提示條 */
+#a2hs-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 4000;
+  background: var(--panel); border-top: 3px solid var(--green);
+  padding: 10px 14px; display: none;
+  flex-direction: column; gap: 8px;
+}
+#a2hs-bar.show { display: flex; }
+#a2hs-bar p { font-size: 12px; color: var(--text); }
+/* ═══════════════ 管理列表 ═══════════════ */
+.mgmt-row {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
+  background: var(--bg); border: 1px solid var(--accent); padding: 5px;
+}
+.mgmt-row input { flex: 1; }
+/* 分類色塊 */
+.color-chip { width: 24px; height: 14px; border: 2px solid #000; cursor: pointer; flex: none; }
+/* ═══════════════ 響應式：手機 ═══════════════ */
+@media (max-width: 760px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: 52px 1fr 45vh; }
+  #sidebar { order: 3; border-top: 3px solid var(--accent); max-height: 45vh; }
+  #map-wrap { order: 2; }
+  header h1 { font-size: 13px; }
+  #loc-btn { bottom: 14px; right: 14px; }
 }
 </style>
 </head>
 <body>
 
-<!-- 頂欄 -->
-<header>
-  <div class="logo">
-    <span data-icon="globe" data-scale="3"></span>
-    <h1>像素旅遊地圖<span class="sub">PIXEL TRAVEL MAP</span></h1>
-  </div>
-  <div class="grow"></div>
-  <div class="hbtns">
-    <button class="btn primary" id="btnAdd" title="新增地點"><i data-icon="plus"></i><span class="lbl">新增地點</span></button>
-    <button class="btn" id="btnImport" title="匯入 JSON"><i data-icon="upload"></i><span class="lbl">匯入</span></button>
-    <button class="btn" id="btnExport" title="匯出 JSON"><i data-icon="download"></i><span class="lbl">匯出</span></button>
-    <button class="btn" id="btnSettings" title="分類／國家管理"><i data-icon="sliders"></i><span class="lbl">設定</span></button>
-    <button class="btn" id="btnHelp" title="說明與技術文件"><i data-icon="question"></i><span class="lbl">說明</span></button>
-  </div>
-</header>
+<div id="app">
+  <header>
+    <h1>▲ 像素旅遊地圖 ▲</h1>
+    <div class="spacer"></div>
+    <button class="btn small" id="btn-cat">分類</button>
+    <button class="btn small" id="btn-country">國家</button>
+    <button class="btn small yellow" id="btn-export">⬇ 匯出</button>
+    <button class="btn small green" id="btn-import">⬆ 匯入</button>
+    <input type="file" id="file-input" accept=".json,application/json" style="display:none">
+  </header>
 
-<main>
-  <!-- 地圖區 -->
-  <div id="mapPane">
+  <!-- 側欄：新增 + 篩選 + 列表 -->
+  <div id="sidebar">
+    <div>
+      <div class="section-title">➕ 新增地點</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <input type="text" id="f-name" placeholder="地點名稱 *" maxlength="80">
+        <div class="row">
+          <div><label>國家</label><select id="f-country"></select></div>
+          <div><label>分類</label><select id="f-cat"></select></div>
+        </div>
+        <input type="text" id="f-desc" placeholder="簡短描述" maxlength="200">
+        <button class="btn green" id="btn-add">＋ 加入地圖</button>
+        <p style="font-size:10px;color:var(--text-dim)">提示：先在地圖上點擊以取得座標</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">🔍 篩選</div>
+      <div class="row">
+        <div><label>國家</label><select id="filter-country"><option value="">全部</option></select></div>
+        <div><label>分類</label><select id="filter-cat"><option value="">全部</option></select></div>
+      </div>
+      <div style="margin-top:6px"><input type="text" id="filter-search" placeholder="搜尋名稱…"></div>
+    </div>
+
+    <div style="flex:1">
+      <div class="section-title">📍 地點列表 (<span id="count">0</span>)</div>
+      <div id="spot-list"></div>
+    </div>
+  </div>
+
+  <!-- 地圖 -->
+  <div id="map-wrap">
     <div id="map"></div>
-    <div id="mapTools">
-      <button class="btn ibtn" id="btnLocate" title="定位我的位置"><i data-icon="crosshair"></i></button>
-      <button class="btn ibtn" id="btnLayer" title="切換日夜底圖"></button>
+    <div id="status-bar">💾 IndexedDB</div>
+    <button class="btn yellow" id="loc-btn">◎ 定位</button>
+  </div>
+</div>
+
+<!-- 分類管理模態框 -->
+<div class="modal-mask" id="m-cat">
+  <div class="modal px-border">
+    <h3>🗂 分類管理</h3>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px">
+      可新增／重新命名／刪除分類。刪除分類時其下的地點會歸為「其他」。點擊色塊可更換顏色。
+    </p>
+    <div id="cat-rows"></div>
+    <div class="mgmt-row" style="margin-top:8px">
+      <input type="text" id="new-cat" placeholder="新分類名稱" maxlength="20">
+      <input type="color" id="new-cat-color" value="#5bc0be" style="width:44px;padding:1px">
+      <button class="btn small green" id="cat-add">＋</button>
     </div>
-    <div id="pickBanner" hidden>
-      <span>點擊地圖選取座標</span>
-      <button class="btn sm" id="pickCancel">取消</button>
+    <div style="margin-top:12px;text-align:right"><button class="btn" data-close>關閉</button></div>
+  </div>
+</div>
+
+<!-- 國家管理模態框 -->
+<div class="modal-mask" id="m-country">
+  <div class="modal px-border">
+    <h3>🌍 國家管理</h3>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px">
+      可新增／重新命名／刪除國家。刪除國家時其下的地點會歸為「(未設定)」。
+    </p>
+    <div id="country-rows"></div>
+    <div class="mgmt-row" style="margin-top:8px">
+      <input type="text" id="new-country" placeholder="新國家名稱" maxlength="30">
+      <button class="btn small green" id="country-add">＋</button>
     </div>
-  </div>
-
-  <!-- 側欄：統計 + 篩選 + 列表 -->
-  <aside>
-    <details class="pixelbox stats" id="statsBox" open>
-      <summary>旅遊統計</summary>
-      <div class="stat-grid">
-        <div class="stat"><b id="stTotal">0</b><span>地點</span></div>
-        <div class="stat"><b id="stVisited">0</b><span>已造訪</span></div>
-        <div class="stat"><b id="stCountries">0</b><span>國家</span></div>
-        <div class="stat"><b id="stCats">0</b><span>分類</span></div>
-      </div>
-      <div id="statBars"></div>
-    </details>
-
-    <div class="pixelbox">
-      <div class="search-row">
-        <span data-icon="search" data-scale="3"></span>
-        <input id="q" type="search" placeholder="搜尋名稱或備註…">
-      </div>
-      <div class="sel-row"><select id="fCountry"></select></div>
-      <div class="chips" id="catChips"></div>
-      <div class="list-meta" id="listMeta"></div>
-    </div>
-
-    <div id="list"></div>
-  </aside>
-</main>
-
-<!-- 新增／編輯地點表單 -->
-<div class="modal esc-ok" id="modalPlace">
-  <div class="modal-box">
-    <div class="modal-head"><span id="placeFormTitle">新增地點</span>
-      <button class="btn ibtn" data-close aria-label="關閉"><i data-icon="close"></i></button></div>
-    <form id="placeForm" class="modal-body">
-      <label for="pfName">地點名稱 *</label>
-      <input id="pfName" name="name" maxlength="80" placeholder="例如：京都車站" autocomplete="off">
-      <div class="frow">
-        <div>
-          <label for="pfCountry">國家</label>
-          <div class="sel-with-btn">
-            <select id="pfCountry" name="country"></select>
-            <button type="button" class="btn ibtn" id="addCountryInline" title="新增國家"><i data-icon="plus"></i></button>
-          </div>
-        </div>
-        <div>
-          <label for="pfCategory">分類</label>
-          <div class="sel-with-btn">
-            <select id="pfCategory" name="category"></select>
-            <button type="button" class="btn ibtn" id="addCatInline" title="新增分類"><i data-icon="plus"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="frow">
-        <div><label for="pfLat">緯度 *</label><input id="pfLat" name="lat" type="number" step="any" placeholder="35.3606"></div>
-        <div><label for="pfLng">經度 *</label><input id="pfLng" name="lng" type="number" step="any" placeholder="138.7274"></div>
-      </div>
-      <div class="pickline">
-        <button type="button" class="btn sm" id="pickBtn">從地圖選點</button>
-        <span class="dim small">隱藏表單後點擊地圖取座標</span>
-      </div>
-      <label for="pfNotes">備註</label>
-      <textarea id="pfNotes" name="notes" rows="3" maxlength="500" placeholder="想去的原因、票價、營業時間…"></textarea>
-      <label class="checkline">
-        <span class="pxcheck"><input type="checkbox" id="pfVisited" name="visited"><i></i></span>
-        <span>已造訪此地</span>
-      </label>
-      <div class="form-foot">
-        <button type="button" class="btn" data-close>取消</button>
-        <button type="submit" class="btn primary">儲存地點</button>
-      </div>
-    </form>
+    <div style="margin-top:12px;text-align:right"><button class="btn" data-close>關閉</button></div>
   </div>
 </div>
 
-<!-- 設定：分類／國家管理、儲存空間 -->
-<div class="modal esc-ok" id="modalSettings">
-  <div class="modal-box wide">
-    <div class="modal-head"><span>資料管理與設定</span>
-      <button class="btn ibtn" data-close aria-label="關閉"><i data-icon="close"></i></button></div>
-    <div class="modal-body">
-      <div class="tabs">
-        <button class="tab on" data-tab="cats">分類管理</button>
-        <button class="tab" data-tab="countries">國家管理</button>
-      </div>
-      <div id="tabCats" class="tabpane">
-        <div class="pane-head">
-          <span class="dim small">分類決定圖釘顏色與地點標籤</span>
-          <button class="btn sm primary" id="catAdd">＋ 新增分類</button>
-        </div>
-        <div id="catAdminList"></div>
-      </div>
-      <div id="tabCountries" class="tabpane hidden">
-        <div class="pane-head">
-          <span class="dim small">國家／地區用於列表篩選與標籤</span>
-          <button class="btn sm primary" id="countryAdd">＋ 新增國家</button>
-        </div>
-        <div id="countryAdminList"></div>
-      </div>
-      <div class="sto">
-        <h4>儲存空間</h4>
-        <p id="stoInfo" class="dim">檢查中…</p>
-        <button class="btn" id="btnPersist">申請持久化儲存</button>
-        <p class="dim small">瀏覽器可能因空間不足自動清除網站資料；申請持久化後可大幅降低風險。</p>
-      </div>
-    </div>
+<!-- 匯入模式模態框 -->
+<div class="modal-mask" id="m-import">
+  <div class="modal px-border">
+    <h3>⬆ 匯入 JSON</h3>
+    <p style="font-size:12px;margin-bottom:10px">請選擇匯入模式：</p>
+    <button class="btn red"   style="width:100%;margin-bottom:6px" id="imp-replace">☠ 取代（清除現有資料）</button>
+    <button class="btn green" style="width:100%;margin-bottom:6px" id="imp-merge">＋ 合併（保留現有資料）</button>
+    <button class="btn" style="width:100%" data-close>取消</button>
   </div>
 </div>
 
-<!-- 說明與技術文件 -->
-<div class="modal esc-ok" id="modalHelp">
-  <div class="modal-box wide">
-    <div class="modal-head"><span>說明與技術文件</span>
-      <button class="btn ibtn" data-close aria-label="關閉"><i data-icon="close"></i></button></div>
-    <div class="modal-body help">
-      <h3>快速上手</h3>
-      <ul>
-        <li><b>新增地點</b>：點擊地圖空白處 →「新增地點」；或按上方「新增地點」輸入座標，也可以用「從地圖選點」直接點地圖取座標。</li>
-        <li><b>編輯／刪除</b>：點地圖上的圖釘或列表卡片，在資訊視窗中操作。</li>
-        <li><b>造訪打卡</b>：列表卡片右側的方塊勾選後，圖釘會變灰，代表已造訪。</li>
-        <li><b>篩選</b>：側欄可依「國家」下拉選單與「分類」色塊篩選，並可關鍵字搜尋；地圖與列表會同步過濾。</li>
-        <li><b>定位</b>：地圖右上的準心按鈕會請求瀏覽器定位並飛到你的位置（僅在本機運算，不會上傳）。</li>
-        <li><b>日夜圖層</b>：切換深色／標準地圖底圖，選擇會被記住。</li>
-      </ul>
-
-      <h3>技術架構</h3>
-      <p>本頁是<b>單一 HTML 靜態檔</b>：介面為原生 HTML＋CSS＋JavaScript，地圖由 <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> 繪製，底圖瓦片來自 OpenStreetMap／CARTO。沒有任何後端伺服器——所有資料只存在你的瀏覽器裡。</p>
-
-      <h3>資料儲存：IndexedDB</h3>
-      <p>所有資料儲存在瀏覽器的 IndexedDB（資料庫名稱 <code>ptm-db</code>），共三個 Object Store：</p>
-      <table>
-        <tr><th>Object Store</th><th>欄位</th><th>說明</th></tr>
-        <tr><td><code>places</code></td><td>id, name, country, category, lat, lng, notes, visited, createdAt, updatedAt</td><td>地點主檔，id 為主鍵</td></tr>
-        <tr><td><code>categories</code></td><td>id, name, color, protected, createdAt</td><td>分類（含圖釘顏色）</td></tr>
-        <tr><td><code>countries</code></td><td>id, name, code, createdAt</td><td>國家（code 為選填 ISO 兩碼）</td></tr>
-      </table>
-
-      <h3>匯入／匯出（JSON）</h3>
-      <p>「匯出」會把全部資料打包成 JSON 檔下載；「匯入」時可選擇<b>合併</b>（依 id 覆蓋同名資料、補上不存在的項目）或<b>覆蓋</b>（清空後重建）。檔案格式範例：</p>
-      <pre>{
-  "app": "pixel-travel-map",
-  "version": 1,
-  "exportedAt": "2026-10-07T00:00:00.000Z",
-  "categories": [ { "id": "cat-nature", "name": "自然", "color": "#00e436" } ],
-  "countries":  [ { "id": "ctry-a1b2c3d4", "name": "日本", "code": "JP" } ],
-  "places":     [ { "id": "e5f6a7b8", "name": "富士山", "category": "cat-nature",
-                    "country": "ctry-a1b2c3d4", "lat": 35.3606, "lng": 138.7274,
-                    "notes": "日本最高峰", "visited": false,
-                    "createdAt": 1760000000000, "updatedAt": 1760000000000 } ]
-}</pre>
-
-      <h3>持久化儲存</h3>
-      <p>瀏覽器在儲存空間不足時，可能<b>自動清除</b>網站的 IndexedDB 資料。本頁會在你第一次儲存地點後，透過 <code>navigator.storage.persist()</code> 向瀏覽器申請「持久化」，獲准後資料會被優先保留。Chrome 會自行評估是否授予（例如已安裝到主畫面的網站較容易通過）；你也可以隨時在「設定 → 儲存空間」查看狀態並手動申請。</p>
-
-      <h3>加入主畫面</h3>
-      <p>偵測到瀏覽器支援安裝時，底部會出現提示橫幅；iOS 請用 Safari「分享 → 加入主畫面」。<br>技術細節：本頁以<b>動態產生的 manifest</b>（Blob URL＋Canvas 繪製的像素圖示）嘗試觸發 <code>beforeinstallprompt</code>。由於單一 HTML 檔無法附帶獨立的 <code>manifest.json</code>，部分瀏覽器版本可能不會主動彈出提示——此時改用瀏覽器選單的「安裝應用程式／加入主畫面」即可，功能完全不受影響。若想要完整 PWA 體驗，可在 repo 補上一個真實的 <code>manifest.json</code> 並在 &lt;head&gt; 加入 <code>&lt;link rel="manifest" href="manifest.json"&gt;</code>。</p>
-
-      <h3>部署到 GitHub Pages</h3>
-      <ol>
-        <li>在 GitHub 建立一個<b>公開</b>的 Repository。</li>
-        <li>上傳本檔案，命名為 <code>index.html</code>。</li>
-        <li>Repository <b>Settings → Pages</b> → Branch 選 <code>main</code>、目錄 <code>/ (root)</code> → Save。</li>
-        <li>等待 1–2 分鐘，以 <code>https://&lt;帳號&gt;.github.io/&lt;repo&gt;/</code> 開啟。</li>
-      </ol>
-
-      <h3>隱私</h3>
-      <p>沒有帳號、沒有追蹤、沒有伺服器：地點資料只存在你的裝置上，匯出檔案之前不會離開瀏覽器。地圖瓦片與像素字型由第三方（OpenStreetMap／CARTO／Google Fonts）提供。</p>
-    </div>
+<!-- A2HS 提示條 -->
+<div id="a2hs-bar">
+  <p>📦 <b>安裝到主畫面</b>：即可離線使用、全螢幕體驗！</p>
+  <p id="a2hs-ios-tip" style="color:var(--text-dim);display:none">
+    iPhone 用戶：點瀏覽器下方「分享」按鈕 →「加入主畫面」
+  </p>
+  <div style="display:flex;gap:8px">
+    <button class="btn small green" id="a2hs-install">安裝</button>
+    <button class="btn small" id="a2hs-dismiss">稍後</button>
   </div>
 </div>
 
-<!-- 確認對話框 -->
-<div class="modal" id="modalConfirm">
-  <div class="modal-box">
-    <div class="modal-head"><span id="confirmTitle"></span></div>
-    <div class="modal-body"><p id="confirmMsg" class="cmsg"></p></div>
-    <div class="modal-foot" id="confirmBtns"></div>
-  </div>
-</div>
-
-<!-- 通用小表單（分類／國家 編輯） -->
-<div class="modal" id="modalMini">
-  <div class="modal-box" id="miniBox">
-    <div class="modal-head"><span id="miniTitle"></span>
-      <button class="btn ibtn" id="miniClose" aria-label="關閉"><i data-icon="close"></i></button></div>
-    <div class="modal-body" id="miniBody"></div>
-  </div>
-</div>
-
-<!-- A2HS 橫幅 / Toast / 隱藏檔案輸入 -->
-<div id="a2hs" hidden>
-  <span data-icon="globe" data-scale="4"></span>
-  <span id="a2hsText" class="grow"></span>
-  <button class="btn sm primary" id="a2hsBtn">安裝</button>
-  <button class="btn ibtn" id="a2hsClose" aria-label="關閉提示"><i data-icon="close"></i></button>
-</div>
-<div id="toasts"></div>
-<div id="crt"></div>
-<input type="file" id="fileImport" accept=".json,application/json" hidden>
+<div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 'use strict';
-/* =========================================================
- * 像素旅遊地圖 Pixel Travel Map
- * 單一 HTML 檔 · 資料儲存於瀏覽器 IndexedDB · 無後端
- * ========================================================= */
+/* ═════════════════════════════════════════════════════════
+   像素旅遊地圖 — 單檔靜態網頁
+   架構：IndexedDB 儲存 → 記憶體 state → UI/地圖渲染
+   ═════════════════════════════════════════════════════════ */
 
-const el=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uid=()=> (crypto.randomUUID? crypto.randomUUID().slice(0,8) : Math.random().toString(36).slice(2,10));
-const byCountryName=(a,b)=>a.name.localeCompare(b.name,'zh-Hant');
-const fmtDate=ts=>{const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+/* ── IndexedDB 封裝 ──
+   用兩個 object store：spots / meta（分類、國家）
+   全部回傳 Promise，配合 async/await 使用 */
+const DB_NAME = 'pixel-travel-map';
+const DB_VER  = 1;
+let db;
 
-/* ========= 8x8 像素圖示（SVG 點陣，shape-rendering=crispEdges） ========= */
-const ICONS={
-  globe:{m:{b:'#29adff',g:'#00e436',y:'#ffec27'},r:[
-    "..bbbb..",".bggbbb.","bgggybbb","bggybbbb","bbbggbbb","bbggbbbb",".bbgbbb.","..bbbb.."]},
-  plus:{m:{'#':'#ffec27'},r:[
-    "...##...","...##...","...##...","########","########","...##...","...##...","...##..."]},
-  download:{m:{'#':'#ffec27'},r:[
-    "..####..","..####..","..####..","..####..",".######.","..####..","...##...","########"]},
-  upload:{m:{'#':'#ffec27'},r:[
-    "...##...","..####..",".######.","..####..","..####..","..####..","..####..","########"]},
-  sliders:{m:{a:'#8b8ba8',o:'#ffec27'},r:[
-    "........",".######.","..oo....",".######.","....oo..","........",".######.","..oo...."]},
-  question:{m:{'#':'#ffec27'},r:[
-    "..####..",".#....#.","......#.","....##..","...##...","...##...","........","...##..."]},
-  trash:{m:{'#':'#ff4d6d'},r:[
-    ".######.","########","#.####.#","#.####.#","#.####.#","#.####.#",".######.","........"]},
-  pencil:{m:{'#':'#29adff',o:'#ffcd75',p:'#ff77a8'},r:[
-    "...o....","...##...","...##...","...##...","...##...","...##...","..pppp..","..pppp.."]},
-  close:{m:{'#':'#ff4d6d'},r:[
-    "##....##","##....##",".##..##.","..####..","..####..",".##..##.","##....##","##....##"]},
-  search:{m:{'#':'#e8e6f0'},r:[
-    ".####...","#....#..","#....#..",".####...","....#...","....#...",".....#..","......#."]},
-  crosshair:{m:{'#':'#29adff',o:'#ffec27'},r:[
-    "...##...","...##...","...##...","##.oo.##","##.oo.##","...##...","...##...","...##..."]},
-  sun:{m:{'#':'#ffec27'},r:[
-    "...##...",".#.##.#.","..####..",".######.",".######.","..####..",".#.##.#.","...##..."]},
-  moon:{m:{'#':'#ffec27'},r:[
-    "...###..",".###....",".##.....","##......","##......",".##.....",".###....","...###.."]}
-};
-/* 16x16 像素地球（Canvas 繪成 PWA 圖示 / favicon） */
-const ICON16={m:{k:'#000000',b:'#29adff',g:'#00e436',y:'#ffec27'},r:[
-  "kkkkkkkkkkkkkkkk",
-  "kbbbbbbbbbbbbbbk",
-  "kbgggbbbbbbgbbbk",
-  "kbggbbbbbbbybbbk",
-  "kbbbbbggbbbbbbbk",
-  "kbbbggbbbbbbbbbk",
-  "kbbbbbgggbbgbbbk",
-  "kbggbbbggbbbbbbk",
-  "kbggbbbbbbbggbbk",
-  "kbbbbbbbbbbybbbk",
-  "kbbbbgggbbbbbbyk",
-  "kbbbggbbbbbbbbbk",
-  "kbbbbbbbbbggbbbk",
-  "kbbbbbbbbbbyyybk",
-  "kbbbbbbbbbbbbbbk",
-  "kkkkkkkkkkkkkkkk"]};
-
-function pxSvg(icon,scale=3){
-  const n=icon.r.length;let out='';
-  icon.r.forEach((row,y)=>{for(let x=0;x<row.length;x++){const ch=row[x];
-    if(ch!=='.')out+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${icon.m[ch]}"/>`;}});
-  return `<svg viewBox="0 0 ${n} ${n}" width="${n*scale}" height="${n*scale}" shape-rendering="crispEdges" focusable="false" aria-hidden="true">${out}</svg>`;
-}
-function initIcons(){
-  document.querySelectorAll('[data-icon]').forEach(n=>{
-    const ic=ICONS[n.dataset.icon];
-    if(ic)n.innerHTML=pxSvg(ic,parseInt(n.dataset.scale||'3',10));
-  });
-}
-function iconBtn(icon,cls=''){
-  const b=document.createElement('button');b.type='button';
-  b.className='btn ibtn '+cls;b.title='';
-  b.innerHTML=pxSvg(ICONS[icon],3);return b;
-}
-/* Canvas 畫 App 圖示（16x16 像素網格放大，無平滑） */
-function makeAppIcon(size){
-  const c=document.createElement('canvas');c.width=c.height=size;
-  const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;
-  ctx.fillStyle='#0b0b16';ctx.fillRect(0,0,size,size);
-  const px=size/16;
-  ICON16.r.forEach((row,y)=>{for(let x=0;x<16;x++){const ch=row[x];
-    if(ch!=='.'){ctx.fillStyle=ICON16.m[ch];ctx.fillRect(x*px,y*px,px,px);}}});
-  return c.toDataURL('image/png');
-}
-
-/* ========= IndexedDB 封裝（Promise 化） ========= */
-const DB_NAME='ptm-db',DB_VER=1;let _db=null;
-function db(){
-  if(_db)return Promise.resolve(_db);
-  return new Promise((res,rej)=>{
-    const req=indexedDB.open(DB_NAME,DB_VER);
-    req.onupgradeneeded=e=>{const d=e.target.result;
-      if(!d.objectStoreNames.contains('places'))d.createObjectStore('places',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('categories'))d.createObjectStore('categories',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('countries'))d.createObjectStore('countries',{keyPath:'id'});
-    };
-    req.onsuccess=()=>{_db=req.result;res(_db);};
-    req.onerror=()=>rej(req.error);
-  });
-}
-async function dbAll(store){const d=await db();return new Promise((res,rej)=>{
-  const r=d.transaction(store,'readonly').objectStore(store).getAll();
-  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function dbPut(store,v){const d=await db();return new Promise((res,rej)=>{
-  const r=d.transaction(store,'readwrite').objectStore(store).put(v);
-  r.onsuccess=()=>res(v);r.onerror=()=>rej(r.error);});}
-async function dbDel(store,id){const d=await db();return new Promise((res,rej)=>{
-  const r=d.transaction(store,'readwrite').objectStore(store).delete(id);
-  r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
-async function dbClear(store){const d=await db();return new Promise((res,rej)=>{
-  const r=d.transaction(store,'readwrite').objectStore(store).clear();
-  r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
-async function dbBulk(store,arr){const d=await db();return new Promise((res,rej)=>{
-  const t=d.transaction(store,'readwrite'),os=t.objectStore(store);
-  arr.forEach(v=>os.put(v));
-  t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
-
-/* ========= 預設資料 ========= */
-const COLOR_PALETTE=['#00e436','#008751','#29d9c2','#29adff','#1d2b53','#8c5bff','#b57bee','#ff77a8',
-  '#ff0066','#d63d8f','#ff7b3d','#ffcd75','#ffec27','#ab5236','#7e2553','#c2c3c7'];
-const DEFAULT_CATEGORIES=[
-  ['cat-nature','自然','#00e436'],['cat-heritage','古蹟','#ffcd75'],
-  ['cat-shopping','購物','#ff77a8'],['cat-theme','主題樂園','#ffec27'],
-  ['cat-airport','機場','#29adff'],['cat-religion','宗教','#b57bee'],
-  ['cat-venue','場館','#29d9c2'],['cat-fun','娛樂','#ff7b3d'],
-  ['cat-night','夜生活','#ff0066'],['cat-other','其他','#c2c3c7'],
-].map(([id,name,color])=>({id,name,color,protected:id==='cat-other',createdAt:Date.now()}));
-
-async function seedDefaults(){
-  const cats=await dbAll('categories');
-  if(cats.length===0)await dbBulk('categories',DEFAULT_CATEGORIES);
-}
-
-/* ========= 應用程式狀態（記憶體快取，CRUD 後同步） ========= */
-const state={places:[],cats:[],countries:[],
-  filter:{q:'',country:'all',cat:'all'},markers:new Map()};
-const catOf=id=>state.cats.find(c=>c.id===id)||null;
-const countryOf=id=>state.countries.find(c=>c.id===id)||null;
-const defaultCatId=()=>state.cats.some(c=>c.id==='cat-other')?'cat-other':(state.cats[0]?.id||'');
-async function reloadState(){
-  state.cats=(await dbAll('categories')).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-  state.countries=(await dbAll('countries')).sort(byCountryName);
-  state.places=await dbAll('places');
-}
-
-/* ========= Toast / 彈窗 / 確認框 ========= */
-function toast(msg,type='info'){
-  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
-  el('toasts').appendChild(t);
-  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),250);},3400);
-}
-function openModal(m){m.classList.add('open');}
-function closeModal(m){m.classList.remove('open');}
-function confirmBox(title,msg,buttons=[{label:'確定',value:1,cls:'danger'},{label:'取消',value:0,cls:''}]){
-  return new Promise(res=>{
-    el('confirmTitle').textContent=title;
-    el('confirmMsg').innerHTML=msg;
-    const wrap=el('confirmBtns');wrap.innerHTML='';
-    buttons.forEach(b=>{
-      const e=document.createElement('button');e.type='button';
-      e.className='btn '+(b.cls||'');e.textContent=b.label;
-      e.onclick=()=>{closeModal(el('modalConfirm'));res(b.value);};
-      wrap.appendChild(e);
-    });
-    openModal(el('modalConfirm'));
-  });
-}
-/* 通用小表單（供分類／國家新增與編輯） */
-function openMiniForm({title,fields,values={}}){
-  return new Promise(resolve=>{
-    el('miniTitle').textContent=title;
-    const body=el('miniBody');body.innerHTML='';
-    fields.forEach(fd=>{
-      const wrap=document.createElement('div');
-      const lab=document.createElement('label');lab.textContent=fd.label;wrap.appendChild(lab);
-      if(fd.type==='text'||fd.type==='code'){
-        const inp=document.createElement('input');inp.type='text';
-        inp.maxLength=fd.type==='code'?2:40;inp.value=values[fd.key]||'';
-        inp.dataset.key=fd.key;inp.dataset.type=fd.type;
-        if(fd.type==='code')inp.addEventListener('input',()=>{
-          inp.value=inp.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,2);});
-        wrap.appendChild(inp);
-      }else if(fd.type==='palette'){
-        const grid=document.createElement('div');grid.className='pal';grid.dataset.key=fd.key;
-        COLOR_PALETTE.forEach(col=>{
-          const b=document.createElement('button');b.type='button';
-          b.className='pxc'+(values[fd.key]===col?' sel':'');
-          b.style.setProperty('--c',col);b.dataset.col=col;
-          b.onclick=()=>{grid.querySelectorAll('.pxc').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');};
-          grid.appendChild(b);
-        });
-        wrap.appendChild(grid);
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('spots')) {
+        const s = d.createObjectStore('spots', { keyPath: 'id' });
+        s.createIndex('country', 'country');
+        s.createIndex('cat', 'cat');
       }
-      body.appendChild(wrap);
-    });
-    const foot=document.createElement('div');foot.className='form-foot';
-    const cancel=document.createElement('button');cancel.type='button';cancel.className='btn';cancel.textContent='取消';
-    const ok=document.createElement('button');ok.type='button';ok.className='btn primary';ok.textContent='儲存';
-    foot.append(cancel,ok);body.appendChild(foot);
-    const done=v=>{closeModal(el('modalMini'));resolve(v);};
-    cancel.onclick=()=>done(null);
-    el('miniClose').onclick=()=>done(null);
-    ok.onclick=()=>{
-      const vals={};
-      body.querySelectorAll('[data-key]').forEach(node=>{
-        const k=node.dataset.key;
-        if(node.tagName==='INPUT'){
-          let v=node.value.trim();
-          if(node.dataset.type==='code')v=v.toUpperCase().replace(/[^A-Z]/g,'').slice(0,2);
-          vals[k]=v;
-        }else{
-          const s=node.querySelector('.pxc.sel');vals[k]=s?s.dataset.col:'';
-        }
-      });
-      for(const fd of fields){
-        if(fd.required&&!vals[fd.key]){toast('請填寫「'+fd.label+'」','err');return;}
+      if (!d.objectStoreNames.contains('meta')) {
+        d.createObjectStore('meta', { keyPath: 'key' });
       }
-      done(vals);
     };
-    openModal(el('modalMini'));
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+function dbPut(store, val)  { return new Promise((res,rej)=>{const r=tx(store,'readwrite').put(val); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); }
+function dbDelete(store, key){ return new Promise((res,rej)=>{const r=tx(store,'readwrite').delete(key); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); }
+function dbClear(store)      { return new Promise((res,rej)=>{const r=tx(store,'readwrite').clear();  r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); }
+function dbGetAll(store)    { return new Promise((res,rej)=>{const r=tx(store,'readonly').getAll();  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); }
+function dbGet(store, key)  { return new Promise((res,rej)=>{const r=tx(store,'readonly').get(key);   r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); }
+
+/* ── 預設資料 ── */
+const DEFAULT_CATS = [
+  { key:'nature',    name:'自然',     color:'#6ee75c' },
+  { key:'historic',  name:'古蹟',     color:'#d4a843' },
+  { key:'shopping',  name:'購物',     color:'#e94560' },
+  { key:'theme',     name:'主題樂園', color:'#ff7bd5' },
+  { key:'airport',   name:'機場',     color:'#7cb9ff' },
+  { key:'religion',  name:'宗教',     color:'#c9a0ff' },
+  { key:'venue',     name:'場館',     color:'#5bc0be' },
+  { key:'fun',       name:'娛樂',     color:'#f5d76e' },
+  { key:'night',     name:'夜生活',   color:'#8866cc' },
+  { key:'other',     name:'其他',     color:'#8a8aa0' },
+];
+const DEFAULT_COUNTRIES = ['台灣','日本','韓國','中國','香港','澳門','泰國','新加坡','馬來西亞','美國','英國','法國','義大利','德國','西班牙','澳洲','紐西蘭'];
+
+/* ── 應用程式狀態（記憶體鏡像）── */
+let state = { spots: [], cats: [], countries: [], pickedLatLng: null };
+let markers = new Map();   // id -> Leaflet marker
+let locMarker = null, locCircle = null;
+
+/* ── 小工具 ── */
+const $ = id => document.getElementById(id);
+function toast(msg, ms = 2200) {
+  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._tm); t._tm = setTimeout(()=> t.style.display = 'none', ms);
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+function catColor(key) { const c = state.cats.find(c=>c.key===key); return c ? c.color : '#8a8aa0'; }
+function catName(key)  { const c = state.cats.find(c=>c.key===key); return c ? c.name : '其他'; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+/* ── 持久化儲存申請 ──
+   navigator.storage.persist() 向瀏覽器請求「持久儲存」資格。
+   預設情況下瀏覽器可能在空間不足時清除 IndexedDB（eviction），
+   獲准後資料不會被自動清除。 */
+async function requestPersistence() {
+  if (!navigator.storage || !navigator.storage.persist) {
+    $('status-bar').textContent = '⚠ 此瀏覽器不支援 persist()'; return;
+  }
+  const already = await navigator.storage.persisted?.();
+  if (already) { $('status-bar').textContent = '💾 已持久化 ✓'; return; }
+  const granted = await navigator.storage.persist();
+  $('status-bar').textContent = granted ? '💾 已持久化 ✓' : '💾 未持久化（可能被清除）';
+  // 同時檢查估計容量
+  if (navigator.storage.estimate) {
+    const { usage, quota } = await navigator.storage.estimate();
+    const mb = (usage/1048576).toFixed(2), qmb = (quota/1048576).toFixed(0);
+    $('status-bar').title = `已用 ${mb} MB / 配額 ${qmb} MB`;
+  }
+}
+
+/* ── 地圖初始化 ── */
+const map = L.map('map', { zoomControl: true }).setView([23.8, 121], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// 點地圖 → 取得座標（放進新增表單）
+map.on('click', e => {
+  state.pickedLatLng = e.latlng;
+  L.popup()
+    .setLatLng(e.latlng)
+    .setContent(`<b style="color:var(--accent2)">已選座標</b><br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br><small>請在左側填入名稱後新增</small>`)
+    .openOn(map);
+});
+
+/* 像素風 marker：divIcon 疊出方塊 + 硬邊框 */
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="pixel-pin" style="background:${color}"></div>`,
+    iconSize: [18,18], iconAnchor: [9,9], popupAnchor: [0,-10]
   });
 }
 
-/* ========= 地圖 ========= */
-let map=null,markerLayer=null,baseLayer=null,locMarker=null,locCircle=null;
-let useDark=localStorage.getItem('ptm-layer')!=='day';
-const TILES={
-  dark:{url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',attr:'&copy; OpenStreetMap &copy; CARTO'},
-  day:{url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',attr:'&copy; OpenStreetMap 貢獻者'}
-};
-let pick={active:false,cb:null};
-function setLayer(dark){
-  if(baseLayer)map.removeLayer(baseLayer);
-  const t=dark?TILES.dark:TILES.day;
-  baseLayer=L.tileLayer(t.url,{maxZoom:19,attribution:t.attr}).addTo(map);
-  el('btnLayer').innerHTML=pxSvg(dark?ICONS.sun:ICONS.moon,3);
-  el('btnLayer').title=dark?'切換日間地圖':'切換夜間地圖';
-}
-function initMap(){
-  map=L.map('map',{zoomControl:false});
-  L.control.zoom({position:'bottomright'}).addTo(map);
-  markerLayer=L.layerGroup().addTo(map);
-  setLayer(useDark);
-  try{
-    const v=JSON.parse(localStorage.getItem('ptm-view')||'null');
-    if(v&&Array.isArray(v.c)&&isFinite(v.z))map.setView(v.c,v.z);
-    else map.setView([24.5,121],6);
-  }catch(e){map.setView([24.5,121],6);}
-  map.on('moveend',()=>{try{
-    localStorage.setItem('ptm-view',JSON.stringify({c:[+map.getCenter().lat.toFixed(4),+map.getCenter().lng.toFixed(4)],z:map.getZoom()}));
-  }catch(e){}});
-  window.addEventListener('resize',()=>map.invalidateSize());
-  /* 點擊地圖：拾取模式 or「在此新增」小彈窗 */
-  map.on('click',e=>{
-    if(pick.active){const cb=pick.cb;endPick();cb(e.latlng);return;}
-    if(e.propagatedFrom)return; /* 點到圖釘時不觸發 */
-    const box=document.createElement('div');
-    box.innerHTML='<div class="pop-q">在這裡新增地點？</div>';
-    const b=document.createElement('button');b.type='button';
-    b.className='btn sm primary';b.textContent='新增地點';
-    b.onclick=()=>{map.closePopup();
-      openPlaceForm({lat:+e.latlng.lat.toFixed(6),lng:+e.latlng.lng.toFixed(6)});};
-    box.appendChild(b);
-    L.popup({closeButton:true}).setLatLng(e.latlng).setContent(box).openOn(map);
-  });
-}
-function startPick(cb){
-  pick={active:true,cb};
-  closeModal(el('modalPlace'));
-  el('pickBanner').hidden=false;
-  el('mapPane').classList.add('picking');
-}
-function endPick(){pick={active:false,cb:null};el('pickBanner').hidden=true;el('mapPane').classList.remove('picking');}
-function cancelPick(){endPick();openModal(el('modalPlace'));}
+/* ── 渲染：地點列表 + 地圖 marker ── */
+function renderSpots() {
+  const fc = $('filter-country').value, ct = $('filter-cat').value;
+  const q  = $('filter-search').value.trim().toLowerCase();
 
-/* ========= 圖釘與資訊視窗 ========= */
-function makePin(cat,visited){
-  const color=cat?cat.color:'#c2c3c7';
-  return L.divIcon({className:'',
-    html:`<div class="px-pin${visited?' visited':''}" style="--c:${color}"></div>`,
-    iconSize:[26,26],iconAnchor:[13,34],popupAnchor:[0,-32]});
-}
-function placePopupEl(p){
-  const box=document.createElement('div');
-  const cat=catOf(p.category),c=countryOf(p.country);
-  box.innerHTML=`
-    <div class="pop-title">${esc(p.name)}</div>
-    <div class="pop-meta">
-      ${cat?`<span class="tag" style="--c:${cat.color}">${esc(cat.name)}</span>`:`<span class="tag" style="--c:#555">未分類</span>`}
-      ${c?`<span class="tag tag-geo" style="--c:#29adff">[${esc(c.code||'--')}] ${esc(c.name)}</span>`:''}
-      ${p.visited?'<span class="tag tag-done" style="--c:#00e436">已造訪</span>':''}
-    </div>
-    ${p.notes?`<div class="pop-notes">${esc(p.notes)}</div>`:''}
-    <div class="pop-coord">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
-    <div class="pop-actions">
-      <button class="btn sm act-edit">編輯</button>
-      <button class="btn sm danger act-del">刪除</button>
-    </div>`;
-  box.querySelector('.act-edit').onclick=()=>openPlaceForm(p);
-  box.querySelector('.act-del').onclick=()=>deletePlace(p);
-  return box;
-}
+  const list = state.spots.filter(s =>
+    (!fc || s.country === fc) &&
+    (!ct || s.cat === ct) &&
+    (!q  || s.name.toLowerCase().includes(q))
+  );
 
-/* ========= 篩選與渲染 ========= */
-function filteredPlaces(){
-  const f=state.filter,q=f.q.trim().toLowerCase();
-  return state.places.filter(p=>
-    (f.country==='all'||p.country===f.country)&&
-    (f.cat==='all'||p.category===f.cat)&&
-    (!q||p.name.toLowerCase().includes(q)||(p.notes||'').toLowerCase().includes(q)));
-}
-function renderMarkers(){
-  markerLayer.clearLayers();state.markers.clear();
-  filteredPlaces().forEach(p=>{
-    const m=L.marker([p.lat,p.lng],{icon:makePin(catOf(p.category),p.visited),title:p.name,riseOnHover:true});
-    m.bindPopup(placePopupEl(p));
-    m.addTo(markerLayer);state.markers.set(p.id,m);
+  // 更新地圖 marker（diff：先全部移除，簡單可靠）
+  markers.forEach(m => map.removeLayer(m)); markers.clear();
+  list.forEach(s => {
+    const mk = L.marker([s.lat, s.lng], { icon: makeIcon(catColor(s.cat)), title: s.name })
+      .addTo(map)
+      .bindPopup(spotPopupHTML(s));
+    mk.on('click', () => scrollToCard(s.id));
+    markers.set(s.id, mk);
   });
-}
-function renderList(){
-  const listEl=el('list');
-  const list=filteredPlaces().slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  if(!list.length){
-    listEl.innerHTML=`<div class="empty">${pxSvg(ICONS.globe,7)}
-      <p>${state.places.length?'沒有符合篩選條件的地點':'還沒有任何地點'}</p>
-      <p class="dim small">${state.places.length?'試著清除篩選條件看看':'點擊地圖、或按上方的「新增」<br>收藏你的第一個旅程足跡！'}</p>
-      <button class="btn primary" id="emptyAdd">新增地點</button></div>`;
+
+  // 更新列表
+  $('count').textContent = list.length;
+  const box = $('spot-list');
+  if (!list.length) {
+    box.innerHTML = '<p style="color:var(--text-dim);font-size:12px;padding:8px">（沒有符合的地點）</p>';
     return;
   }
-  listEl.innerHTML=list.map(p=>{
-    const cat=catOf(p.category),c=countryOf(p.country);
-    return `<article class="card${p.visited?' visited':''}" data-id="${esc(p.id)}">
-      <div class="card-side" style="--c:${cat?cat.color:'#555'}"></div>
-      <div class="card-main">
-        <div class="row1">
-          <h3>${esc(p.name)}</h3>
-          <label class="pxcheck" title="造訪打卡"><input type="checkbox" ${p.visited?'checked':''}><i></i></label>
-        </div>
-        <div class="card-tags">
-          ${cat?`<span class="tag" style="--c:${cat.color}">${esc(cat.name)}</span>`:`<span class="tag" style="--c:#555">未分類</span>`}
-          ${c?`<span class="tag tag-geo" style="--c:#29adff">[${esc(c.code||'--')}] ${esc(c.name)}</span>`:''}
-        </div>
-        ${p.notes?`<p class="card-notes">${esc(p.notes)}</p>`:''}
-        <div class="card-sub">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)} · ${fmtDate(p.createdAt)}</div>
-      </div>
-      <div class="card-act">
-        <button class="btn ibtn" data-act="edit" title="編輯">${pxSvg(ICONS.pencil,3)}</button>
-        <button class="btn ibtn danger" data-act="del" title="刪除">${pxSvg(ICONS.trash,3)}</button>
-      </div>
-    </article>`;
-  }).join('');
-}
-function renderListMeta(){
-  el('listMeta').textContent=`顯示 ${filteredPlaces().length} / ${state.places.length} 個地點`;
-}
-function renderStats(){
-  const ps=state.places;
-  el('stTotal').textContent=ps.length;
-  el('stVisited').textContent=ps.filter(p=>p.visited).length;
-  el('stCountries').textContent=new Set(ps.filter(p=>p.country).map(p=>p.country)).size;
-  el('stCats').textContent=state.cats.length;
-  const rows=state.cats.map(c=>({c,n:ps.filter(p=>p.category===c.id).length}))
-    .filter(r=>r.n>0).sort((a,b)=>b.n-a.n);
-  const max=Math.max(1,...rows.map(r=>r.n));
-  el('statBars').innerHTML=rows.length?rows.map(r=>`
-    <div class="bar-row"><span class="bar-name">${esc(r.c.name)}</span>
-    <div class="bar"><i style="--c:${r.c.color};width:${Math.max(8,r.n/max*100)}%"></i></div>
-    <span class="bar-n">${r.n}</span></div>`).join('')
-    :'<p class="dim small">尚無資料，新增地點後這裡會顯示統計。</p>';
-}
-function refreshFilterChips(){
-  const f=state.filter.cat;
-  el('catChips').innerHTML=`<button class="chip${f==='all'?' on':''}" data-cat="all">全部</button>`+
-    state.cats.map(c=>`<button class="chip${f===c.id?' on':''}" data-cat="${esc(c.id)}"><i style="--c:${c.color}"></i><span>${esc(c.name)}</span></button>`).join('');
-}
-function refreshFilterCountry(){
-  const sel=el('fCountry'),cur=state.filter.country;
-  sel.innerHTML='<option value="all">全部國家</option>'+
-    state.countries.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
-  sel.value=state.countries.some(c=>c.id===cur)?cur:'all';
-  state.filter.country=sel.value;
-}
-function refreshFormSelects(){
-  const E=el('placeForm').elements;
-  const keepC=E['country'].value,keepCat=E['category'].value;
-  E['country'].innerHTML='<option value="">（未設定）</option>'+
-    state.countries.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
-  E['category'].innerHTML=state.cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
-  E['country'].value=state.countries.some(c=>c.id===keepC)?keepC:'';
-  E['category'].value=state.cats.some(c=>c.id===keepCat)?keepCat:defaultCatId();
-}
-function refreshFilterUI(){refreshFilterCountry();refreshFilterChips();refreshFormSelects();}
-function renderAll(){
-  refreshFilterUI();renderMarkers();renderList();renderListMeta();renderStats();
-}
-function reFilter(){renderMarkers();renderList();renderListMeta();}
+  box.innerHTML = list.map(s => `
+    <div class="spot-card" id="card-${s.id}" data-id="${s.id}">
+      <button class="del" data-del="${s.id}" title="刪除">✕</button>
+      <div class="name">${esc(s.name)}</div>
+      <div class="meta">${esc(s.country || '(未設定)')} · ${e5(s.lat)}, ${e5(s.lng)}</div>
+      ${s.desc ? `<div class="meta">${esc(s.desc)}</div>` : ''}
+      <span class="tag" style="color:${catColor(s.cat)};border-color:${catColor(s.cat)}">${esc(catName(s.cat))}</span>
+    </div>`).join('');
 
-/* ========= 地點表單（新增／編輯） ========= */
-let editingId=null;
-function openPlaceForm(p){
-  editingId=p&&p.id?p.id:null;
-  el('placeFormTitle').textContent=editingId?'編輯地點':'新增地點';
-  refreshFormSelects();
-  const E=el('placeForm').elements;
-  E['name'].value=p?.name||'';
-  E['country'].value=p?.country||'';
-  E['category'].value=(p?.category&&catOf(p.category))?p.category:defaultCatId();
-  E['lat'].value=p?.lat??'';
-  E['lng'].value=p?.lng??'';
-  E['notes'].value=p?.notes||'';
-  E['visited'].checked=!!p?.visited;
-  openModal(el('modalPlace'));
-  setTimeout(()=>E['name'].focus(),60);
+  box.querySelectorAll('.spot-card').forEach(el =>
+    el.addEventListener('click', e => {
+      if (e.target.dataset.del) return;
+      focusSpot(el.dataset.id);
+    }));
+  box.querySelectorAll('[data-del]').forEach(b =>
+    b.addEventListener('click', () => deleteSpot(b.dataset.del)));
 }
-async function deletePlace(p){
-  const ok=await confirmBox('刪除地點',`確定刪除「<b>${esc(p.name)}</b>」？<br>此操作無法復原。`);
-  if(!ok)return;
-  try{await dbDel('places',p.id);}catch(e){return toast('刪除失敗','err');}
-  state.places=state.places.filter(x=>x.id!==p.id);
-  map.closePopup();
-  renderAll();toast('已刪除','ok');
+const e5 = n => Number(n).toFixed(5);
+function spotPopupHTML(s) {
+  return `<b style="color:var(--accent2)">${esc(s.name)}</b><br>
+    <small>${esc(s.country||'')} · ${esc(catName(s.cat))}</small>
+    ${s.desc ? `<br><small>${esc(s.desc)}</small>` : ''}
+    <br><small>${e5(s.lat)}, ${e5(s.lng)}</small>`;
 }
-function focusPlace(id){
-  const p=state.places.find(x=>x.id===id);if(!p)return;
-  map.flyTo([p.lat,p.lng],Math.max(map.getZoom(),13),{duration:.7});
-  const m=state.markers.get(id);
-  if(m)setTimeout(()=>m.openPopup(),750);
+function focusSpot(id) {
+  const s = state.spots.find(x => x.id === id); if (!s) return;
+  map.setView([s.lat, s.lng], Math.max(map.getZoom(), 13));
+  markers.get(id)?.openPopup();
+}
+function scrollToCard(id) {
+  const el = $('card-'+id);
+  if (el) { el.scrollIntoView({ behavior:'smooth', block:'center' });
+    el.style.borderColor = 'var(--accent2)';
+    setTimeout(()=> el && (el.style.borderColor=''), 1200); }
 }
 
-/* ========= 分類管理 ========= */
-function renderCatAdmin(){
-  const wrap=el('catAdminList');
-  if(!state.cats.length){wrap.innerHTML='<p class="dim small">沒有分類</p>';return;}
-  wrap.innerHTML='';
-  state.cats.forEach(c=>{
-    const used=state.places.filter(p=>p.category===c.id).length;
-    const row=document.createElement('div');row.className='adm-row';
-    row.innerHTML=`<span class="swatch" style="--c:${c.color}"></span>
-      <b class="grow">${esc(c.name)}${c.protected?' <span class="dim small">(預設)</span>':''}</b>
-      <span class="dim small">${used} 個地點</span>`;
-    const eb=iconBtn('pencil');eb.title='編輯';
-    eb.onclick=async()=>{
-      const v=await openMiniForm({title:'編輯分類',
-        fields:[{key:'name',label:'分類名稱',type:'text',required:true},
-                {key:'color',label:'顏色',type:'palette'}],values:c});
-      if(!v)return;
-      if(state.cats.some(x=>x.id!==c.id&&x.name===v.name.trim()))
-        return toast('已有同名分類','err');
-      Object.assign(c,{name:v.name.trim(),color:v.color});
-      await dbPut('categories',c);
-      renderCatAdmin();renderAll();toast('分類已更新','ok');
-    };
-    const dbtn=iconBtn('trash','danger');
-    dbtn.title=c.protected?'預設分類不可刪除':'刪除';
-    dbtn.disabled=c.protected;
-    dbtn.onclick=async()=>{
-      if(c.protected)return;
-      let msg=`刪除分類「${esc(c.name)}」？`;
-      if(used>0)msg=`刪除分類「${esc(c.name)}」？<br>其中 <b>${used}</b> 個地點將改為「其他」。`;
-      const ok=await confirmBox('刪除分類',msg);
-      if(!ok)return;
-      const affected=state.places.filter(p=>p.category===c.id);
-      const fb=defaultCatId();
-      for(const p of affected){p.category=fb;p.updatedAt=Date.now();}
-      if(affected.length)await dbBulk('places',affected);
-      await dbDel('categories',c.id);
-      state.cats=state.cats.filter(x=>x.id!==c.id);
-      renderCatAdmin();renderAll();toast('已刪除分類','ok');
-    };
-    row.append(eb,dbtn);wrap.appendChild(row);
-  });
+/* ── 渲染：下拉選單 / 管理列表 ── */
+function renderSelects() {
+  const sel = (el, items, extra) => {
+    const cur = el.value;
+    el.innerHTML = extra + items.map(i =>
+      `<option value="${esc(typeof i==='string'?i:i.key)}">${esc(typeof i==='string'?i:i.name)}</option>`).join('');
+    if (cur && [...el.options].some(o=>o.value===cur)) el.value = cur;
+  };
+  sel($('f-cat'), state.cats, '');
+  sel($('filter-cat'), state.cats, '<option value="">全部</option>');
+  sel($('f-country'), state.countries, '<option value="">(未設定)</option>');
+  sel($('filter-country'), state.countries, '<option value="">全部</option>');
+}
+function renderCatMgmt() {
+  $('cat-rows').innerHTML = state.cats.map(c => `
+    <div class="mgmt-row" data-key="${c.key}">
+      <input type="color" class="color-chip" value="${c.color}" data-ckey="${c.key}">
+      <input type="text" value="${esc(c.name)}" data-rkey="${c.key}" maxlength="20">
+      <button class="btn small red" data-xkey="${c.key}">✕</button>
+    </div>`).join('');
+  $('cat-rows').querySelectorAll('[data-rkey]').forEach(inp =>
+    inp.addEventListener('change', async () => {
+      const c = state.cats.find(c=>c.key===inp.dataset.rkey);
+      if (c) { c.name = inp.value.trim() || c.name; await dbPut('meta', { key:'cats', value: state.cats }); renderAll(); }
+    }));
+  $('cat-rows').querySelectorAll('.color-chip').forEach(ch =>
+    ch.addEventListener('change', async () => {
+      const c = state.cats.find(c=>c.key===ch.dataset.ckey);
+      if (c) { c.color = ch.value; await dbPut('meta', { key:'cats', value: state.cats }); renderAll(); }
+    }));
+  $('cat-rows').querySelectorAll('[data-xkey]').forEach(b =>
+    b.addEventListener('click', () => deleteCat(b.dataset.xkey)));
+}
+function renderCountryMgmt() {
+  $('country-rows').innerHTML = state.countries.map((c,i) => `
+    <div class="mgmt-row">
+      <input type="text" value="${esc(c)}" data-ri="${i}" maxlength="30">
+      <button class="btn small red" data-xi="${i}">✕</button>
+    </div>`).join('');
+  $('country-rows').querySelectorAll('[data-ri]').forEach(inp =>
+    inp.addEventListener('change', async () => {
+      const old = state.countries[inp.dataset.ri];
+      const nv = inp.value.trim(); if (!nv) return;
+      // 同步更新地點的 country 欄位
+      state.countries[inp.dataset.ri] = nv;
+      for (const s of state.spots) if (s.country === old) { s.country = nv; await dbPut('spots', s); }
+      await dbPut('meta', { key:'countries', value: state.countries }); renderAll();
+    }));
+  $('country-rows').querySelectorAll('[data-xi]').forEach(b =>
+    b.addEventListener('click', async () => {
+      const name = state.countries.splice(b.dataset.xi, 1)[0];
+      for (const s of state.spots) if (s.country === name) { s.country = ''; await dbPut('spots', s); }
+      await dbPut('meta', { key:'countries', value: state.countries }); renderAll();
+      toast('已刪除國家：' + name);
+    }));
+}
+function renderAll() { renderSelects(); renderSpots(); renderCatMgmt(); renderCountryMgmt(); }
+
+/* ── CRUD ── */
+$('btn-add').addEventListener('click', async () => {
+  const name = $('f-name').value.trim();
+  if (!name) return toast('⚠ 請輸入地點名稱');
+  const ll = state.pickedLatLng;
+  if (!ll) return toast('⚠ 請先在地圖上點擊選擇位置');
+  const spot = {
+    id: uid(), name, desc: $('f-desc').value.trim(),
+    cat: $('f-cat').value, country: $('f-country').value,
+    lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), created: Date.now()
+  };
+  state.spots.push(spot); await dbPut('spots', spot);
+  $('f-name').value = ''; $('f-desc').value = ''; state.pickedLatLng = null;
+  map.closePopup(); renderAll(); focusSpot(spot.id);
+  toast('✓ 已加入：' + name);
+});
+
+async function deleteSpot(id) {
+  const s = state.spots.find(x=>x.id===id); if (!s) return;
+  if (!confirm(`刪除「${s.name}」？`)) return;
+  state.spots = state.spots.filter(x=>x.id!==id);
+  await dbDelete('spots', id); renderAll(); toast('已刪除');
 }
 
-/* ========= 國家管理 ========= */
-function renderCountryAdmin(){
-  const wrap=el('countryAdminList');
-  if(!state.countries.length){
-    wrap.innerHTML='<p class="dim small">尚無國家。可在新增地點時按「＋」快速建立，或在此新增。</p>';return;}
-  wrap.innerHTML='';
-  state.countries.forEach(c=>{
-    const used=state.places.filter(p=>p.country===c.id).length;
-    const row=document.createElement('div');row.className='adm-row';
-    row.innerHTML=`<span class="codetag">${esc(c.code||'--')}</span>
-      <b class="grow">${esc(c.name)}</b><span class="dim small">${used} 個地點</span>`;
-    const eb=iconBtn('pencil');eb.title='編輯';
-    eb.onclick=async()=>{
-      const v=await openMiniForm({title:'編輯國家',
-        fields:[{key:'name',label:'國家名稱',type:'text',required:true},
-                {key:'code',label:'ISO 代碼（選填，2 個字母）',type:'code'}],values:c});
-      if(!v)return;
-      if(state.countries.some(x=>x.id!==c.id&&x.name===v.name.trim()))
-        return toast('已有同名國家','err');
-      Object.assign(c,{name:v.name.trim(),code:v.code});
-      await dbPut('countries',c);
-      state.countries.sort(byCountryName);
-      renderCountryAdmin();renderAll();toast('國家已更新','ok');
-    };
-    const dbtn=iconBtn('trash','danger');dbtn.title='刪除';
-    dbtn.onclick=async()=>{
-      let msg=`刪除國家「${esc(c.name)}」？`;
-      if(used>0)msg=`刪除國家「${esc(c.name)}」？<br>其中 <b>${used}</b> 個地點的國家將變成「未設定」。`;
-      const ok=await confirmBox('刪除國家',msg);
-      if(!ok)return;
-      const affected=state.places.filter(p=>p.country===c.id);
-      for(const p of affected){p.country=null;p.updatedAt=Date.now();}
-      if(affected.length)await dbBulk('places',affected);
-      await dbDel('countries',c.id);
-      state.countries=state.countries.filter(x=>x.id!==c.id);
-      renderCountryAdmin();renderAll();toast('已刪除國家','ok');
-    };
-    row.append(eb,dbtn);wrap.appendChild(row);
-  });
-}
-
-/* ========= 匯出／匯入 JSON ========= */
-async function exportJSON(){
-  const data={app:'pixel-travel-map',version:1,exportedAt:new Date().toISOString(),
-    categories:state.cats,countries:state.countries,places:state.places};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;
-  a.download=`pixel-travel-map-${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
-  toast(`已匯出 ${state.places.length} 個地點、${state.cats.length} 個分類、${state.countries.length} 個國家`,'ok');
-}
-function normalizePlace(p,validCatIds,validCountryIds){
-  if(!p||typeof p!=='object')return null;
-  const lat=+p.lat,lng=+p.lng;
-  if(!p.id||!isFinite(lat)||!isFinite(lng)||lat<-90||lat>90||lng<-180||lng>180)return null;
-  let cat=String(p.category||'');
-  if(!validCatIds.has(cat))cat='cat-other';
-  let ctry=p.country?String(p.country):null;
-  if(ctry&&!validCountryIds.has(ctry))ctry=null;
-  return{id:String(p.id).slice(0,40),name:String(p.name||'未命名地點').slice(0,80),
-    country:ctry,category:cat,lat,lng,
-    notes:p.notes?String(p.notes).slice(0,500):'',visited:!!p.visited,
-    createdAt:+p.createdAt||Date.now(),updatedAt:+p.updatedAt||Date.now()};
-}
-function normalizeCat(c){
-  if(!c||!c.id||!c.name)return null;
-  return{id:String(c.id).slice(0,40),name:String(c.name).slice(0,40),
-    color:/^#[0-9a-fA-F]{6}$/.test(c.color||'')?c.color:'#c2c3c7',
-    protected:!!c.protected||c.id==='cat-other',createdAt:+c.createdAt||Date.now()};
-}
-function normalizeCountry(c){
-  if(!c||!c.id||!c.name)return null;
-  return{id:String(c.id).slice(0,40),name:String(c.name).slice(0,40),
-    code:String(c.code||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,2),
-    createdAt:+c.createdAt||Date.now()};
-}
-async function doImport(data,mode){
-  const normCats=(data.categories||[]).map(normalizeCat).filter(Boolean);
-  const normCtries=(data.countries||[]).map(normalizeCountry).filter(Boolean);
-  if(mode==='replace'){
-    await dbClear('places');await dbClear('categories');await dbClear('countries');
-    if(!normCats.some(c=>c.id==='cat-other')){
-      const other=DEFAULT_CATEGORIES.find(c=>c.id==='cat-other');
-      normCats.push({...other});
-    }
-  }
-  const validCatIds=new Set([...state.cats.map(c=>c.id),...normCats.map(c=>c.id)]);
-  const validCountryIds=new Set([...state.countries.map(c=>c.id),...normCtries.map(c=>c.id)]);
-  const normPlaces=(data.places||[]).map(p=>normalizePlace(p,validCatIds,validCountryIds)).filter(Boolean);
-  await dbBulk('categories',normCats);
-  await dbBulk('countries',normCtries);
-  await dbBulk('places',normPlaces);
-  await reloadState();renderAll();
-  maybeAutoPersist();
-  const skipped=(data.places||[]).length-normPlaces.length;
-  toast(`匯入完成：${normPlaces.length} 個地點`+(skipped>0?`（略過 ${skipped} 筆無效資料）`:''),'ok');
-}
-
-/* ========= 持久化儲存 ========= */
-async function tryPersist(silent=false){
-  if(!navigator.storage||!navigator.storage.persist){
-    if(!silent)toast('此瀏覽器不支援 Storage API','warn');return;
-  }
-  const granted=await navigator.storage.persist().catch(()=>false);
-  if(!silent){
-    if(granted)toast('已獲得持久化儲存授權，資料不會被自動清除','ok');
-    else toast('瀏覽器暫未授予持久化（Chrome 會視使用情況自動升級）','warn');
-  }
-  updateStorageInfo();
-}
-async function updateStorageInfo(){
-  const info=el('stoInfo');
-  if(!navigator.storage){info.textContent='此瀏覽器不支援 Storage API';return;}
-  let persisted=null;
-  try{if(navigator.storage.persisted)persisted=await navigator.storage.persisted();}catch(e){}
-  let usage='';
-  try{
-    if(navigator.storage.estimate){
-      const est=await navigator.storage.estimate();
-      usage=` · 已用 ${(est.usage/1048576).toFixed(2)} MB`;
-    }
-  }catch(e){}
-  info.innerHTML=`持久化儲存：<b class="${persisted?'ok-t':'warn-t'}">${persisted?'已啟用':'未啟用'}</b>${usage}`;
-}
-async function maybeAutoPersist(){
-  if(localStorage.getItem('ptm-persist-tried')==='1')return;
-  localStorage.setItem('ptm-persist-tried','1');
-  await tryPersist(true);
-}
-
-/* ========= 加入主畫面 ========= */
-let deferredPrompt=null;
-function showBanner(mode){
-  el('a2hs').hidden=false;
-  document.body.classList.add('banner-on');
-  if(mode==='ios'){
-    el('a2hsText').innerHTML='想加入主畫面？在 <b>Safari</b> 點「分享」→「加入主畫面」';
-    el('a2hsBtn').hidden=true;
-  }else{
-    el('a2hsText').textContent='把這張旅遊地圖安裝到主畫面，像 App 一樣快速開啟！';
-    el('a2hsBtn').hidden=false;
+async function deleteCat(key) {
+  const c = state.cats.find(c=>c.key===key);
+  if (c && confirm(`刪除分類「${c.name}」？其地點將歸為「其他」`)) {
+    state.cats = state.cats.filter(x=>x.key!==key);
+    for (const s of state.spots) if (s.cat === key) { s.cat = 'other'; await dbPut('spots', s); }
+    await dbPut('meta', { key:'cats', value: state.cats }); renderAll();
   }
 }
-function hideBanner(){
-  el('a2hs').hidden=true;
-  document.body.classList.remove('banner-on');
-}
-function setupInstall(){
-  const standalone=window.matchMedia('(display-mode: standalone)').matches
-    ||window.navigator.standalone===true;
-  const dismissed=localStorage.getItem('ptm-a2hs-dismiss')==='1';
-  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)
-    ||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  window.addEventListener('beforeinstallprompt',e=>{
-    e.preventDefault();deferredPrompt=e;
-    if(!dismissed&&!standalone)showBanner('install');
-  });
-  if(isIOS&&!dismissed&&!standalone)showBanner('ios');
-  window.addEventListener('appinstalled',()=>{
-    hideBanner();deferredPrompt=null;toast('已安裝到主畫面！','ok');
-  });
-  el('a2hsBtn').onclick=async()=>{
-    if(!deferredPrompt){
-      toast('瀏覽器未提供安裝提示，請改用瀏覽器選單中的「安裝應用程式」','warn');return;
-    }
-    deferredPrompt.prompt();
-    const{outcome}=await deferredPrompt.userChoice;
-    if(outcome==='accepted')toast('正在安裝…','ok');
-    deferredPrompt=null;
+
+/* 分類／國家新增 */
+$('cat-add').addEventListener('click', async () => {
+  const n = $('new-cat').value.trim(); if (!n) return toast('⚠ 請輸入名稱');
+  if (state.cats.some(c=>c.name===n)) return toast('⚠ 名稱重複');
+  state.cats.push({ key: 'c'+uid(), name: n, color: $('new-cat-color').value });
+  $('new-cat').value = '';
+  await dbPut('meta', { key:'cats', value: state.cats }); renderAll(); toast('✓ 已新增分類');
+});
+$('country-add').addEventListener('click', async () => {
+  const n = $('new-country').value.trim(); if (!n) return toast('⚠ 請輸入名稱');
+  if (state.countries.includes(n)) return toast('⚠ 名稱重複');
+  state.countries.push(n); $('new-country').value = '';
+  await dbPut('meta', { key:'countries', value: state.countries }); renderAll(); toast('✓ 已新增國家');
+});
+
+/* ── 匯出 / 匯入 ── */
+$('btn-export').addEventListener('click', () => {
+  /* 匯出格式：
+     { "app":"pixel-travel-map", "version":1,
+       "cats":[...], "countries":[...], "spots":[...] } */
+  const data = {
+    app: 'pixel-travel-map', version: 1, exportedAt: new Date().toISOString(),
+    cats: state.cats, countries: state.countries, spots: state.spots
   };
-  el('a2hsClose').onclick=()=>{
-    hideBanner();localStorage.setItem('ptm-a2hs-dismiss','1');
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `travel-map-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('⬇ 已匯出 JSON');
+});
+
+let pendingImport = null;
+$('btn-import').addEventListener('click', () => {
+  if (!pendingImport) $('file-input').click();
+  else $('m-import').classList.add('show');
+});
+$('file-input').addEventListener('change', e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const data = JSON.parse(rd.result);
+      if (data.app !== 'pixel-travel-map' || !Array.isArray(data.spots))
+        throw new Error('bad format');
+      pendingImport = data; $('m-import').classList.add('show');
+    } catch { toast('✖ 檔案格式錯誤，非本程式匯出的 JSON'); }
   };
-}
-/* 動態 manifest（Blob URL）＋Canvas 像素圖示：單檔 HTML 的 A2HS 方案 */
-function setupManifest(){
-  try{
-    const start=location.href.split('#')[0];
-    const manifest={
-      name:'像素旅遊地圖',short_name:'像素旅圖',
-      description:'8-bit 像素風的個人旅遊地圖，資料儲存在本機。',
-      start_url:start,scope:start.replace(/[^/]*$/,'')||'/',
-      display:'standalone',background_color:'#0b0b16',theme_color:'#0b0b16',
-      icons:[{src:makeAppIcon(192),sizes:'192x192',type:'image/png',purpose:'any'},
-             {src:makeAppIcon(512),sizes:'512x512',type:'image/png',purpose:'any'}]
-    };
-    const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
-    const link=document.createElement('link');
-    link.rel='manifest';link.href=URL.createObjectURL(blob);
-    document.head.appendChild(link);
-    const fav=document.createElement('link');
-    fav.rel='icon';fav.type='image/png';fav.href=makeAppIcon(64);
-    document.head.appendChild(fav);
-  }catch(e){console.warn('manifest 建立失敗',e);}
-}
-
-/* ========= 定位 ========= */
-function locateMe(){
-  if(!navigator.geolocation)return toast('此裝置不支援定位功能','err');
-  toast('正在定位…');
-  navigator.geolocation.getCurrentPosition(pos=>{
-    const{latitude,longitude,accuracy}=pos.coords;
-    if(locMarker){map.removeLayer(locMarker);locMarker=null;}
-    if(locCircle){map.removeLayer(locCircle);locCircle=null;}
-    locMarker=L.marker([latitude,longitude],{
-      icon:L.divIcon({className:'',html:'<div class="px-me"></div>',
-        iconSize:[22,22],iconAnchor:[11,11]}),
-      interactive:false,keyboard:false,zIndexOffset:1000
-    }).addTo(map);
-    locCircle=L.circle([latitude,longitude],{
-      radius:Math.max(accuracy,25),color:'#29adff',weight:2,opacity:.8,
-      fillColor:'#29adff',fillOpacity:.08
-    }).addTo(map);
-    map.flyTo([latitude,longitude],Math.max(map.getZoom(),13),{duration:.8});
-    toast(`定位成功（誤差約 ${Math.round(accuracy)} 公尺）`,'ok');
-  },err=>{
-    const why={1:'你拒絕了定位授權',2:'目前無法取得位置資訊',3:'定位逾時'}[err.code]||err.message;
-    toast('定位失敗：'+why,'err');
-  },{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
-}
-
-/* ========= 事件綁縛 ========= */
-function bindAll(){
-  /* 頂欄 */
-  el('btnAdd').onclick=()=>openPlaceForm();
-  el('btnImport').onclick=()=>el('fileImport').click();
-  el('btnExport').onclick=exportJSON;
-  el('btnSettings').onclick=()=>{
-    openModal(el('modalSettings'));
-    renderCatAdmin();renderCountryAdmin();updateStorageInfo();
-  };
-  el('btnHelp').onclick=()=>openModal(el('modalHelp'));
-
-  /* 地圖工具 */
-  el('btnLocate').onclick=locateMe;
-  el('btnLayer').onclick=()=>{
-    useDark=!useDark;
-    localStorage.setItem('ptm-layer',useDark?'dark':'day');
-    setLayer(useDark);
-  };
-  el('pickCancel').onclick=cancelPick;
-
-  /* 篩選 */
-  let qTimer=null;
-  el('q').addEventListener('input',e=>{
-    clearTimeout(qTimer);
-    qTimer=setTimeout(()=>{state.filter.q=e.target.value;reFilter();},180);
-  });
-  el('fCountry').addEventListener('change',e=>{
-    state.filter.country=e.target.value;reFilter();
-  });
-  el('catChips').addEventListener('click',e=>{
-    const b=e.target.closest('.chip');if(!b)return;
-    state.filter.cat=b.dataset.cat;
-    refreshFilterChips();reFilter();
-  });
-
-  /* 列表（事件委派） */
-  el('list').addEventListener('click',e=>{
-    if(e.target.closest('#emptyAdd')){openPlaceForm();return;}
-    const act=e.target.closest('[data-act]');
-    const card=e.target.closest('.card');
-    if(act&&card){
-      const p=state.places.find(x=>x.id===card.dataset.id);if(!p)return;
-      if(act.dataset.act==='edit')openPlaceForm(p);else deletePlace(p);
-      return;
-    }
-    if(e.target.closest('.pxcheck'))return;
-    if(card)focusPlace(card.dataset.id);
-  });
-  el('list').addEventListener('change',e=>{
-    if(!e.target.matches('.pxcheck input'))return;
-    const card=e.target.closest('.card');if(!card)return;
-    const p=state.places.find(x=>x.id===card.dataset.id);if(!p)return;
-    p.visited=e.target.checked;p.updatedAt=Date.now();
-    dbPut('places',p).catch(()=>{});
-    card.classList.toggle('visited',p.visited);
-    renderMarkers();renderStats();
-  });
-
-  /* 地點表單 */
-  el('placeForm').addEventListener('submit',async e=>{
-    e.preventDefault();
-    const E=e.target.elements;
-    const name=E['name'].value.trim();
-    const lat=parseFloat(E['lat'].value),lng=parseFloat(E['lng'].value);
-    if(!name)return toast('請輸入地點名稱','err');
-    if(!isFinite(lat)||!isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)
-      return toast('緯度／經度數值不正確','err');
-    const now=Date.now();
-    const base={name,country:E['country'].value||null,
-      category:E['category'].value||defaultCatId(),
-      lat:+lat.toFixed(6),lng:+lng.toFixed(6),
-      notes:E['notes'].value.trim().slice(0,500),
-      visited:E['visited'].checked,updatedAt:now};
-    let obj;
-    if(editingId){
-      const old=state.places.find(p=>p.id===editingId);
-      obj={...(old||{createdAt:now,id:editingId}),...base};
-    }else{
-      obj={id:uid(),createdAt:now,...base};
-    }
-    try{await dbPut('places',obj);}catch(err){return toast('儲存失敗：'+err,'err');}
-    if(editingId)state.places=state.places.map(p=>p.id===obj.id?obj:p);
-    else state.places.push(obj);
-    editingId=null;
-    closeModal(el('modalPlace'));
-    renderAll();
-    toast(`已儲存「${name}」`,'ok');
-    maybeAutoPersist();
-  });
-  el('pickBtn').onclick=()=>{
-    startPick(latlng=>{
-      const E=el('placeForm').elements;
-      E['lat'].value=+latlng.lat.toFixed(6);
-      E['lng'].value=+latlng.lng.toFixed(6);
-      openModal(el('modalPlace'));
-      toast('已填入所選座標','ok');
-    });
-  };
-  /* 表單內快速新增國家／分類（不關閉表單） */
-  el('addCountryInline').onclick=async()=>{
-    const v=await openMiniForm({title:'新增國家',
-      fields:[{key:'name',label:'國家名稱',type:'text',required:true},
-              {key:'code',label:'ISO 代碼（選填，2 個字母）',type:'code'}]});
-    if(!v)return;
-    const c={id:'ctry-'+uid(),name:v.name.trim(),code:v.code||''};
-    if(!c.name)return toast('請輸入名稱','err');
-    if(state.countries.some(x=>x.name===c.name))return toast('已有同名國家','err');
-    await dbPut('countries',c);
-    state.countries.push(c);state.countries.sort(byCountryName);
-    refreshFilterCountry();
-    const E=el('placeForm').elements;
-    refreshFormSelects();E['country'].value=c.id;
-    toast(`已新增國家「${c.name}」`,'ok');
-  };
-  el('addCatInline').onclick=async()=>{
-    const v=await openMiniForm({title:'新增分類',
-      fields:[{key:'name',label:'分類名稱',type:'text',required:true},
-              {key:'color',label:'顏色',type:'palette'}],
-      values:{color:COLOR_PALETTE[state.cats.length%COLOR_PALETTE.length]}});
-    if(!v)return;
-    const c={id:'cat-'+uid(),name:v.name.trim(),color:v.color,createdAt:Date.now()};
-    if(!c.name)return toast('請輸入名稱','err');
-    if(state.cats.some(x=>x.name===c.name))return toast('已有同名分類','err');
-    await dbPut('categories',c);state.cats.push(c);
-    refreshFilterChips();
-    const E=el('placeForm').elements;
-    refreshFormSelects();E['category'].value=c.id;
-    toast(`已新增分類「${c.name}」`,'ok');
-  };
-
-  /* 設定頁 */
-  document.querySelectorAll('#modalSettings .tab').forEach(t=>t.onclick=()=>{
-    document.querySelectorAll('#modalSettings .tab').forEach(x=>x.classList.toggle('on',x===t));
-    el('tabCats').classList.toggle('hidden',t.dataset.tab!=='cats');
-    el('tabCountries').classList.toggle('hidden',t.dataset.tab!=='countries');
-  });
-  el('catAdd').onclick=async()=>{
-    const v=await openMiniForm({title:'新增分類',
-      fields:[{key:'name',label:'分類名稱',type:'text',required:true},
-              {key:'color',label:'顏色',type:'palette'}],
-      values:{color:COLOR_PALETTE[state.cats.length%COLOR_PALETTE.length]}});
-    if(!v)return;
-    if(state.cats.some(x=>x.name===v.name.trim()))return toast('已有同名分類','err');
-    const c={id:'cat-'+uid(),name:v.name.trim(),color:v.color,createdAt:Date.now()};
-    await dbPut('categories',c);state.cats.push(c);
-    renderCatAdmin();renderAll();toast('已新增分類','ok');
-  };
-  el('countryAdd').onclick=async()=>{
-    const v=await openMiniForm({title:'新增國家',
-      fields:[{key:'name',label:'國家名稱',type:'text',required:true},
-              {key:'code',label:'ISO 代碼（選填，2 個字母）',type:'code'}]});
-    if(!v)return;
-    if(state.countries.some(x=>x.name===v.name.trim()))return toast('已有同名國家','err');
-    const c={id:'ctry-'+uid(),name:v.name.trim(),code:v.code||'',createdAt:Date.now()};
-    await dbPut('countries',c);state.countries.push(c);state.countries.sort(byCountryName);
-    renderCountryAdmin();refreshFilterUI();toast('已新增國家','ok');
-  };
-  el('btnPersist').onclick=()=>tryPersist(false);
-
-  /* 匯入檔案 */
-  el('fileImport').addEventListener('change',e=>{
-    const file=e.target.files[0];e.target.value='';
-    if(!file)return;
-    const r=new FileReader();
-    r.onload=async()=>{
-      let data;
-      try{data=JSON.parse(r.result);}
-      catch(err){return toast('JSON 解析失敗，檔案格式錯誤','err');}
-      if(!data||!Array.isArray(data.places))
-        return toast('此檔案不包含地點資料（缺少 places 陣列）','err');
-      const nc=Array.isArray(data.categories)?data.categories.length:0;
-      const ncy=Array.isArray(data.countries)?data.countries.length:0;
-      const choice=await confirmBox('匯入資料',
-        `偵測到 <b>${data.places.length}</b> 個地點、${nc} 個分類、${ncy} 個國家。<br>請選擇匯入方式：`,
-        [{label:'合併匯入',value:'merge',cls:'primary'},
-         {label:'覆蓋全部',value:'replace',cls:'danger'},
-         {label:'取消',value:null,cls:''}]);
-      if(!choice)return;
-      try{await doImport(data,choice);}
-      catch(err){toast('匯入失敗：'+(err.message||err),'err');}
-    };
-    r.onerror=()=>toast('讀取檔案失敗','err');
-    r.readAsText(file);
-  });
-
-  /* 彈窗關閉按鈕與鍵盤 */
-  document.querySelectorAll('.modal').forEach(m=>{
-    m.querySelectorAll('[data-close]').forEach(b=>
-      b.addEventListener('click',()=>closeModal(m)));
-  });
-  document.addEventListener('keydown',e=>{
-    if(e.key!=='Escape')return;
-    if(pick.active){cancelPick();return;}
-    document.querySelectorAll('.modal.esc-ok.open').forEach(m=>m.classList.remove('open'));
-  });
-}
-
-/* ========= 啟動 ========= */
-(async function main(){
-  initIcons();
-  if(typeof L==='undefined'){
-    toast('地圖函式庫載入失敗，請檢查網路連線','err');return;
+  rd.readAsText(file);
+});
+async function doImport(mode) {
+  const d = pendingImport; pendingImport = null;
+  $('m-import').classList.remove('show');
+  // 結構驗證（防止壞資料寫入資料庫）
+  const valid = s => s && typeof s.name==='string' && typeof s.lat==='number' && typeof s.lng==='number';
+  const spots = d.spots.filter(valid).map(s => ({
+    id: s.id || uid(), name: String(s.name).slice(0,80),
+    desc: String(s.desc||'').slice(0,200),
+    cat: s.cat || 'other', country: String(s.country||'').slice(0,30),
+    lat: s.lat, lng: s.lng, created: s.created || Date.now()
+  }));
+  if (mode === 'replace') {
+    await dbClear('spots'); state.spots = spots;
+    if (Array.isArray(d.cats) && d.cats.length) { state.cats = d.cats; await dbPut('meta',{key:'cats',value:state.cats}); }
+    if (Array.isArray(d.countries)) { state.countries = d.countries.map(String); await dbPut('meta',{key:'countries',value:state.countries}); }
+  } else { // merge：以 id 去重
+    const ids = new Set(state.spots.map(s=>s.id));
+    for (const s of spots) if (!ids.has(s.id)) { state.spots.push(s); await dbPut('spots', s); }
+    for (const c of (d.cats||[])) if (!state.cats.some(x=>x.key===c.key)) state.cats.push(c);
+    for (const c of (d.countries||[])) if (!state.countries.includes(c)) state.countries.push(c);
+    await dbPut('meta',{key:'cats',value:state.cats});
+    await dbPut('meta',{key:'countries',value:state.countries});
   }
-  try{
-    await seedDefaults();
-    await reloadState();
-  }catch(err){
-    toast('無法開啟本機資料庫（IndexedDB）：'+err,'err');
-  }
-  initMap();
+  for (const s of state.spots) await dbPut('spots', s);
   renderAll();
-  setupManifest();
-  setupInstall();
-  updateStorageInfo();
-  if(window.innerWidth<880)el('statsBox').open=false;
-  if(!localStorage.getItem('ptm-hello')){
-    localStorage.setItem('ptm-hello','1');
-    toast('歡迎使用像素旅遊地圖！點擊地圖即可新增地點','ok');
-  }
+  toast(`✓ 已匯入 ${spots.length} 個地點（${mode==='replace'?'取代':'合併'}）`);
+}
+$('imp-replace').addEventListener('click', () => doImport('replace'));
+$('imp-merge').addEventListener('click', () => doImport('merge'));
+
+/* ── 定位功能 ── */
+$('loc-btn').addEventListener('click', () => {
+  if (!navigator.geolocation) return toast('✖ 瀏覽器不支援定位');
+  toast('◎ 定位中…');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    if (locMarker) map.removeLayer(locMarker);
+    if (locCircle) map.removeLayer(locCircle);
+    locMarker = L.marker([lat, lng], {
+      icon: L.divIcon({ className:'', html:
+        `<div style="width:20px;height:20px;background:var(--green);border:3px solid #000;box-shadow:0 0 0 3px var(--green)"></div>`,
+        iconSize:[20,20], iconAnchor:[10,10] })
+    }).addTo(map).bindPopup('<b style="color:var(--green)">◎ 你的位置</b>');
+    locCircle = L.circle([lat,lng], { radius: accuracy, color:'#6ee75c', weight:2, fillOpacity:0.15 }).addTo(map);
+    map.setView([lat, lng], 14);
+    toast(`✓ 定位成功（誤差 ±${Math.round(accuracy)}m）`);
+  }, err => {
+    toast('✖ 定位失敗：' + (err.code===1 ? '權限被拒' : '無法取得位置'));
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+});
+
+/* ── 模態框開關 ── */
+$('btn-cat').addEventListener('click', () => $('m-cat').classList.add('show'));
+$('btn-country').addEventListener('click', () => $('m-country').classList.add('show'));
+document.querySelectorAll('.modal-mask').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m || e.target.dataset.close !== undefined) m.classList.remove('show'); });
+});
+
+/* ── 篩選事件 ── */
+['filter-country','filter-cat','filter-search'].forEach(id =>
+  $(id).addEventListener('input', renderSpots));
+
+/* ── A2HS（Add to Home Screen）──
+   beforeinstallprompt：Chrome/Edge 等觸發，我們攔截它不讓瀏覽器
+   顯示自己的迷你提示，改顯示自訂 8-bit 提示條。
+   iOS Safari 不支援此事件，改顯示手動教學。 */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  $('a2hs-bar').classList.add('show');
+});
+$('a2hs-install').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  toast(outcome === 'accepted' ? '✓ 已安裝！' : '已取消安裝');
+  deferredPrompt = null; $('a2hs-bar').classList.remove('show');
+});
+$('a2hs-dismiss').addEventListener('click', () => $('a2hs-bar').classList.remove('show'));
+// iOS 偵測（粗略但足夠）
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) &&
+    !window.matchMedia('(display-mode: standalone)').matches) {
+  setTimeout(() => { $('a2hs-bar').classList.add('show'); $('a2hs-ios-tip').style.display = 'block'; }, 2500);
+  $('a2hs-install').style.display = 'none';
+}
+window.addEventListener('appinstalled', () => {
+  $('a2hs-bar').classList.remove('show'); toast('🎉 已安裝到主畫面！');
+});
+
+/* ── 啟動流程 ── */
+  db = await openDB();
+  const cats = await dbGet('meta', 'cats');
+  const countries = await dbGet('meta', 'countries');
+  state.cats = cats?.value || DEFAULT_CATS.slice();
+  state.countries = countries?.value || DEFAULT_COUNTRIES.slice();
+  if (!cats) await dbPut('meta', { key:'cats', value: state.cats });
+  if (!countries) await dbPut('meta', { key:'countries', value: state.countries });
+  state.spots = await dbGetAll('spots');
+  renderAll();
+  await requestPersistence();
 })();
 </script>
 </body>
