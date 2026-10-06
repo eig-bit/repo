@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🗺️ PIXEL TOUR - 8-bit 旅遊地圖</title>
+
+<!-- ============================================
+     技術說明：
+     1. PWA 相關 - 單檔案限制下的動態注入技巧
+     2. 由於是單一 HTML 檔案，無法有獨立的 manifest.json
+        與 service-worker.js，因此使用 Blob URL 動態產生
+        manifest（A2HS 仍可運作於部分瀏覽器），
+        Service Worker 離線功能則無法在單檔案中實現。
+     3. 字體使用 Google Fonts 的 Press Start 2P（8-bit 經典字體）
+     4. 地圖庫使用 Leaflet.js（開源、輕量、CDN 載入）
+============================================ -->
+
+<!-- Leaflet CSS/JS（地圖引擎）-->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Marker Cluster 外掛：標記聚類，景點多時自動聚合 -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================
+   8-bit 像素風設計系統
+   - 核心技巧：image-rendering: pixelated 讓圖片保持像素感
+   - 邊框：純色粗邊框 + box-shadow 疊出像素立體感
+   - 配色：復古遊戲機色板（Game Boy / NES 風格）
+============================================ */
+:root {
+  --bg: #1a1c2c;         /* 深藍夜空 */
+  --panel: #29366f;      /* 面板藍 */
+  --accent: #41a6f6;     /* 亮藍 */
+  --green: #38b764;      /* 綠 */
+  --yellow: #ffcd75;     /* 金黃 */
+  --red: #b13e53;        /* 紅 */
+  --text: #f4f4f4;
+  --shadow: #0d0d1a;
+  --border: 4px solid #0d0d1a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+* { image-rendering: pixelated; } /* 關鍵：強制像素渲染 */
+
+body {
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.8;
+  overflow: hidden;
+}
+
+/* ===== 頂部工具列 ===== */
+#topbar {
+  height: 56px;
+  background: var(--panel);
+  border-bottom: var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  z-index: 1000;
+  position: relative;
+}
+#topbar h1 {
+  font-size: 13px;
+  color: var(--yellow);
+  text-shadow: 3px 3px 0 var(--shadow);
+  white-space: nowrap;
+}
+.btn {
+  font-family: inherit;
+  font-size: 9px;
+  background: var(--accent);
+  color: #fff;
+  border: var(--border);
+  padding: 8px 10px;
+  cursor: pointer;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.3), inset 3px 3px 0 rgba(255,255,255,.3);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.btn.green { background: var(--green); }
+.btn.red { background: var(--red); }
+.btn.yellow { background: var(--yellow); color: #333; }
+.btn.small { font-size: 8px; padding: 6px 8px; }
+
+/* ===== 主佈局：雙欄（桌面）/ 單欄（手機）===== */
+#main { display: flex; height: calc(100dvh - 56px); }
+
+/* 側邊欄（景點列表） */
+#sidebar {
+  width: 320px;
+  background: var(--panel);
+  border-right: var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 900;
+}
+#filters { padding: 10px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: var(--border); }
+.chip {
+  font-family: inherit; font-size: 8px; cursor: pointer;
+  background: #3b5dc9; color: #fff; border: 3px solid var(--shadow);
+  padding: 5px 8px;
+}
+.chip.active { background: var(--yellow); color: #333; }
+#spot-list { flex: 1; overflow-y: auto; padding: 10px; }
+#spot-list::-webkit-scrollbar { width: 10px; }
+#spot-list::-webkit-scrollbar-thumb { background: var(--accent); border: 2px solid var(--shadow); }
+
+.spot-item {
+  background: #3b5dc9;
+  border: var(--border);
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: transform .05s;
+}
+.spot-item:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--shadow); }
+.spot-item.active { background: var(--green); }
+.spot-item h3 { font-size: 10px; color: var(--yellow); margin-bottom: 4px; }
+.spot-item .cat { font-size: 7px; color: #a7c4f0; }
+.spot-item .del { float: right; font-size: 8px; background: var(--red); border: 2px solid var(--shadow);
+  color:#fff; padding: 2px 4px; cursor: pointer; font-family: inherit; }
+
+/* 地圖 */
+#map { flex: 1; background: #0d0d1a; }
+/* 像素化地圖瓦片：關閉平滑插值 */
+#map .leaflet-tile { image-rendering: pixelated; }
+/* 像素風 Popup */
+.leaflet-popup-content-wrapper {
+  border-radius: 0 !important;
+  border: var(--border) !important;
+  font-family: 'Press Start 2P', monospace !important;
+  background: var(--panel) !important; color: var(--text) !important;
+}
+.leaflet-popup-content { font-size: 9px; line-height: 1.8; margin: 12px !important; }
+.leaflet-popup-content b { color: var(--yellow); }
+/* 像素風縮放按鈕 */
+.leaflet-bar a {
+  border-radius: 0 !important;
+  border: 3px solid var(--shadow) !important;
+  background: var(--accent) !important; color: #fff !important;
+  font-family: 'Press Start 2P', monospace !important;
+}
+
+/* 像素風自訂標記（用 divIcon + CSS 畫出，無需圖片檔） */
+.pixel-marker {
+  width: 20px; height: 20px;
+  border: 3px solid #0d0d1a;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.4);
+}
+.cat-history { background: var(--yellow); }
+.cat-nature   { background: var(--green); }
+.cat-food     { background: var(--red); }
+.cat-other    { background: var(--accent); }
+
+/* ===== 對話框（新增/編輯景點）===== */
+dialog {
+  font-family: inherit;
+  background: var(--panel);
+  color: var(--text);
+  border: var(--border);
+  box-shadow: 8px 8px 0 var(--shadow);
+  padding: 20px;
+  width: min(420px, 92vw);
+}
+dialog::backdrop { background: rgba(0,0,0,.7); }
+dialog h2 { color: var(--yellow); font-size: 12px; margin-bottom: 16px; }
+label { display: block; font-size: 8px; margin: 12px 0 4px; color: #a7c4f0; }
+input, textarea, select {
+  font-family: inherit; font-size: 9px; width: 100%;
+  background: #1a1c2c; color: var(--text);
+  border: 3px solid var(--shadow); padding: 8px;
+}
+textarea { height: 70px; resize: vertical; }
+dialog .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+
+/* ===== Toast 訊息 ===== */
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--green); color: #fff; border: var(--border);
+  padding: 12px 16px; font-size: 9px; z-index: 2000;
+  box-shadow: 4px 4px 0 var(--shadow);
+  display: none;
+}
+
+/* ===== A2HS 提示條 ===== */
+#a2hs-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--yellow); color: #333;
+  border-top: var(--border);
+  padding: 12px; font-size: 9px;
+  display: none; align-items: center; gap: 10px;
+  z-index: 3000; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+#a2hs-bar button { flex-shrink: 0; }
+
+/* ===== 手機版隱藏檔案 input ===== */
+#importFile { display: none; }
+
+/* ============================================
+   響應式設計：
+   手機（<768px）：側欄變為滑出抽屜
+============================================ */
+#sidebar-toggle { display: none; }
+@media (max-width: 768px) {
+  #sidebar-toggle { display: block; }
+  #sidebar {
+    position: absolute; left: -324px; width: 320px;
+    transition: left .15s steps(4); /* steps() 讓動畫也有像素感！ */
+    top: 56px; bottom: 0;
+  }
+  #sidebar.open { left: 0; box-shadow: 8px 0 0 rgba(0,0,0,.5); }
+  #topbar h1 { font-size: 10px; }
+  body { font-size: 9px; }
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <button id="sidebar-toggle" class="btn yellow">☰</button>
+  <h1>🗺️ PIXEL TOUR</h1>
+  <span style="flex:1"></span>
+  <button id="btn-add" class="btn green">+ 新增</button>
+  <button id="btn-export" class="btn">匯出</button>
+  <button id="btn-import" class="btn">匯入</button>
+  <input type="file" id="importFile" accept=".json">
+</div>
+
+<div id="main">
+  <aside id="sidebar">
+    <div id="filters"></div>
+    <div id="spot-list"></div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<!-- 新增/編輯景點對話框 -->
+<dialog id="dlg">
+  <h2 id="dlg-title">⚔️ 新增景點</h2>
+  <form id="spot-form">
+    <label>名稱 *</label><input id="f-name" required maxlength="50">
+    <label>分類</label>
+    <select id="f-cat">
+      <option value="history">🏰 歷史古蹟</option>
+      <option value="nature">🌲 自然風光</option>
+      <option value="food">🍜 美食</option>
+      <option value="other">📍 其他</option>
+    </select>
+    <label>緯度 / 經度 *（在地圖上點擊可自動填入）</label>
+    <input id="f-lat" type="number" step="any" required placeholder="lat">
+    <input id="f-lng" type="number" step="any" required placeholder="lng" style="margin-top:6px">
+    <label>簡介</label><textarea id="f-desc" maxlength="200"></textarea>
+    <div class="row">
+      <button type="button" class="btn red" id="dlg-cancel">取消</button>
+      <button type="submit" class="btn green">儲存</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<!-- Add to Home Screen 提示條 -->
+<div id="a2hs-bar">
+  <span>📲 把 PIXEL TOUR 加到主畫面，離線也能冒險！</span>
+  <button id="a2hs-install" class="btn green small">安裝</button>
+  <button id="a2hs-close" class="btn red small">✕</button>
+</div>
+
+<script>
+/* ============================================================
+   PIXEL TOUR - 單檔案 8-bit 旅遊地圖
+   ============================================================
+   技術架構總覽：
+   ├─ Leaflet.js      → 地圖渲染（OpenStreetMap 瓦片）
+   ├─ IndexedDB       → 景點資料持久化儲存（NoSQL，瀏覽器內建）
+   ├─ Blob URL        → 動態產生 PWA manifest（單檔案解法）
+   ├─ JSON 匯入/匯出   → 資料備份與分享
+   └─ A2HS            → Add to Home Screen（beforeinstallprompt）
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   【技術說明 1】IndexedDB 初始化
+   ------------------------------------------------------------
+   為什麼用 IndexedDB 而非 localStorage？
+   - 支援結構化資料（物件直接存取，免 JSON 序列化）
+   - 非同步 API，不阻塞主執行緒
+   - 容量大（數百 MB），適合地圖標記資料
+
+   這裡用 Promise 封裝原生事件回呼（IndexedDB 是事件驅動的），
+   讓後續程式碼可以用 async/await 优雅地操作。
+------------------------------------------------------------ */
+const DB_NAME = 'pixel-tour-db';
+const DB_VER  = 1;
+const STORE   = 'spots'; // Object Store，類似關聯式資料庫的「表」
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    // onupgradeneeded 只在「首次建立」或「版本升級」時觸發，
+    // 是唯一能改變 DB 結構（建表、建索引）的地方
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      // keyPath: 'id' → 主鍵；autoIncrement → 自動配號
+      const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+      store.createIndex('cat', 'cat', { unique: false }); // 分類索引，加速篩選
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror  = () => reject(req.error);
+  });
+}
+
+// 泛用的 CRUD 封裝：所有操作都要透過 transaction（交易）
+const db = {
+  async all() {
+    const _db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = _db.transaction(STORE, 'readonly');
+      const rq = tx.objectStore(STORE).getAll();
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror  = () => rej(rq.error);
+    });
+  },
+  async put(spot) { // put: 有 id 就更新，沒有就新增
+    const _db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = _db.transaction(STORE, 'readwrite');
+      const rq = tx.objectStore(STORE).put(spot);
+      rq.onsuccess = () => res(rq.result); // 回傳自動產生的 id
+      rq.onerror  = () => rej(rq.error);
+    });
+  },
+  async delete(id) {
+    const _db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = _db.transaction(STORE, 'readwrite');
+      const rq = tx.objectStore(STORE).delete(id);
+      rq.onsuccess = () => res();
+      rq.onerror  = () => rej(rq.error);
+    });
+  },
+  async clear() {
+    const _db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = _db.transaction(STORE, 'readwrite');
+      const rq = tx.objectStore(STORE).clear();
+      rq.onsuccess = () => res();
+      rq.onerror  = () => rej(rq.error);
+    });
+  }
+};
+
+/* ------------------------------------------------------------
+   【技術說明 2】申請持久化儲存
+   ------------------------------------------------------------
+   瀏覽器在儲存空間緊張時可能「自動清除」IndexedDB 資料！
+   navigator.storage.persist() 向瀏覽器申請「持久化」，
+   核可後資料就不會被自動清除（eviction）。
+
+   注意：使用者常造訪、已加到主畫面、或授予通知權限時，
+   瀏覽器比較容易核准。此 API 無需使用者互動即可呼叫。
+------------------------------------------------------------ */
+async function requestPersistence() {
+  if (navigator.storage && navigator.storage.persist) {
+    const already = await navigator.storage.persisted(); // 先查詢目前狀態
+    if (already) { toast('✅ 儲存已持久化'); return; }
+    const granted = await navigator.storage.persist();   // 發出申請
+    if (granted) {
+      toast('✅ 已取得持久化儲存權限！');
+    } else {
+      // 未核准：瀏覽器會自行判斷（如安裝 PWA 後通常就會通過）
+      console.info('持久化申請未即刻核准，瀏覽器將依啟發式規則決定');
+    }
+    // 顯示目前配額，方便除錯
+    if (navigator.storage.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      console.info(`儲存用量：${(usage/1024).toFixed(1)}KB / ${(quota/1048576).toFixed(0)}MB`);
+    }
+  }
+}
+
+/* ------------------------------------------------------------
+   【技術說明 3】單檔案的 PWA Manifest
+   ------------------------------------------------------------
+   傳統 PWA 需要獨立的 manifest.json，但單一 HTML 檔做不到。
+   解法：用 JavaScript 動態建立 Blob URL 作為 manifest。
+   「Add to Home Screen」在多數 Android 瀏覽器仍可運作。
+   圖示部分：我們用 canvas 當場繪製 8-bit 圖示，再轉成 dataURL，
+   完全零外部圖片依賴！
+------------------------------------------------------------ */
+function makePixelIcon(size) {
+  // 用 canvas 畫一個 8x8 像素地圖標記（放大到 size）
+  const px = 8, c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const art = [ // 8x8 像素畫：J=金黃 D=深藍 W=白
+    'DDDDDDDD','DWWWWWD','DWJJJJWD','DWJJJJWD',
+    'DWJJJJWD','DDWJJWDD','DDDWJWDD','DDDDWDDD'
+  ];
+  const colors = { D:'#0d0d1a', J:'#ffcd75', W:'#f4f4f4' };
+  art.forEach((row, y) => [...row].forEach((ch, x) => {
+    ctx.fillStyle = colors[ch];
+    ctx.fillRect(x*size/px, y*size/px, size/px+0.5, size/px+0.5);
+  }));
+  return c.toDataURL('image/png');
+}
+(function injectManifest() {
+  const manifest = {
+    name: 'Pixel Tour - 8bit 旅遊地圖',
+    short_name: 'PixelTour',
+    start_url: '.',
+    display: 'standalone',
+    background_color: '#1a1c2c',
+    theme_color: '#29366f',
+    icons: [
+      { src: makePixelIcon(192), sizes: '192x192', type: 'image/png' },
+      { src: makePixelIcon(512), sizes: '512x512', type: 'image/png' }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+})();
+
+/* ------------------------------------------------------------
+   【技術說明 4】A2HS - Add to Home Screen
+   ------------------------------------------------------------
+   標準流程：
+   1. 瀏覽器滿足 PWA 條件後觸發 beforeinstallprompt 事件
+   2. 我們「攔截」它（preventDefault），阻止瀏覽器自帶的小橫幅
+   3. 顯示自訂的像素風提示條
+   4. 使用者點「安裝」時，呼叫被攔截事件的 prompt()
+   iOS Safari 不支援此事件 → 顯示手動教學文字
+------------------------------------------------------------ */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();          // 阻止預設迷你橫幅
+  deferredPrompt = e;          // 保留事件供稍後觸發
+  document.getElementById('a2hs-bar').style.display = 'flex';
+});
+document.getElementById('a2hs-install').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    toast(outcome === 'accepted' ? '🎉 安裝成功！' : '已取消安裝');
+    deferredPrompt = null;
+    hideA2HS();
+  }
+});
+document.getElementById('a2hs-close').addEventListener('click', hideA2HS);
+function hideA2HS() { document.getElementById('a2hs-bar').style.display = 'none'; }
+
+// 已安裝過就不再顯示
+window.addEventListener('appinstalled', () => { hideA2HS(); toast('🎉 感謝安裝！'); });
+
+// iOS 偵測：顯示手動教學（iOS 無 beforeinstallprompt 事件）
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches) {
+  const bar = document.getElementById('a2hs-bar');
+  bar.querySelector('span').textContent = '📲 iOS：點 Safari「分享」→「加入主畫面」';
+  bar.style.display = 'flex';
+  document.getElementById('a2hs-install').style.display = 'none';
+}
+
+/* ------------------------------------------------------------
+   地圖初始化
+------------------------------------------------------------ */
+const CATS = {
+  history: { label: '🏰 歷史', cls: 'cat-history' },
+  nature:  { label: '🌲 自然', cls: 'cat-nature'  },
+  food:    { label: '🍜 美食', cls: 'cat-food'    },
+  other:   { label: '📍 其他', cls: 'cat-other'   }
+};
+
+const map = L.map('map', { zoomControl: true }).setView([23.7, 121], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// 標記聚類叢集：縮小時聚合密集標記，兼顧效能與畫面整潔
+const markerGroup = L.markerClusterGroup({
+  // 像素風聚類圈樣式由外掛 CSS 處理（Default 已方塊感）
+  maxClusterRadius: 40
+});
+map.addLayer(markerGroup);
+
+// 像素風自訂標記：L.divIcon 用純 CSS 繪製，不需任何圖檔
+function makeIcon(cat) {
+  return L.divIcon({
+    className: '', // 清掉預設樣式
+    html: `<div class="pixel-marker ${CATS[cat].cls}"></div>`,
+    iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -12]
+  });
+}
+
+/* ------------------------------------------------------------
+   應用狀態與渲染
+------------------------------------------------------------ */
+let spots = [];            // 記憶體中的景點資料
+let activeFilter = 'all';  // 目前篩選分類
+let editingId = null;      // 正在編輯的景點 id（null = 新增模式）
+const markers = new Map(); // id → marker 的映射，供列表↔地圖聯動用
+
+function renderList() {
+  const list = document.getElementById('spot-list');
+  const filtered = activeFilter === 'all' ? spots : spots.filter(s => s.cat === activeFilter);
+  list.innerHTML = filtered.length ? '' : '<p style="padding:20px;color:#a7c4f0;text-align:center">— 沒有景點 —<br><br>點地圖或按「+新增」<br>開始冒險吧！</p>';
+  filtered.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'spot-item';
+    div.dataset.id = s.id;
+    div.innerHTML = `<button class="del" title="刪除">✕</button>
+      <h3>${escapeHtml(s.name)}</h3>
+      <span class="cat">${CATS[s.cat].label}</span>`;
+    // 列表 → 地圖 聯動：點擊項目，地圖飛行定位並開啟彈窗
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('del')) return;
+      flyToSpot(s.id);
+      if (innerWidth <= 768) sidebar.classList.remove('open');
+    });
+    // 刪除按鈕
+    div.querySelector('.del').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (confirm(`刪除「${s.name}」？`)) {
+        await db.delete(s.id);
+        loadAll(); toast('🗑️ 已刪除');
+      }
+    });
+    list.appendChild(div);
+  });
+}
+
+function renderMarkers() {
+  markerGroup.clearLayers();
+  markers.clear();
+  const filtered = activeFilter === 'all' ? spots : spots.filter(s => s.cat === activeFilter);
+  filtered.forEach(s => {
+    const m = L.marker([s.lat, s.lng], { icon: makeIcon(s.cat) })
+      .bindPopup(`<b>${escapeHtml(s.name)}</b><br>${CATS[s.cat].label}<br>
+        ${escapeHtml(s.desc || '')}<br>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}"
+           target="_blank" style="color:#ffcd75">🧭 導航前往 »</a>`);
+    markerGroup.addLayer(m);
+    markers.set(s.id, m);
+  });
+}
+
+// 地圖 → 列表 聯動：flyToSpot 讓地圖飛行並高亮列表項目
+function flyToSpot(id) {
+  const s = spots.find(x => x.id === id);
+  if (!s) return;
+  // zoomToBoundsIfNecessary: 聚類下也能正確展開
+  map.flyTo([s.lat, s.lng], Math.max(map.getZoom(), 14), { duration: 0.5 });
+  setTimeout(() => {
+    const m = markers.get(id);
+    if (m) m.openPopup();
+    document.querySelectorAll('.spot-item').forEach(el =>
+      el.classList.toggle('active', +el.dataset.id === id));
+    const active = document.querySelector('.spot-item.active');
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, 550);
+}
+
+function renderFilters() {
+  const box = document.getElementById('filters');
+  box.innerHTML = '';
+  const mk = (key, label) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (activeFilter === key ? ' active' : '');
+    b.textContent = label;
+    b.onclick = () => { activeFilter = key; renderFilters(); renderList(); renderMarkers(); };
+    box.appendChild(b);
+  };
+  mk('all', '★ 全部');
+  Object.entries(CATS).forEach(([k, v]) => mk(k, v.label));
+}
+
+async function loadAll() {
+  spots = (await db.all()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+  renderList(); renderMarkers();
+}
+
+/* ------------------------------------------------------------
+   新增 / 編輯景點
+------------------------------------------------------------ */
+const dlg = document.getElementById('dlg');
+document.getElementById('btn-add').addEventListener('click', () => openDialog(null));
+// 直接點擊地圖 → 快速新增（自動填入座標，旅遊中記錄景點超方便！）
+map.on('click', e => openDialog(null, e.latlng));
+
+function openDialog(id, latlng) {
+  editingId = id;
+  const s = id ? spots.find(x => x.id === id) : null;
+  document.getElementById('dlg-title').textContent = s ? '✏️ 編輯景點' : '⚔️ 新增景點';
+  document.getElementById('f-name').value = s?.name || '';
+  document.getElementById('f-cat').value  = s?.cat  || 'history';
+  document.getElementById('f-lat').value  = s?.lat ?? latlng?.lat ?? '';
+  document.getElementById('f-lng').value  = s?.lng ?? latlng?.lng ?? '';
+  document.getElementById('f-desc').value = s?.desc || '';
+  dlg.showModal();
+}
+document.getElementById('dlg-cancel').onclick = () => dlg.close();
+document.getElementById('spot-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {
+    name: document.getElementById('f-name').value.trim(),
+    cat:  document.getElementById('f-cat').value,
+    lat:  +document.getElementById('f-lat').value,
+    lng:  +document.getElementById('f-lng').value,
+    desc: document.getElementById('f-desc').value.trim()
+  };
+  if (editingId) data.id = editingId;
+  await db.put(data);
+  dlg.close();
+  await loadAll();
+  toast('💾 已儲存！');
+});
+
+// 標記上右鍵（長按）→ 快速編輯；此處用 popup 內連結的方式更直覺，
+// 故改為：列表項雙擊可編輯（桌面），行動版使用彈窗內按鈕：
+map.on('contextmenu', e => { /* 手機長按地圖也開啟新增 */ openDialog(null, e.latlng); });
+
+/* ------------------------------------------------------------
+   【技術說明 5】JSON 匯入 / 匯出
+   ------------------------------------------------------------
+   匯出：把 IndexedDB 資料序列化成 JSON，用 Blob + a[download]
+        觸發瀏覽器下載，零後端依賴。
+   匯入：用 <input type="file"> 讀取檔案 → FileReader 解析 →
+        寫回 IndexedDB。含基本格式驗驗驗。
+------------------------------------------------------------ */
+document.getElementById('btn-export').addEventListener('click', async () => {
+  const data = {
+    app: 'pixel-tour', version: 1,
+    exportedAt: new Date().toISOString(),
+    spots: await db.all()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pixel-tour-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href); // 釋放 Blob URL，避免記憶體洩漏
+  toast('📤 匯出成功！');
+});
+
+document.getElementById('btn-import').addEventListener('click', () =>
+  document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.spots)) throw new Error('格式錯誤');
+      if (!confirm(`匯入 ${data.spots.length} 筆資料？（將與現有資料合併）`)) return;
+      for (const s of data.spots) {
+        // 驗證必填欄位與座標合理性後才寫入
+        if (s.name && isFinite(s.lat) && isFinite(s.lng) && Math.abs(s.lat) <= 90 && Math.abs(s.lng) <= 180) {
+          await db.put({ name: String(s.name), cat: CATS[s.cat] ? s.cat : 'other',
+                         lat: +s.lat, lng: +s.lng, desc: s.desc || '' });
+        }
+      }
+      await loadAll();
+      toast('📥 匯入成功！');
+    } catch (err) {
+      toast('❌ 匯入失敗：檔案格式錯誤');
+    }
+    e.target.value = ''; // 清空以允許重複匯入同一檔案
+  };
+  reader.readAsText(file);
+});
+
+/* ------------------------------------------------------------
+   工具函式
+------------------------------------------------------------ */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.display = 'none', 2500);
+}
+
+/* ------------------------------------------------------------
+   手機版側欄抽屜
+------------------------------------------------------------ */
+const sidebar = document.getElementById('sidebar');
+document.getElementById('sidebar-toggle').addEventListener('click', () =>
+  sidebar.classList.toggle('open'));
+
+/* ------------------------------------------------------------
+   首次使用：若 DB 為空，塞入示範資料（台北景點）
+------------------------------------------------------------ */
+async function seedIfEmpty() {
+  const all = await db.all();
+  if (all.length > 0) return;
+  const demo = [
+    { name: '台北 101', cat: 'other',   lat: 25.0338, lng: 121.5645, desc: '曾是世界第一高樓，觀景台可俯瞰台北。' },
+    { name: '故宮博物院', cat: 'history', lat: 25.1024, lng: 121.5485, desc: '收藏中華文化瑰寶，翠玉白菜必看！' },
+    { name: '士林夜市', cat: 'food',    lat: 25.0884, lng: 121.5250, desc: '豪大雞排、蚵仔煎、珍珠奶茶。' },
+    { name: '陽明山國家公園', cat: 'nature', lat: 25.1683, lng: 121.5583, desc: '火山地形、溫泉、春季花季。' },
+    { name: '龍山寺', cat: 'history', lat: 25.0369, lng: 121.4999, desc: '台北最古老的廟宇之一。' },
+    { name: '象山步道', cat: 'nature',  lat: 25.0287, lng: 121.5795, desc: '近距離拍攝 101 的絕佳地點。' }
+  ];
+  for (const s of demo) await db.put(s);
+}
+
+/* ------------------------------------------------------------
+   啟動！
+------------------------------------------------------------ */
+(async function init() {
+  await seedIfEmpty();
+  await loadAll();
+  await requestPersistence(); // 申請持久化儲存
+  toast('🎮 歡迎來到 PIXEL TOUR！');
+})();
+</script>
+</body>
+</html>
