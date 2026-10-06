@@ -13,6 +13,7 @@
      - 分類管理：CRUD + 景點轉移 + 排序 + 換色
      - Geolocation 定位：一次性高精度 + 誤差圈
      - 8-bit 像素風：Press Start 2P + pixelated
+     - v3.1 修正：頂欄 flex-wrap，手機按鈕不再溢出
 ============================================ -->
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -34,11 +35,22 @@ body {
   font-family: 'Press Start 2P', 'Courier New', monospace;
   background: var(--bg); color: var(--text);
   font-size: 10px; line-height: 1.8; overflow: hidden;
+  /* 【v3.1 修正】body 改為垂直 flex 佈局：
+     頂欄高度自適應（可換行成兩行），地圖區域自動填滿剩餘空間 */
+  display: flex; flex-direction: column;
+  height: 100dvh;
 }
 
+/* ===== 頂部工具列 =====
+   【v3.1 修正】
+   - flex-wrap: wrap → 按鈕放不下時自動換到第二行
+   - 移除固定 height: 56px → 改 min-height，高度隨內容伸縮
+   - 如此「匯入」等按鈕在任何螢幕寬度都完整可見 */
 #topbar {
-  height: 56px; background: var(--panel); border-bottom: var(--border);
-  display: flex; align-items: center; gap: 6px; padding: 0 12px;
+  min-height: 56px;
+  background: var(--panel); border-bottom: var(--border);
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 6px; padding: 8px 12px;
   z-index: 1000; position: relative;
 }
 #topbar h1 { font-size: 12px; color: var(--yellow); text-shadow: 3px 3px 0 var(--shadow); white-space: nowrap; }
@@ -53,7 +65,9 @@ body {
 .btn.yellow { background: var(--yellow); color: #333; }
 .btn.small { font-size: 8px; padding: 5px 7px; }
 
-#main { display: flex; height: calc(100dvh - 56px); }
+/* 【v3.1 修正】#main 用 flex:1 自動填滿頂欄以下空間，
+   不再用 calc(100dvh - 56px)（頂欄高度現在是動態的） */
+#main { display: flex; flex: 1; min-height: 0; position: relative; }
 #sidebar {
   width: 320px; background: var(--panel); border-right: var(--border);
   display: flex; flex-direction: column; z-index: 900;
@@ -116,13 +130,12 @@ body {
   inset: -14px;
   border: 3px solid rgba(65, 166, 246, .8);
   border-radius: 50%;
-  animation: pulse 1.2s steps(8) infinite; /* steps() 維持像素感 */
+  animation: pulse 1.2s steps(8) infinite;
 }
 @keyframes pulse {
   0%   { transform: scale(0.4); opacity: 1; }
   100% { transform: scale(1.4); opacity: 0; }
 }
-/* 載入中：按鈕閃爍 */
 #btn-locate.loading { animation: blink .5s steps(2) infinite; }
 @keyframes blink { 50% { background: #ef7d57; } }
 
@@ -163,7 +176,6 @@ dialog .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-
 .cat-row button.del { background: var(--red); }
 #cat-new-row { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
 #cat-new-row input[type="text"] { flex: 1; }
-/* 色板選擇器 */
 #palette {
   position: fixed; background: var(--panel); border: var(--border);
   box-shadow: 6px 6px 0 var(--shadow); padding: 10px; z-index: 4000;
@@ -188,16 +200,32 @@ dialog .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-
 #importFile { display: none; }
 
 #sidebar-toggle { display: none; }
+
+/* ============================================
+   【v3.1 修正】手機版響應式
+   - 按鈕縮小（字體 7px、padding 緊湊、gap 4px）
+   - 標題縮小並允許在按鈕換行後佔用較少空間
+   - 頂欄可換行 → 所有按鈕（含匯入）必完整可見
+   - 側欄抽屜：top: 0（相對於 #main，因 #main 加了 position:relative）
+============================================ */
 @media (max-width: 768px) {
   #sidebar-toggle { display: block; }
   #sidebar {
-    position: absolute; left: -324px; width: 320px;
-    transition: left .15s steps(4); top: 56px; bottom: 0;
+    position: absolute; left: -324px; width: 320px; top: 0; bottom: 0;
+    transition: left .15s steps(4);
   }
   #sidebar.open { left: 0; box-shadow: 8px 0 0 rgba(0,0,0,.5); }
-  #topbar h1 { font-size: 10px; }
+  #topbar { padding: 6px 8px; gap: 4px; }
+  #topbar h1 { font-size: 9px; }
   body { font-size: 9px; }
-  #topbar .btn { font-size: 8px; padding: 7px 7px; }
+  #topbar .btn { font-size: 7px; padding: 6px 6px; border-width: 3px; }
+  /* 讓標題在最窄螢幕下允許換行時不被推擠 */
+  #topbar h1 { order: -1; }
+}
+/* 極窄螢幕（<360px）：標題縮為僅圖示感 */
+@media (max-width: 360px) {
+  #topbar h1 { font-size: 8px; }
+  #topbar .btn { font-size: 7px; padding: 5px 4px; }
 }
 </style>
 </head>
@@ -210,8 +238,8 @@ dialog .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-
   <button id="btn-locate" class="btn yellow" title="定位目前位置">📍 定位</button>
   <button id="btn-add" class="btn green">+ 新增</button>
   <button id="btn-cats" class="btn yellow">🏷️ 分類</button>
-  <button id="btn-export" class="btn">匯出</button>
-  <button id="btn-import" class="btn">匯入</button>
+  <button id="btn-export" class="btn">📤 匯出</button>
+  <button id="btn-import" class="btn">📥 匯入</button>
   <input type="file" id="importFile" accept=".json">
 </div>
 
@@ -262,19 +290,17 @@ dialog .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-
 
 <script>
 /* ============================================================
-   PIXEL TOUR v3 — 架構總覽
+   PIXEL TOUR v3.1 — 架構總覽
    ├─ IndexedDB：「spots」與「categories」兩張表
    ├─ 分類系統：動態 CRUD + 換色 + 排序 + 景點轉移
    ├─ Geolocation：一次性高精度定位 + 誤差圈 + 脈衝標記
    ├─ JSON 匯入/匯出：含分類資料一併備份
-   └─ 單檔案 PWA：Blob manifest + canvas 8-bit 圖示 + A2HS
+   ├─ 單檔案 PWA：Blob manifest + canvas 8-bit 圖示 + A2HS
+   └─ v3.1：頂欄 flex-wrap 修正手機按鈕溢出
    ============================================================ */
 
 /* ------------------------------------------------------------
    IndexedDB（Promise 封裝）
-   - spots 表：keyPath 'id'（autoIncrement），分類索引 'cat'
-   - categories 表：keyPath 'key'（字串主鍵）
-     儲存 { key, name, color, sort }
 ------------------------------------------------------------ */
 const DB_NAME = 'pixel-tour-db', DB_VER = 2;
 function openDB() {
@@ -334,8 +360,6 @@ const DEFAULT_CATS = [
 
 /* ------------------------------------------------------------
    持久化儲存申請
-   navigator.storage.persist() 核可後，
-   瀏覽器不會在空間緊張時自動清除 IndexedDB 資料。
 ------------------------------------------------------------ */
 async function requestPersistence() {
   if (navigator.storage && navigator.storage.persist) {
@@ -416,6 +440,9 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const markerGroup = L.markerClusterGroup({ maxClusterRadius: 40 });
 map.addLayer(markerGroup);
 
+// 【v3.1】頂欄可換行後高度會變，需通知 Leaflet 重新計算地圖尺寸
+new ResizeObserver(() => map.invalidateSize()).observe(document.body);
+
 /* ------------------------------------------------------------
    應用狀態
 ------------------------------------------------------------ */
@@ -423,8 +450,6 @@ let spots = [], cats = [], activeFilter = 'all', editingId = null;
 const markers = new Map();
 const catMap = () => Object.fromEntries(cats.map(c => [c.key, c]));
 
-// 標記圖示：用分類 color 動態上色（inline style），
-// 換色後立即生效，無需重新整理
 function makeIcon(cat) {
   const c = catMap()[cat];
   return L.divIcon({
@@ -478,7 +503,7 @@ function renderMarkers() {
   });
 }
 
-/* ---------- 渲染：篩選器（動態分類） ---------- */
+/* ---------- 渲染：篩選器 ---------- */
 function renderFilters() {
   const box = document.getElementById('filters');
   box.innerHTML = '';
@@ -493,7 +518,7 @@ function renderFilters() {
   cats.forEach(c => mk(c.key, c.name, c.color));
 }
 
-/* ---------- 渲染：景點表單下拉（動態分類） ---------- */
+/* ---------- 渲染：景點表單下拉 ---------- */
 function renderCatSelect(sel) {
   const el = document.getElementById('f-cat');
   el.innerHTML = '';
@@ -564,16 +589,11 @@ document.getElementById('spot-form').addEventListener('submit', async e => {
 
 /* ============================================================
    分類管理
-   - 字串 key 主鍵（名稱產生 slug，支援中文）
-   - 刪除時：有景點 → 先轉移；「other」保底不可刪
-   - 顏色：點色塊開像素色板，即時套用全部 UI
-   - 排序：▲▼ 交換 sort 值
 ============================================================ */
 const catDlg = document.getElementById('cat-dlg');
 document.getElementById('btn-cats').addEventListener('click', () => { renderCatManager(); catDlg.showModal(); });
 document.getElementById('cat-close').onclick = () => catDlg.close();
 
-// 名稱 → 唯一 key：中文名轉安全 slug；重複時加數字後綴
 function makeCatKey(name) {
   let base = 'cat-' + encodeURIComponent(name).replace(/[^a-zA-Z0-9%-]/g, '').slice(0, 20)
              || 'cat';
@@ -610,7 +630,6 @@ function renderCatManager() {
   });
 }
 
-// 新增分類（預設配下一個色板顏色）
 document.getElementById('cat-new-add').addEventListener('click', async () => {
   const input = document.getElementById('cat-new-name');
   const name = input.value.trim();
@@ -625,7 +644,6 @@ document.getElementById('cat-new-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cat-new-add').click(); }
 });
 
-// 改名
 async function editCat(c) {
   const name = prompt('新名稱：', c.name);
   if (!name || name.trim() === c.name) return;
@@ -635,7 +653,6 @@ async function editCat(c) {
   toast('✏️ 已更新');
 }
 
-// 刪除分類：有景點時先轉移
 async function deleteCat(c, count) {
   if (count > 0) {
     const others = cats.filter(x => x.key !== c.key);
@@ -656,7 +673,6 @@ async function deleteCat(c, count) {
   toast('🗑️ 已刪除分類');
 }
 
-// 排序：交換 sort 值後全部重寫
 async function moveCat(from, to) {
   if (to < 0 || to >= cats.length) return;
   const arr = [...cats];
@@ -696,21 +712,14 @@ document.addEventListener('click', e => {
 
 /* ============================================================
    【定位功能】
-   ------------------------------------------------------------
-   navigator.geolocation.getCurrentPosition：
-   - success 收到 coords.latitude / longitude / accuracy
-   - accuracy（公尺）：GPS 誤差半徑，畫半透明圓視覺化
-   - 三種失敗：PERMISSION_DENIED / UNAVAILABLE / TIMEOUT
-
-   注意：Geolocation 只在安全情境（https:// 或 localhost）
-   可用。GitHub Pages 是 https 沒問題；file:// 開檔會失敗。
-
-   設計：用 getCurrentPosition（一次性）而非 watchPosition
-   （持續追蹤），顯示當下位置較省電。
+   navigator.geolocation.getCurrentPosition（一次性、省電）
+   - accuracy（公尺）畫成半透明誤差圈
+   - 三種失敗情境分別提示
+   - 僅在 https:// 或 localhost 可用（GitHub Pages OK）
 ============================================================ */
 const btnLocate = document.getElementById('btn-locate');
-let locMarker = null;   // 自己位置的標記
-let locCircle = null;   // 準確度半徑圈
+let locMarker = null;
+let locCircle = null;
 
 btnLocate.addEventListener('click', () => {
   if (!navigator.geolocation) {
@@ -721,13 +730,11 @@ btnLocate.addEventListener('click', () => {
   btnLocate.textContent = '⏳ 定位中';
 
   navigator.geolocation.getCurrentPosition(
-    // ✅ 成功
     pos => {
       btnLocate.classList.remove('loading');
       btnLocate.textContent = '📍 定位';
       const { latitude, longitude, accuracy } = pos.coords;
 
-      // 移除舊標記後重建（重複點擊不疊加）
       if (locMarker) map.removeLayer(locMarker);
       if (locCircle) map.removeLayer(locCircle);
 
@@ -737,10 +744,9 @@ btnLocate.addEventListener('click', () => {
           html: '<div class="loc-marker"></div>',
           iconSize: [18, 18], iconAnchor: [9, 9]
         }),
-        zIndexOffset: 1000 // 蓋在景點標記之上
+        zIndexOffset: 1000
       }).addTo(map).bindPopup('<b>📍 你在這裡</b><br>誤差約 ' + Math.round(accuracy) + ' 公尺');
 
-      // 誤差半徑圈：accuracy 越大圈越大
       locCircle = L.circle([latitude, longitude], {
         radius: accuracy,
         color: '#41a6f6', weight: 3,
@@ -751,7 +757,6 @@ btnLocate.addEventListener('click', () => {
       setTimeout(() => locMarker.openPopup(), 650);
       toast('📍 定位成功！');
     },
-    // ❌ 失敗
     err => {
       btnLocate.classList.remove('loading');
       btnLocate.textContent = '📍 定位';
@@ -762,11 +767,10 @@ btnLocate.addEventListener('click', () => {
       };
       toast(msgs[err.code] || '❌ 定位失敗');
     },
-    // ⚙️ 選項
     {
-      enableHighAccuracy: true, // GPS 優先於 WiFi/基地台
-      timeout: 10000,           // 10 秒逾時
-      maximumAge: 30000         // 接受 30 秒內快取，加快回應
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 30000
     }
   );
 });
@@ -800,7 +804,6 @@ document.getElementById('importFile').addEventListener('change', e => {
     try {
       const data = JSON.parse(reader.result);
       if (!Array.isArray(data.spots)) throw new Error('格式錯誤');
-      // 匯入分類：以 key 為準合併（不會重複）
       if (Array.isArray(data.categories)) {
         for (const c of data.categories) {
           if (c.key && c.name) await dbCats.put({
@@ -814,7 +817,6 @@ document.getElementById('importFile').addEventListener('change', e => {
       for (const s of data.spots) {
         if (s.name && isFinite(s.lat) && isFinite(s.lng) &&
             Math.abs(s.lat) <= 90 && Math.abs(s.lng) <= 180) {
-          // 未知分類自動歸入 other
           await dbSpots.put({ name: String(s.name),
             cat: cats.some(c => c.key === s.cat) ? s.cat : 'other',
             lat: +s.lat, lng: +s.lng, desc: s.desc || '' });
