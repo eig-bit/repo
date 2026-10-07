@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1a1a2e">
-<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22PixelVids%22%2C%22short_name%22%3A%22PixelVids%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22icons%22%3A%5B%5B%5D%7D">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22PixelVids%22%2C%22short_name%22%3A%22PixelVids%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22icons%22%3A%5B%5D%7D">
 <title>PixelVids — 影片收藏</title>
 <style>
 /* ============ 8-bit 像素風基礎 ============ */
@@ -180,7 +180,7 @@ details.stats-panel > summary::after{
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-sm" id="themeBtn" title="切換主題">🌗</button>
-        <button class="btn btn-sm" id="manageBtn" title="管理分類/平台">⚙ 管理</button>
+        <button class="btn btn-sm" id="manageBtn" title="管理分類">⚙ 管理</button>
         <button class="btn btn-sm" id="exportBtn" title="匯出JSON">📤 匯出</button>
         <button class="btn btn-sm" id="importBtn" title="匯入JSON">📥 匯入</button>
         <input type="file" id="importFile" accept=".json" hidden>
@@ -226,6 +226,10 @@ details.stats-panel > summary::after{
   <div class="modal">
     <h2 id="editTitle">➕ 編輯影片</h2>
     <label>影片連結</label><input type="url" id="fUrl">
+    <div style="margin:8px 0;padding:8px;background:var(--panel2);border:2px dashed var(--border);">
+      <span style="font-size:.75em;color:var(--text2);">自動擷取平台:</span>
+      <span id="fPlatform" style="font-size:.8em;color:var(--accent);">-</span>
+    </div>
     <label>標題</label><input type="text" id="fTitle">
     <label>簡介</label><textarea id="fDesc" rows="3"></textarea>
     <label>分類</label><select id="fCat"></select>
@@ -237,23 +241,16 @@ details.stats-panel > summary::after{
   </div>
 </div>
 
-<!-- 管理 Modal -->
+<!-- 管理 Modal (僅分類) -->
 <div class="modal-bg" id="manageModal">
   <div class="modal">
-    <h2>⚙ 管理分類與平台</h2>
+    <h2>⚙ 管理分類</h2>
     <label>新增分類</label>
     <div style="display:flex;gap:6px;">
       <input type="text" id="newCat" placeholder="例如:音樂">
       <button class="btn btn-sm btn-primary" id="addCatBtn">+</button>
     </div>
     <div id="catList" style="margin-top:8px;"></div>
-    <hr style="border:1px dashed var(--border);margin:14px 0;">
-    <label>新增平台</label>
-    <div style="display:flex;gap:6px;">
-      <input type="text" id="newPlat" placeholder="例如:YouTube">
-      <button class="btn btn-sm btn-primary" id="addPlatBtn">+</button>
-    </div>
-    <div id="platList" style="margin-top:8px;"></div>
     <div class="modal-actions"><button class="btn" id="closeManage">關閉</button></div>
   </div>
 </div>
@@ -277,6 +274,7 @@ details.stats-panel > summary::after{
 /* ================================================================
  * PixelVids — 靜態像素風影片收藏網頁
  * 技術棧: 原生 JS + IndexedDB + noembed oEmbed 代理
+ * 平台自動擷取: 使用 URL hostname 作為平台
  * ================================================================ */
 "use strict";
 
@@ -288,14 +286,13 @@ const PAGE_SIZE = 12;
 let db = null;
 let videos = [];              // 全部影片(記憶體快取)
 let cats = ["電影","音樂","教學","遊戲","其他"];
-let plats = ["YouTube","Vimeo"];
 let state = { page:1, search:"", cat:"", plat:"", favOnly:false };
 let deferredPrompt = null;     // beforeinstallprompt 事件
 
 /* ================================================================
  * 1. IndexedDB 初始化
  *    結構: objectStore "videos", keyPath "id" (autoIncrement)
- *    另用 meta store 存分類/平台清單
+ *    另用 meta store 存分類清單
  * ================================================================ */
 function openDB(){
   return new Promise((res, rej)=>{
@@ -352,36 +349,30 @@ async function showUsage(){
 }
 
 /* ================================================================
- * 3. oEmbed 自動擷取標題與簡介
- *    使用 noembed.com (免費 CORS-friendly oEmbed 代理)
- *    支援 YouTube / Vimeo 等數十個平台
+ * 3. URL 工具函數
+ *    使用 URL API 解析 URL 組件 【turn0search0】【turn0search3】【turn0search4】
  * ================================================================ */
-function detectPlatform(url){
-  if(/youtube\.com|youtu\.be/i.test(url)) return "YouTube";
-  if(/vimeo\.com/i.test(url)) return "Vimeo";
-  if(/bilibili\.com|b23\.tv/i.test(url)) return "Bilibili";
-  if(/twitch\.tv/i.test(url)) return "Twitch";
-  return "其他";
+/* 從 URL 提取平台 (hostname, 去除 www.) */
+function platformFromUrl(url){
+  try{
+    const u = new URL(url);
+    // 取 hostname, 並移除常見的 "www." 前綴
+    return u.hostname.replace(/^www\./i, "");
+  }catch(e){
+    return "其他";
+  }
 }
 /* YouTube 縮圖可由影片 ID 直接組出,無需 API 金鑰 */
 function youtubeId(url){
   const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
   return m ? m[1] : null;
 }
-/* ================================================================
- * 3a. URL 降級標題擷取
- *     擷取不到 oEmbed 標題時, 取 URL 最後一段作為標題。
- *     處理規則:
- *       1. 去除 query string (?...) 與 hash (#...)
- *       2. 去除結尾斜線
- *       3. 以 "/" 分隔取最後一段
- *       4. 若為空 (如根路徑), 則往前找第一個非空段
- *       5. 解碼 percent-encoding (如 %20 → 空格)
- * ================================================================ */
+/* 從 URL 最後一段提取標題 (降級方案) */
 function titleFromUrl(url){
   try{
-    // 去除 ?query 與 #hash, 並去掉結尾斜線
-    let path = url.split(/[?#]/)[0].replace(/\/+$/,"");
+    const u = new URL(url);
+    // 取 pathname, 去除 query 和 hash, 去除結尾斜線
+    let path = u.pathname.replace(/\/+$/,"");
     // 以 / 分隔, 過濾空字串後取最後一段
     const parts = path.split("/").filter(Boolean);
     let last = parts.length ? parts[parts.length - 1] : "";
@@ -392,6 +383,7 @@ function titleFromUrl(url){
     return "(未命名影片)";
   }
 }
+/* oEmbed 擷取標題與簡介 */
 async function fetchMeta(url){
   try{
     const r = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
@@ -422,19 +414,27 @@ function toast(msg){
  *    用戶展開時即為最新數據
  * ================================================================ */
 function renderStats(){
+  // 計算唯一平台數量 (從影片中動態取得)
+  const uniquePlats = [...new Set(videos.map(v => v.platform))];
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="stat-num">${videos.length}</div><div class="stat-label">影片</div></div>
     <div class="stat"><div class="stat-num">${cats.length}</div><div class="stat-label">分類</div></div>
-    <div class="stat"><div class="stat-num">${plats.length}</div><div class="stat-label">平台</div></div>
+    <div class="stat"><div class="stat-num">${uniquePlats.length}</div><div class="stat-label">平台</div></div>
     <div class="stat"><div class="stat-num">${videos.filter(v=>v.fav).length}</div><div class="stat-label">❤ 收藏</div></div>`;
 }
 function renderFilterTags(){
-  const mk = (list, cur, attr) => list.map(x =>
-    `<span class="tag ${cur===x?"active":""}" data-${attr}="${x}">${x}</span>`).join("");
+  // 分類標籤
+  const mkCat = (list, cur) => list.map(x =>
+    `<span class="tag ${cur===x?"active":""}" data-cat="${x}">${x}</span>`).join("");
   document.getElementById("catTags").innerHTML =
-    `<span class="tag ${state.cat===""?"active":""}" data-cat="">全部</span>` + mk(cats, state.cat, "cat");
+    `<span class="tag ${state.cat===""?"active":""}" data-cat="">全部</span>` + mkCat(cats, state.cat);
+
+  // 平台標籤 (從現有影片動態收集唯一平台)
+  const uniquePlats = [...new Set(videos.map(v => v.platform))].filter(Boolean);
+  const mkPlat = (list, cur) => list.map(x =>
+    `<span class="tag ${cur===x?"active":""}" data-plat="${x}">${x}</span>`).join("");
   document.getElementById("platTags").innerHTML =
-    `<span class="tag ${state.plat===""?"active":""}" data-plat="">全部</span>` + mk(plats, state.plat, "plat");
+    `<span class="tag ${state.plat===""?"active":""}" data-plat="">全部</span>` + mkPlat(uniquePlats, state.plat);
 }
 function getFiltered(){
   const q = state.search.toLowerCase();
@@ -535,7 +535,8 @@ document.getElementById("closePlay").onclick = () => {
 
 /* ================================================================
  * 7. 新增流程: 貼連結 → 擷取 → 預覽 → 儲存
- *    標題優先序: oEmbed 標題 → URL 最後一段 → "(未命名影片)"
+ *    平台自動從 URL hostname 擷取, 標題優先序:
+ *    oEmbed 標題 → URL 最後一段 → "(未命名影片)"
  * ================================================================ */
 let pending = null;
 document.getElementById("fetchBtn").onclick = async () => {
@@ -543,7 +544,7 @@ document.getElementById("fetchBtn").onclick = async () => {
   if(!/^https?:\/\//.test(url)) return toast("⚠ 請輸入有效連結");
   toast("⏳ 擷取中...");
   const meta = await fetchMeta(url);
-  const platform = detectPlatform(url);
+  const platform = platformFromUrl(url); // 自動擷取平台
   const yid = youtubeId(url);
   const title = meta?.title || titleFromUrl(url);   // ← 降級標題
   pending = {
@@ -562,7 +563,7 @@ document.getElementById("fetchBtn").onclick = async () => {
         <div style="font-weight:bold;font-size:.85em;">${esc(pending.title)}</div>
         ${!meta ? `<div style="font-size:.65em;color:var(--accent2);margin:4px 0;">⚠ 無法自動擷取, 已以連結末段作為標題 (可稍後編輯)</div>` : ""}
         <div style="font-size:.75em;color:var(--text2);margin:6px 0;">${esc(pending.desc)}</div>
-        <div style="font-size:.7em;color:var(--accent);">平台: ${platform}</div>
+        <div style="font-size:.7em;color:var(--accent);">平台: ${platform} (自動擷取)</div>
         <label>分類</label><select id="pCat">${cats.map(c=>`<option>${c}</option>`).join("")}</select>
         <label>標籤</label><input type="text" id="pTags" placeholder="教學, 前端">
       </div>
@@ -586,11 +587,13 @@ async function lastId(){
 
 /* ================================================================
  * 8. 編輯 Modal
+ *    平台為唯讀顯示, 根據 URL 自動更新
  * ================================================================ */
 let editingId = null;
 function openEdit(v){
   editingId = v.id;
   document.getElementById("fUrl").value = v.url;
+  document.getElementById("fPlatform").textContent = v.platform || "其他";
   document.getElementById("fTitle").value = v.title;
   document.getElementById("fDesc").value = v.desc || "";
   document.getElementById("fTags").value = (v.tags||[]).join(", ");
@@ -598,11 +601,18 @@ function openEdit(v){
     cats.map(c=>`<option ${c===v.category?"selected":""}>${c}</option>`).join("");
   document.getElementById("editModal").classList.add("open");
 }
+// 監聽 URL 輸入變化, 即時更新平台顯示
+document.getElementById("fUrl").addEventListener("input", e => {
+  const platform = platformFromUrl(e.target.value);
+  document.getElementById("fPlatform").textContent = platform;
+});
 document.getElementById("saveEdit").onclick = async () => {
   const v = videos.find(x=>x.id===editingId); if(!v) return;
+  const newUrl = document.getElementById("fUrl").value;
   Object.assign(v, {
-    url: document.getElementById("fUrl").value,
-    title: document.getElementById("fTitle").value || titleFromUrl(document.getElementById("fUrl").value),
+    url: newUrl,
+    platform: platformFromUrl(newUrl), // 重新擷取平台
+    title: document.getElementById("fTitle").value || titleFromUrl(newUrl),
     desc: document.getElementById("fDesc").value,
     category: document.getElementById("fCat").value,
     tags: document.getElementById("fTags").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean)
@@ -615,41 +625,30 @@ document.getElementById("cancelEdit").onclick = () =>
   document.getElementById("editModal").classList.remove("open");
 
 /* ================================================================
- * 9. 分類 / 平台管理
+ * 9. 分類管理 (僅分類, 平台自動管理)
  * ================================================================ */
 function renderManage(){
   document.getElementById("catList").innerHTML = cats.map(c =>
     `<span class="tag">${esc(c)} <b data-delcat="${esc(c)}" style="color:var(--accent2);cursor:pointer;">✕</b></span>`).join("");
-  document.getElementById("platList").innerHTML = plats.map(p =>
-    `<span class="tag">${esc(p)} <b data-delplat="${esc(p)}" style="color:var(--accent2);cursor:pointer;">✕</b></span>`).join("");
 }
 document.getElementById("manageBtn").onclick = () => { renderManage(); document.getElementById("manageModal").classList.add("open"); };
 document.getElementById("closeManage").onclick = () => document.getElementById("manageModal").classList.remove("open");
-async function saveMeta(){ await dbPut("meta", {key:"cats", v:cats}); await dbPut("meta", {key:"plats", v:plats}); }
+async function saveMeta(){ await dbPut("meta", {key:"cats", v:cats}); }
 document.getElementById("addCatBtn").onclick = async () => {
   const v = document.getElementById("newCat").value.trim();
   if(v && !cats.includes(v)){ cats.push(v); await saveMeta(); renderManage(); render(); }
   document.getElementById("newCat").value = "";
 };
-document.getElementById("addPlatBtn").onclick = async () => {
-  const v = document.getElementById("newPlat").value.trim();
-  if(v && !plats.includes(v)){ plats.push(v); await saveMeta(); renderManage(); render(); }
-  document.getElementById("newPlat").value = "";
-};
 document.getElementById("catList").addEventListener("click", async e => {
   const c = e.target.dataset.delcat; if(!c) return;
   if(confirm(`刪除分類「${c}」?`)){ cats = cats.filter(x=>x!==c); await saveMeta(); renderManage(); render(); }
-});
-document.getElementById("platList").addEventListener("click", async e => {
-  const p = e.target.dataset.delplat; if(!p) return;
-  if(confirm(`刪除平台「${p}」?`)){ plats = plats.filter(x=>x!==p); await saveMeta(); renderManage(); render(); }
 });
 
 /* ================================================================
  * 10. JSON 匯入 / 匯出
  * ================================================================ */
 document.getElementById("exportBtn").onclick = () => {
-  const data = { version:1, exportDate:new Date().toISOString(), cats, plats, videos };
+  const data = { version:1, exportDate:new Date().toISOString(), cats, videos };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -668,12 +667,13 @@ document.getElementById("importFile").onchange = e => {
       if(confirm(`匯入 ${d.videos.length} 部影片?`)){
         for(const v of d.videos){
           delete v.id;  // 讓 autoIncrement 重新分配, 避免主鍵衝突
-          // 匯入資料若缺標題, 同樣套用 URL 降級標題
+          // 匯入資料若缺標題, 套用 URL 降級標題
           if(!v.title) v.title = titleFromUrl(v.url || "");
+          // 匯入資料若缺平台, 重新自動擷取
+          if(!v.platform) v.platform = platformFromUrl(v.url || "");
           await dbPut(STORE, v);
         }
         if(Array.isArray(d.cats)) cats = [...new Set([...cats, ...d.cats])];
-        if(Array.isArray(d.plats)) plats = [...new Set([...plats, ...d.plats])];
         await saveMeta();
         await loadData(); render(); toast("📥 匯入完成!");
       }
@@ -735,7 +735,6 @@ async function loadData(){
   videos = await dbAll(STORE);
   const mc = await dbAll("meta");
   if(mc.find(m=>m.key==="cats")) cats = mc.find(m=>m.key==="cats").v;
-  if(mc.find(m=>m.key==="plats")) plats = mc.find(m=>m.key==="plats").v;
 }
 (async function init(){
   // 主題
