@@ -145,6 +145,22 @@ details.stats-panel > summary::after{
 .stat{background:var(--panel2); border:3px solid var(--border); padding:8px 14px; flex:1; min-width:90px; text-align:center;}
 .stat-num{font-size:1.3em; color:var(--accent); font-weight:bold;}
 .stat-label{font-size:.65em; color:var(--text2); text-transform:uppercase;}
+/* 分類明細表格 */
+.stats-cat-table{
+  width:100%; border-collapse:collapse; margin-top:4px;
+}
+.stats-cat-table th{
+  font-size:.7em; color:var(--text2); text-transform:uppercase;
+  text-align:left; padding:6px 10px; border-bottom:3px solid var(--border);
+}
+.stats-cat-table td{
+  font-size:.8em; padding:6px 10px; border-bottom:2px solid var(--border);
+}
+.stats-cat-table td:last-child{ text-align:right; color:var(--accent); font-weight:bold; }
+.stats-cat-table tr:last-child td{ border-bottom:none; }
+/* 明細中的像素條 (水平計數條) */
+.cat-bar-wrap{background:var(--bg2); border:2px solid var(--border); height:10px; margin-top:4px;}
+.cat-bar{background:var(--accent2); height:100%; transition:width .3s; min-width:2px;}
 
 /* ============ Toast & A2HS ============ */
 #toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px);
@@ -166,6 +182,7 @@ details.stats-panel > summary::after{
   .toolbar{flex-direction:column; align-items:stretch;}
   .stats-body{gap:8px;}
   .stat{min-width:calc(50% - 8px);}
+  .cat-bar-wrap{display:none;} /* 小螢幕隱藏計數條, 只顯示數字 */
 }
 </style>
 </head>
@@ -192,6 +209,12 @@ details.stats-panel > summary::after{
   <details class="stats-panel" id="statsPanel">
     <summary>📊 統計數據</summary>
     <div class="stats-body" id="stats"></div>
+    <div style="padding:0 16px 14px;">
+      <table class="stats-cat-table" id="statsCatTable">
+        <thead><tr><th>分類</th><th>影片數</th></tr></thead>
+        <tbody id="statsCatBody"></tbody>
+      </table>
+    </div>
   </details>
 
   <!-- 新增表單 -->
@@ -275,6 +298,7 @@ details.stats-panel > summary::after{
  * PixelVids — 靜態像素風影片收藏網頁
  * 技術棧: 原生 JS + IndexedDB + noembed oEmbed 代理
  * 平台自動擷取: 使用 URL hostname 作為平台
+ * 分類按名稱順序顯示 (localeCompare 中文排序)
  * ================================================================ */
 "use strict";
 
@@ -288,6 +312,15 @@ let videos = [];              // 全部影片(記憶體快取)
 let cats = ["電影","音樂","教學","遊戲","其他"];
 let state = { page:1, search:"", cat:"", plat:"", favOnly:false };
 let deferredPrompt = null;     // beforeinstallprompt 事件
+
+/* ================================================================
+ * 0. 分類排序工具
+ *    localeCompare('zh-Hant') 依瀏覽器 ICU 資料庫的
+ *    中文排序規則 (筆劃/拼音) 排序, 英文則按字母順序
+ * ================================================================ */
+function sortCats(){
+  cats = [...cats].sort((a, b) => a.localeCompare(b, "zh-Hant"));
+}
 
 /* ================================================================
  * 1. IndexedDB 初始化
@@ -350,13 +383,11 @@ async function showUsage(){
 
 /* ================================================================
  * 3. URL 工具函數
- *    使用 URL API 解析 URL 組件 【turn0search0】【turn0search3】【turn0search4】
  * ================================================================ */
 /* 從 URL 提取平台 (hostname, 去除 www.) */
 function platformFromUrl(url){
   try{
     const u = new URL(url);
-    // 取 hostname, 並移除常見的 "www." 前綴
     return u.hostname.replace(/^www\./i, "");
   }catch(e){
     return "其他";
@@ -371,12 +402,9 @@ function youtubeId(url){
 function titleFromUrl(url){
   try{
     const u = new URL(url);
-    // 取 pathname, 去除 query 和 hash, 去除結尾斜線
     let path = u.pathname.replace(/\/+$/,"");
-    // 以 / 分隔, 過濾空字串後取最後一段
     const parts = path.split("/").filter(Boolean);
     let last = parts.length ? parts[parts.length - 1] : "";
-    // percent-decode, 讓 %E4%B8%AD%E6%96%87 之類顯示為中文
     try{ last = decodeURIComponent(last); }catch(e){/* 已是壞編碼則保留原樣 */}
     return last || "(未命名影片)";
   }catch(e){
@@ -410,8 +438,6 @@ function toast(msg){
 
 /* ================================================================
  * 5. 渲染: 統計 / 篩選標籤 / 卡片 / 分頁
- *    統計面板改用 <details> 折疊, 內容仍即時更新,
- *    用戶展開時即為最新數據
  * ================================================================ */
 function renderStats(){
   // 計算唯一平台數量 (從影片中動態取得)
@@ -421,16 +447,41 @@ function renderStats(){
     <div class="stat"><div class="stat-num">${cats.length}</div><div class="stat-label">分類</div></div>
     <div class="stat"><div class="stat-num">${uniquePlats.length}</div><div class="stat-label">平台</div></div>
     <div class="stat"><div class="stat-num">${videos.filter(v=>v.fav).length}</div><div class="stat-label">❤ 收藏</div></div>`;
+
+  // ---- 分類明細: 每個分類的影片數量 (按名稱順序) ----
+  const counts = {};
+  for(const v of videos){
+    const c = v.category || "(未分類)";
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  // 合併有定義但零影片的分類 + 實際出現的分類, 一起排序
+  const allCats = [...new Set([...cats, ...Object.keys(counts)])].sort(
+    (a,b) => a.localeCompare(b, "zh-Hant")
+  );
+  const maxCount = Math.max(1, ...Object.values(counts));
+  document.getElementById("statsCatBody").innerHTML = allCats.map(c => {
+    const n = counts[c] || 0;
+    const pct = Math.round(n / maxCount * 100);
+    return `
+      <tr>
+        <td>
+          ${esc(c)}
+          <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%"></div></div>
+        </td>
+        <td>${n}</td>
+      </tr>`;
+  }).join("");
 }
 function renderFilterTags(){
-  // 分類標籤
+  // 分類標籤 (已排序)
   const mkCat = (list, cur) => list.map(x =>
     `<span class="tag ${cur===x?"active":""}" data-cat="${x}">${x}</span>`).join("");
   document.getElementById("catTags").innerHTML =
     `<span class="tag ${state.cat===""?"active":""}" data-cat="">全部</span>` + mkCat(cats, state.cat);
 
-  // 平台標籤 (從現有影片動態收集唯一平台)
-  const uniquePlats = [...new Set(videos.map(v => v.platform))].filter(Boolean);
+  // 平台標籤 (從現有影片動態收集唯一平台, 按字母排序)
+  const uniquePlats = [...new Set(videos.map(v => v.platform))]
+    .filter(Boolean).sort((a,b)=>a.localeCompare(b));
   const mkPlat = (list, cur) => list.map(x =>
     `<span class="tag ${cur===x?"active":""}" data-plat="${x}">${x}</span>`).join("");
   document.getElementById("platTags").innerHTML =
@@ -510,7 +561,6 @@ document.getElementById("grid").addEventListener("click", async e => {
   if(act === "play"){
     const yid = youtubeId(v.url);
     const box = document.getElementById("playBox");
-    // 隱私增強模式: youtube-nocookie.com 域名, 避免被追蹤
     box.innerHTML = yid
       ? `<iframe src="https://www.youtube-nocookie.com/embed/${yid}?autoplay=1" style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
       : `<div style="color:#fff;display:flex;align-items:center;justify-content:center;height:100%;font-size:.8em;">此平台不支援內嵌播放</div>`;
@@ -534,9 +584,7 @@ document.getElementById("closePlay").onclick = () => {
 };
 
 /* ================================================================
- * 7. 新增流程: 貼連結 → 擷取 → 預覽 → 儲存
- *    平台自動從 URL hostname 擷取, 標題優先序:
- *    oEmbed 標題 → URL 最後一段 → "(未命名影片)"
+ * 7. 新增流程
  * ================================================================ */
 let pending = null;
 document.getElementById("fetchBtn").onclick = async () => {
@@ -544,9 +592,9 @@ document.getElementById("fetchBtn").onclick = async () => {
   if(!/^https?:\/\//.test(url)) return toast("⚠ 請輸入有效連結");
   toast("⏳ 擷取中...");
   const meta = await fetchMeta(url);
-  const platform = platformFromUrl(url); // 自動擷取平台
+  const platform = platformFromUrl(url);
   const yid = youtubeId(url);
-  const title = meta?.title || titleFromUrl(url);   // ← 降級標題
+  const title = meta?.title || titleFromUrl(url);
   pending = {
     url, platform,
     title,
@@ -554,7 +602,6 @@ document.getElementById("fetchBtn").onclick = async () => {
     thumbnail: yid ? "" : (meta?.thumbnail_url || ""),
     category: "", tags: [], fav: false, addedDate: new Date().toISOString()
   };
-  // 顯示預覽 + 選分類
   document.getElementById("previewArea").style.display = "block";
   document.getElementById("previewArea").innerHTML = `
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -587,7 +634,6 @@ async function lastId(){
 
 /* ================================================================
  * 8. 編輯 Modal
- *    平台為唯讀顯示, 根據 URL 自動更新
  * ================================================================ */
 let editingId = null;
 function openEdit(v){
@@ -601,17 +647,15 @@ function openEdit(v){
     cats.map(c=>`<option ${c===v.category?"selected":""}>${c}</option>`).join("");
   document.getElementById("editModal").classList.add("open");
 }
-// 監聽 URL 輸入變化, 即時更新平台顯示
 document.getElementById("fUrl").addEventListener("input", e => {
-  const platform = platformFromUrl(e.target.value);
-  document.getElementById("fPlatform").textContent = platform;
+  document.getElementById("fPlatform").textContent = platformFromUrl(e.target.value);
 });
 document.getElementById("saveEdit").onclick = async () => {
   const v = videos.find(x=>x.id===editingId); if(!v) return;
   const newUrl = document.getElementById("fUrl").value;
   Object.assign(v, {
     url: newUrl,
-    platform: platformFromUrl(newUrl), // 重新擷取平台
+    platform: platformFromUrl(newUrl),
     title: document.getElementById("fTitle").value || titleFromUrl(newUrl),
     desc: document.getElementById("fDesc").value,
     category: document.getElementById("fCat").value,
@@ -626,6 +670,7 @@ document.getElementById("cancelEdit").onclick = () =>
 
 /* ================================================================
  * 9. 分類管理 (僅分類, 平台自動管理)
+ *    新增後立即重新排序
  * ================================================================ */
 function renderManage(){
   document.getElementById("catList").innerHTML = cats.map(c =>
@@ -636,12 +681,18 @@ document.getElementById("closeManage").onclick = () => document.getElementById("
 async function saveMeta(){ await dbPut("meta", {key:"cats", v:cats}); }
 document.getElementById("addCatBtn").onclick = async () => {
   const v = document.getElementById("newCat").value.trim();
-  if(v && !cats.includes(v)){ cats.push(v); await saveMeta(); renderManage(); render(); }
+  if(v && !cats.includes(v)){
+    cats.push(v);
+    sortCats();                       // ← 新增後立即按名稱排序
+    await saveMeta(); renderManage(); render();
+  }
   document.getElementById("newCat").value = "";
 };
 document.getElementById("catList").addEventListener("click", async e => {
   const c = e.target.dataset.delcat; if(!c) return;
-  if(confirm(`刪除分類「${c}」?`)){ cats = cats.filter(x=>x!==c); await saveMeta(); renderManage(); render(); }
+  if(confirm(`刪除分類「${c}」?`)){
+    cats = cats.filter(x=>x!==c); await saveMeta(); renderManage(); render();
+  }
 });
 
 /* ================================================================
@@ -666,14 +717,13 @@ document.getElementById("importFile").onchange = e => {
       if(!Array.isArray(d.videos)) throw new Error("格式錯誤");
       if(confirm(`匯入 ${d.videos.length} 部影片?`)){
         for(const v of d.videos){
-          delete v.id;  // 讓 autoIncrement 重新分配, 避免主鍵衝突
-          // 匯入資料若缺標題, 套用 URL 降級標題
+          delete v.id;
           if(!v.title) v.title = titleFromUrl(v.url || "");
-          // 匯入資料若缺平台, 重新自動擷取
           if(!v.platform) v.platform = platformFromUrl(v.url || "");
           await dbPut(STORE, v);
         }
         if(Array.isArray(d.cats)) cats = [...new Set([...cats, ...d.cats])];
+        sortCats();                   // ← 匯入後重新排序
         await saveMeta();
         await loadData(); render(); toast("📥 匯入完成!");
       }
@@ -706,11 +756,9 @@ document.getElementById("themeBtn").onclick = () => {
 
 /* ================================================================
  * 12. Add to Home Screen (PWA 安裝提示)
- *     監聽 beforeinstallprompt, 攔截瀏覽器預設提示,
- *     改為自訂像素風按鈕
  * ================================================================ */
 window.addEventListener("beforeinstallprompt", e => {
-  e.preventDefault();           // 阻止瀏覽器預設迷你橫幅
+  e.preventDefault();
   deferredPrompt = e;
   document.getElementById("a2hs").style.display = "inline-block";
 });
@@ -735,19 +783,16 @@ async function loadData(){
   videos = await dbAll(STORE);
   const mc = await dbAll("meta");
   if(mc.find(m=>m.key==="cats")) cats = mc.find(m=>m.key==="cats").v;
+  sortCats();                            // ← 啟動載入後排序
 }
 (async function init(){
-  // 主題
   document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
-  // 開啟 DB
   db = await openDB();
   await loadData();
   render();
-  // 持久化 (在首次用戶互動後申請成功率更高, 這裡延遲 2 秒)
   setTimeout(async () => {
     await requestPersistence();
     await showUsage();
-    // iOS Safari 不支援 beforeinstallprompt, 給出提示
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if(isIOS && !navigator.standalone)
       toast("📱 iOS: 點「分享→加入主畫面」以安裝");
