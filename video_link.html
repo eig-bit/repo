@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22PixelVids%22%2C%22short_name%22%3A%22PixelVids%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22icons%22%3A%5B%5B%5D%7D">
+<title>PixelVids — 影片收藏</title>
+<style>
+/* ============ 8-bit 像素風基礎 ============ */
+@font-face { font-family:'fallback'; src:local('Courier New'); }
+:root{
+  --bg:#1a1a2e; --bg2:#16213e; --panel:#0f3460; --panel2:#20204a;
+  --text:#e0e0e0; --text2:#9e9e9e; --accent:#ffd700; --accent2:#e94560;
+  --green:#4ade80; --border:#4a4a8a;
+}
+[data-theme="light"]{
+  --bg:#e8e8f0; --bg2:#d8d8e8; --panel:#c0c0f0; --panel2:#a8a8e0;
+  --text:#1a1a2e; --text2:#4a4a6a; --accent:#b8860b; --accent2:#c02040;
+  --green:#22863a; --border:#6a6aaa;
+}
+*{box-sizing:border-box; margin:0; padding:0; image-rendering:pixelated;}
+html{touch-action:manipulation;}
+body{
+  font-family:"Courier New","Press Start 2P",monospace;
+  background:var(--bg); color:var(--text);
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size:16px 16px; /* 掃描線網格效果 */
+  min-height:100vh;
+}
+.container{max-width:1200px; margin:0 auto; padding:16px;}
+
+/* ============ 像素風標題 ============ */
+header{background:var(--bg2); border:4px solid var(--border);
+  box-shadow:8px 8px 0 rgba(0,0,0,.4); padding:16px; margin-bottom:16px;}
+h1{font-size:1.6em; color:var(--accent); text-shadow:2px 2px 0 var(--accent2);
+  letter-spacing:2px; text-transform:uppercase;}
+h1::before{content:"▶ ";}
+.subtitle{color:var(--text2); font-size:.85em; margin-top:6px;}
+
+/* ============ 按鈕 / 輸入 ============ */
+.btn{
+  font-family:inherit; font-size:.8em; font-weight:bold;
+  background:var(--panel); color:var(--text);
+  border:3px solid var(--border); padding:8px 14px;
+  cursor:pointer; box-shadow:4px 4px 0 rgba(0,0,0,.5);
+  text-transform:uppercase; user-select:none;
+}
+.btn:active{transform:translate(4px,4px); box-shadow:none;}
+.btn-primary{background:var(--accent); color:#000; border-color:#000;}
+.btn-danger{background:var(--accent2); color:#fff; border-color:#000;}
+.btn-sm{padding:4px 8px; font-size:.7em; box-shadow:2px 2px 0 rgba(0,0,0,.5);}
+input[type=text],input[type=url],select,textarea{
+  font-family:inherit; font-size:.85em; width:100%;
+  background:var(--bg2); color:var(--text);
+  border:3px solid var(--border); padding:8px;
+}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent);}
+label{display:block; font-size:.75em; margin:10px 0 4px; color:var(--text2); text-transform:uppercase;}
+
+/* ============ 工具列 ============ */
+.toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center;}
+.toolbar input[type=text]{flex:1; min-width:160px;}
+.tag{
+  display:inline-block; padding:2px 8px; font-size:.7em;
+  border:2px solid var(--border); background:var(--panel2);
+  cursor:pointer; margin:2px;
+}
+.tag.active{background:var(--accent); color:#000; border-color:#000;}
+
+/* ============ 卡片網格 ============ */
+#grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px;}
+.card{
+  background:var(--panel); border:4px solid var(--border);
+  box-shadow:6px 6px 0 rgba(0,0,0,.4); overflow:hidden;
+  display:flex; flex-direction:column;
+  opacity:1; transform:translateY(0); transition:opacity .3s,transform .3s;
+}
+.thumb{position:relative; aspect-ratio:16/9; background:#000; cursor:pointer; overflow:hidden;}
+.thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+.play-overlay{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.4); opacity:0; transition:opacity .2s;
+}
+.thumb:hover .play-overlay{opacity:1;}
+.play-overlay::after{
+  content:""; width:0; height:0; border-left:24px solid var(--accent);
+  border-top:14px solid transparent; border-bottom:14px solid transparent;
+  filter:drop-shadow(2px 2px 0 #000);
+}
+.card-body{padding:10px; flex:1; display:flex; flex-direction:column; gap:6px;}
+.card-title{font-size:.9em; font-weight:bold; line-height:1.4; word-break:break-all;}
+.card-desc{font-size:.75em; color:var(--text2); line-height:1.5;
+  max-height:4.5em; overflow:hidden;}
+.card-meta{font-size:.7em; color:var(--accent); display:flex; flex-wrap:wrap; gap:6px;}
+.card-actions{display:flex; gap:4px; padding:8px; border-top:2px solid var(--border);}
+.fav-btn[data-fav="1"]{color:var(--accent2); }
+
+/* ============ 分頁 ============ */
+.pagination{display:flex; justify-content:center; gap:4px; margin:20px 0; flex-wrap:wrap;}
+.pagination .btn[disabled]{opacity:.4; pointer-events:none;}
+.pagination .btn.current{background:var(--accent); color:#000;}
+
+/* ============ Modal ============ */
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:100;
+  display:none; align-items:center; justify-content:center; padding:16px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg2); border:4px solid var(--border);
+  box-shadow:8px 8px 0 rgba(0,0,0,.5); width:100%; max-width:520px;
+  max-height:90vh; overflow-y:auto; padding:16px;}
+.modal h2{font-size:1em; color:var(--accent); margin-bottom:12px; text-transform:uppercase;}
+.modal-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:16px;}
+
+/* ============ 統計面板 ============ */
+.stats{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;}
+.stat{background:var(--panel2); border:3px solid var(--border); padding:8px 14px; flex:1; min-width:90px; text-align:center;}
+.stat-num{font-size:1.3em; color:var(--accent); font-weight:bold;}
+.stat-label{font-size:.65em; color:var(--text2); text-transform:uppercase;}
+
+/* ============ Toast & A2HS ============ */
+#toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px);
+  background:var(--panel); border:3px solid var(--border); color:var(--text);
+  padding:10px 18px; font-size:.8em; z-index:200; transition:transform .3s; white-space:nowrap;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+#a2hs{position:fixed; bottom:20px; right:20px; display:none; z-index:150;
+  animation:bounce 1s infinite alternate;}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+
+/* ============ 空狀態 ============ */
+.empty{grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text2);}
+.empty::before{content:"🕹️"; font-size:3em; display:block; margin-bottom:16px;}
+
+/* ============ 響應式 ============ */
+@media (max-width:640px){
+  h1{font-size:1.2em;}
+  #grid{grid-template-columns:1fr;}
+  .toolbar{flex-direction:column; align-items:stretch;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div>
+        <h1>PixelVids</h1>
+        <div class="subtitle">◀ 8-BIT 影片收藏中心 ▶</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" id="themeBtn" title="切換主題">🌗</button>
+        <button class="btn btn-sm" id="manageBtn" title="管理分類/平台">⚙ 管理</button>
+        <button class="btn btn-sm" id="exportBtn" title="匯出JSON">📤 匯出</button>
+        <button class="btn btn-sm" id="importBtn" title="匯入JSON">📥 匯入</button>
+        <input type="file" id="importFile" accept=".json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <!-- 統計 -->
+  <div class="stats" id="stats"></div>
+
+  <!-- 新增表單 -->
+  <div style="background:var(--panel);border:4px solid var(--border);padding:16px;margin-bottom:16px;box-shadow:6px 6px 0 rgba(0,0,0,.4);">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="url" id="urlInput" placeholder="貼上影片連結 (支援 YouTube / Vimeo)..." style="flex:1;min-width:220px;">
+      <button class="btn btn-primary" id="fetchBtn">🔍 擷取</button>
+      <button class="btn" id="addBtn" style="display:none;">💾 儲存</button>
+    </div>
+    <div id="previewArea" style="display:none;margin-top:12px;"></div>
+  </div>
+
+  <!-- 篩選 -->
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="🔎 搜尋標題/簡介/標籤...">
+  </div>
+  <div class="toolbar" id="filterBar">
+    <span style="font-size:.7em;color:var(--text2);">分類:</span><span id="catTags"></span>
+    <span style="font-size:.7em;color:var(--text2);margin-left:8px;">平台:</span><span id="platTags"></span>
+    <label style="margin:0 0 0 8px;display:flex;align-items:center;gap:4px;font-size:.7em;">
+      <input type="checkbox" id="favOnly"> ❤ 只顯示收藏
+    </label>
+  </div>
+
+  <!-- 卡片網格 & 分頁 -->
+  <div id="grid"></div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- 新增/編輯 Modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h2 id="editTitle">➕ 編輯影片</h2>
+    <label>影片連結</label><input type="url" id="fUrl">
+    <label>標題</label><input type="text" id="fTitle">
+    <label>簡介</label><textarea id="fDesc" rows="3"></textarea>
+    <label>分類</label><select id="fCat"></select>
+    <label>標籤 (逗號分隔)</label><input type="text" id="fTags" placeholder="音樂,教學">
+    <div class="modal-actions">
+      <button class="btn" id="cancelEdit">取消</button>
+      <button class="btn btn-primary" id="saveEdit">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理 Modal -->
+<div class="modal-bg" id="manageModal">
+  <div class="modal">
+    <h2>⚙ 管理分類與平台</h2>
+    <label>新增分類</label>
+    <div style="display:flex;gap:6px;">
+      <input type="text" id="newCat" placeholder="例如:音樂">
+      <button class="btn btn-sm btn-primary" id="addCatBtn">+</button>
+    </div>
+    <div id="catList" style="margin-top:8px;"></div>
+    <hr style="border:1px dashed var(--border);margin:14px 0;">
+    <label>新增平台</label>
+    <div style="display:flex;gap:6px;">
+      <input type="text" id="newPlat" placeholder="例如:YouTube">
+      <button class="btn btn-sm btn-primary" id="addPlatBtn">+</button>
+    </div>
+    <div id="platList" style="margin-top:8px;"></div>
+    <div class="modal-actions"><button class="btn" id="closeManage">關閉</button></div>
+  </div>
+</div>
+
+<!-- 播放 Modal -->
+<div class="modal-bg" id="playModal">
+  <div class="modal" style="max-width:800px;">
+    <h2 id="playTitle">▶ 播放</h2>
+    <div style="aspect-ratio:16/9;background:#000;border:3px solid var(--border);" id="playBox"></div>
+    <div class="modal-actions">
+      <a class="btn" id="openExternal" target="_blank" rel="noopener">↗ 原網頁開啟</a>
+      <button class="btn" id="closePlay">✕ 關閉</button>
+    </div>
+  </div>
+</div>
+
+<button class="btn btn-primary" id="a2hs">📱 加到主畫面</button>
+<div id="toast"></div>
+
+<script>
+/* ================================================================
+ * PixelVids — 靜態像素風影片收藏網頁
+ * 技術棧: 原生 JS + IndexedDB + noembed oEmbed 代理
+ * ================================================================ */
+"use strict";
+
+/* ---------- 常數 ---------- */
+const DB_NAME = "pixelvids", DB_VER = 1, STORE = "videos";
+const PAGE_SIZE = 12;
+
+/* ---------- 全域狀態 ---------- */
+let db = null;
+let videos = [];              // 全部影片(記憶體快取)
+let cats = ["電影","音樂","教學","遊戲","其他"];
+let plats = ["YouTube","Vimeo"];
+let state = { page:1, search:"", cat:"", plat:"", favOnly:false };
+let deferredPrompt = null;     // beforeinstallprompt 事件
+
+/* ================================================================
+ * 1. IndexedDB 初始化
+ *    結構: objectStore "videos", keyPath "id" (autoIncrement)
+ *    另用 meta store 存分類/平台清單
+ * ================================================================ */
+function openDB(){
+  return new Promise((res, rej)=>{
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains(STORE))
+        d.createObjectStore(STORE, {keyPath:"id", autoIncrement:true});
+      if(!d.objectStoreNames.contains("meta"))
+        d.createObjectStore("meta", {keyPath:"key"});
+    };
+    req.onsuccess = ()=> res(req.result);
+    req.onerror = ()=> rej(req.error);
+  });
+}
+function tx(store, mode){ return db.transaction(store, mode).objectStore(store); }
+function dbAll(store){
+  return new Promise((res,rej)=>{
+    const r = tx(store,"readonly").getAll();
+    r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error);
+  });
+}
+function dbPut(store, val){
+  return new Promise((res,rej)=>{
+    const r = tx(store,"readwrite").put(val);
+    r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error);
+  });
+}
+function dbDelete(store, key){
+  return new Promise((res,rej)=>{
+    const r = tx(store,"readwrite").delete(key);
+    r.onsuccess = ()=>res(); r.onerror = ()=>rej(r.error);
+  });
+}
+
+/* ================================================================
+ * 2. 持久化儲存申請
+ *    navigator.storage.persist() 防止瀏覽器自動清除 IndexedDB
+ * ================================================================ */
+async function requestPersistence(){
+  if(navigator.storage && navigator.storage.persist){
+    const already = await navigator.storage.persisted();
+    if(already){ toast("✅ 儲存已持久化"); return; }
+    const granted = await navigator.storage.persist();
+    console.log("[PixelVids] persist():", granted);
+    if(granted) toast("✅ 已取得持久化儲存權限");
+  }
+}
+async function showUsage(){
+  if(navigator.storage && navigator.storage.estimate){
+    const {usage, quota} = await navigator.storage.estimate();
+    console.log(`[PixelVids] 用量: ${(usage/1024).toFixed(1)}KB / ${(quota/1048576).toFixed(1)}MB`);
+  }
+}
+
+/* ================================================================
+ * 3. oEmbed 自動擷取標題與簡介
+ *    使用 noembed.com (免費 CORS-friendly oEmbed 代理)
+ *    支援 YouTube / Vimeo 等數十個平台
+ * ================================================================ */
+function detectPlatform(url){
+  if(/youtube\.com|youtu\.be/i.test(url)) return "YouTube";
+  if(/vimeo\.com/i.test(url)) return "Vimeo";
+  if(/bilibili\.com|b23\.tv/i.test(url)) return "Bilibili";
+  if(/twitch\.tv/i.test(url)) return "Twitch";
+  return "其他";
+}
+/* YouTube 縮圖可由影片 ID 直接組出,無需 API 金鑰 */
+function youtubeId(url){
+  const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+async function fetchMeta(url){
+  try{
+    const r = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+    if(j.error) throw new Error(j.error);
+    return { title: j.title || "(無標題)", desc: (j.description||j.author_name||"").slice(0,200) };
+  }catch(e){
+    console.warn("擷取失敗:", e);
+    return null;
+  }
+}
+
+/* ================================================================
+ * 4. Toast 提示
+ * ================================================================ */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+/* ================================================================
+ * 5. 渲染: 統計 / 篩選標籤 / 卡片 / 分頁
+ * ================================================================ */
+function renderStats(){
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><div class="stat-num">${videos.length}</div><div class="stat-label">影片</div></div>
+    <div class="stat"><div class="stat-num">${cats.length}</div><div class="stat-label">分類</div></div>
+    <div class="stat"><div class="stat-num">${plats.length}</div><div class="stat-label">平台</div></div>
+    <div class="stat"><div class="stat-num">${videos.filter(v=>v.fav).length}</div><div class="stat-label">❤ 收藏</div></div>`;
+}
+function renderFilterTags(){
+  const mk = (list, cur, attr) => list.map(x =>
+    `<span class="tag ${cur===x?"active":""}" data-${attr}="${x}">${x}</span>`).join("");
+  document.getElementById("catTags").innerHTML =
+    `<span class="tag ${state.cat===""?"active":""}" data-cat="">全部</span>` + mk(cats, state.cat, "cat");
+  document.getElementById("platTags").innerHTML =
+    `<span class="tag ${state.plat===""?"active":""}" data-plat="">全部</span>` + mk(plats, state.plat, "plat");
+}
+function getFiltered(){
+  const q = state.search.toLowerCase();
+  return videos.filter(v =>
+    (!state.cat || v.category === state.cat) &&
+    (!state.plat || v.platform === state.plat) &&
+    (!state.favOnly || v.fav) &&
+    (!q || (v.title + " " + (v.desc||"") + " " + (v.tags||[]).join(" ")).toLowerCase().includes(q))
+  );
+}
+function thumbUrl(v){
+  const yid = youtubeId(v.url);
+  if(yid) return `https://i.ytimg.com/vi/${yid}/mqdefault.jpg`;
+  return v.thumbnail || "";
+}
+function render(){
+  renderStats(); renderFilterTags();
+  const list = getFiltered();
+  const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if(state.page > pages) state.page = pages;
+  const slice = list.slice((state.page-1)*PAGE_SIZE, state.page*PAGE_SIZE);
+
+  const grid = document.getElementById("grid");
+  if(!slice.length){
+    grid.innerHTML = `<div class="empty">沒有符合的影片<br><small>貼上連結開始收藏吧！</small></div>`;
+  } else {
+    grid.innerHTML = slice.map(v => `
+      <div class="card" data-id="${v.id}">
+        <div class="thumb" data-act="play">
+          ${thumbUrl(v) ? `<img src="${thumbUrl(v)}" loading="lazy" alt="">` : ""}
+          <div class="play-overlay"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">${esc(v.title)}</div>
+          <div class="card-desc">${esc(v.desc||"")}</div>
+          <div class="card-meta">
+            <span>[${esc(v.platform||"?")}]</span>
+            <span>${esc(v.category||"未分類")}</span>
+            ${(v.tags||[]).map(t=>`<span>#${esc(t)}</span>`).join("")}
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-sm fav-btn" data-act="fav" data-fav="${v.fav?1:0}">${v.fav?"❤":"♡"}</button>
+          <button class="btn btn-sm" data-act="edit">✏</button>
+          <button class="btn btn-sm btn-danger" data-act="del">🗑</button>
+        </div>
+      </div>`).join("");
+  }
+  // 分頁
+  let p = `<button class="btn btn-sm" data-pg="${state.page-1}" ${state.page<=1?"disabled":""}>◀</button>`;
+  for(let i=1;i<=pages;i++){
+    if(pages>7 && Math.abs(i-state.page)>2 && i!==1 && i!==pages){
+      if(p.endsWith("…</button>")) continue;
+      p += `<button class="btn btn-sm" disabled>…</button>`; continue;
+    }
+    p += `<button class="btn btn-sm ${i===state.page?"current":""}" data-pg="${i}">${i}</button>`;
+  }
+  p += `<button class="btn btn-sm" data-pg="${state.page+1}" ${state.page>=pages?"disabled":""}>▶</button>`;
+  document.getElementById("pagination").innerHTML = p;
+}
+const esc = s => String(s||"").replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ================================================================
+ * 6. 事件: 卡片操作 (事件委派)
+ * ================================================================ */
+document.getElementById("grid").addEventListener("click", async e => {
+  const card = e.target.closest(".card"); if(!card) return;
+  const id = +card.dataset.id;
+  const v = videos.find(x=>x.id===id); if(!v) return;
+  const act = e.target.closest("[data-act]")?.dataset.act;
+
+  if(act === "play"){
+    const yid = youtubeId(v.url);
+    const box = document.getElementById("playBox");
+    // 隱私增強模式: youtube-nocookie.com 域名, 避免被追蹤
+    box.innerHTML = yid
+      ? `<iframe src="https://www.youtube-nocookie.com/embed/${yid}?autoplay=1" style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+      : `<div style="color:#fff;display:flex;align-items:center;justify-content:center;height:100%;font-size:.8em;">此平台不支援內嵌播放</div>`;
+    document.getElementById("playTitle").textContent = v.title;
+    document.getElementById("openExternal").href = v.url;
+    document.getElementById("playModal").classList.add("open");
+  }
+  if(act === "fav"){
+    v.fav = !v.fav; await dbPut(STORE, v); render();
+  }
+  if(act === "edit") openEdit(v);
+  if(act === "del"){
+    if(confirm(`確定刪除「${v.title}」?`)){
+      await dbDelete(STORE, id); videos = videos.filter(x=>x.id!==id); render(); toast("🗑 已刪除");
+    }
+  }
+});
+document.getElementById("closePlay").onclick = () => {
+  document.getElementById("playModal").classList.remove("open");
+  document.getElementById("playBox").innerHTML = "";
+};
+
+/* ================================================================
+ * 7. 新增流程: 貼連結 → 擷取 → 預覽 → 儲存
+ * ================================================================ */
+let pending = null;
+document.getElementById("fetchBtn").onclick = async () => {
+  const url = document.getElementById("urlInput").value.trim();
+  if(!/^https?:\/\//.test(url)) return toast("⚠ 請輸入有效連結");
+  toast("⏳ 擷取中...");
+  const meta = await fetchMeta(url);
+  const platform = detectPlatform(url);
+  const yid = youtubeId(url);
+  pending = {
+    url, platform,
+    title: meta?.title || "(未知標題)",
+    desc: meta?.desc || "",
+    thumbnail: yid ? "" : (meta?.thumbnail_url || ""),
+    category: "", tags: [], fav: false, addedDate: new Date().toISOString()
+  };
+  // 顯示預覽 + 選分類
+  document.getElementById("previewArea").style.display = "block";
+  document.getElementById("previewArea").innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${yid?`<img src="https://i.ytimg.com/vi/${yid}/mqdefault.jpg" style="width:160px;border:3px solid var(--border);">`:""}
+      <div style="flex:1;min-width:180px;">
+        <div style="font-weight:bold;font-size:.85em;">${esc(pending.title)}</div>
+        <div style="font-size:.75em;color:var(--text2);margin:6px 0;">${esc(pending.desc)}</div>
+        <div style="font-size:.7em;color:var(--accent);">平台: ${platform}</div>
+        <label>分類</label><select id="pCat">${cats.map(c=>`<option>${c}</option>`).join("")}</select>
+        <label>標籤</label><input type="text" id="pTags" placeholder="教學, 前端">
+      </div>
+    </div>`;
+  document.getElementById("addBtn").style.display = "inline-block";
+};
+document.getElementById("addBtn").onclick = async () => {
+  pending.category = document.getElementById("pCat")?.value || "";
+  pending.tags = (document.getElementById("pTags")?.value || "").split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  await dbPut(STORE, pending);
+  videos.push({...pending, id: await lastId()});
+  document.getElementById("urlInput").value = "";
+  document.getElementById("previewArea").style.display = "none";
+  document.getElementById("addBtn").style.display = "none";
+  pending = null; render(); toast("💾 已儲存!");
+};
+async function lastId(){
+  const all = await dbAll(STORE);
+  return all.length ? Math.max(...all.map(x=>x.id)) : 0;
+}
+
+/* ================================================================
+ * 8. 編輯 Modal
+ * ================================================================ */
+let editingId = null;
+function openEdit(v){
+  editingId = v.id;
+  document.getElementById("fUrl").value = v.url;
+  document.getElementById("fTitle").value = v.title;
+  document.getElementById("fDesc").value = v.desc || "";
+  document.getElementById("fTags").value = (v.tags||[]).join(", ");
+  document.getElementById("fCat").innerHTML =
+    cats.map(c=>`<option ${c===v.category?"selected":""}>${c}</option>`).join("");
+  document.getElementById("editModal").classList.add("open");
+}
+document.getElementById("saveEdit").onclick = async () => {
+  const v = videos.find(x=>x.id===editingId); if(!v) return;
+  Object.assign(v, {
+    url: document.getElementById("fUrl").value,
+    title: document.getElementById("fTitle").value,
+    desc: document.getElementById("fDesc").value,
+    category: document.getElementById("fCat").value,
+    tags: document.getElementById("fTags").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean)
+  });
+  await dbPut(STORE, v);
+  document.getElementById("editModal").classList.remove("open");
+  render(); toast("✅ 已更新");
+};
+document.getElementById("cancelEdit").onclick = () =>
+  document.getElementById("editModal").classList.remove("open");
+
+/* ================================================================
+ * 9. 分類 / 平台管理
+ * ================================================================ */
+function renderManage(){
+  document.getElementById("catList").innerHTML = cats.map(c =>
+    `<span class="tag">${esc(c)} <b data-delcat="${esc(c)}" style="color:var(--accent2);cursor:pointer;">✕</b></span>`).join("");
+  document.getElementById("platList").innerHTML = plats.map(p =>
+    `<span class="tag">${esc(p)} <b data-delplat="${esc(p)}" style="color:var(--accent2);cursor:pointer;">✕</b></span>`).join("");
+}
+document.getElementById("manageBtn").onclick = () => { renderManage(); document.getElementById("manageModal").classList.add("open"); };
+document.getElementById("closeManage").onclick = () => document.getElementById("manageModal").classList.remove("open");
+async function saveMeta(){ await dbPut("meta", {key:"cats", v:cats}); await dbPut("meta", {key:"plats", v:plats}); }
+document.getElementById("addCatBtn").onclick = async () => {
+  const v = document.getElementById("newCat").value.trim();
+  if(v && !cats.includes(v)){ cats.push(v); await saveMeta(); renderManage(); render(); }
+  document.getElementById("newCat").value = "";
+};
+document.getElementById("addPlatBtn").onclick = async () => {
+  const v = document.getElementById("newPlat").value.trim();
+  if(v && !plats.includes(v)){ plats.push(v); await saveMeta(); renderManage(); render(); }
+  document.getElementById("newPlat").value = "";
+};
+document.getElementById("catList").addEventListener("click", async e => {
+  const c = e.target.dataset.delcat; if(!c) return;
+  if(confirm(`刪除分類「${c}」?`)){ cats = cats.filter(x=>x!==c); await saveMeta(); renderManage(); render(); }
+});
+document.getElementById("platList").addEventListener("click", async e => {
+  const p = e.target.dataset.delplat; if(!p) return;
+  if(confirm(`刪除平台「${p}」?`)){ plats = plats.filter(x=>x!==p); await saveMeta(); renderManage(); render(); }
+});
+
+/* ================================================================
+ * 10. JSON 匯入 / 匯出
+ * ================================================================ */
+document.getElementById("exportBtn").onclick = () => {
+  const data = { version:1, exportDate:new Date().toISOString(), cats, plats, videos };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `pixelvids-${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("📤 已匯出 " + videos.length + " 部影片");
+};
+document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
+document.getElementById("importFile").onchange = e => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try{
+      const d = JSON.parse(ev.target.result);
+      if(!Array.isArray(d.videos)) throw new Error("格式錯誤");
+      if(confirm(`匯入 ${d.videos.length} 部影片?`)){
+        for(const v of d.videos){
+          delete v.id;  // 讓 autoIncrement 重新分配, 避免主鍵衝突
+          await dbPut(STORE, v);
+        }
+        if(Array.isArray(d.cats)) cats = [...new Set([...cats, ...d.cats])];
+        if(Array.isArray(d.plats)) plats = [...new Set([...plats, ...d.plats])];
+        await saveMeta();
+        await loadData(); render(); toast("📥 匯入完成!");
+      }
+    }catch(err){ toast("❌ 匯入失敗: " + err.message); }
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+};
+
+/* ================================================================
+ * 11. 篩選 / 搜尋 / 分頁 / 主題
+ * ================================================================ */
+document.getElementById("searchInput").addEventListener("input", e => {
+  state.search = e.target.value; state.page = 1; render();
+});
+document.getElementById("filterBar").addEventListener("click", e => {
+  if(e.target.dataset.cat !== undefined){ state.cat = e.target.dataset.cat; state.page = 1; render(); }
+  if(e.target.dataset.plat !== undefined){ state.plat = e.target.dataset.plat; state.page = 1; render(); }
+});
+document.getElementById("favOnly").onchange = e => { state.favOnly = e.target.checked; state.page = 1; render(); };
+document.getElementById("pagination").addEventListener("click", e => {
+  const pg = e.target.dataset.pg; if(pg){ state.page = +pg; render(); window.scrollTo({top:0, behavior:"smooth"}); }
+});
+document.getElementById("themeBtn").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+};
+
+/* ================================================================
+ * 12. Add to Home Screen (PWA 安裝提示)
+ *     監聽 beforeinstallprompt, 攔截瀏覽器預設提示,
+ *     改為自訂像素風按鈕
+ * ================================================================ */
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();           // 阻止瀏覽器預設迷你橫幅
+  deferredPrompt = e;
+  document.getElementById("a2hs").style.display = "inline-block";
+});
+document.getElementById("a2hs").onclick = async () => {
+  if(!deferredPrompt) return toast("此瀏覽器不支援安裝");
+  deferredPrompt.prompt();
+  const {outcome} = await deferredPrompt.userChoice;
+  console.log("[PixelVids] A2HS:", outcome);
+  if(outcome === "accepted"){ toast("🎉 已安裝到主畫面!"); }
+  deferredPrompt = null;
+  document.getElementById("a2hs").style.display = "none";
+};
+window.addEventListener("appinstalled", () => {
+  document.getElementById("a2hs").style.display = "none";
+  toast("🎮 安裝成功!");
+});
+
+/* ================================================================
+ * 13. 啟動
+ * ================================================================ */
+async function loadData(){
+  videos = await dbAll(STORE);
+  const mc = await dbAll("meta");
+  if(mc.find(m=>m.key==="cats")) cats = mc.find(m=>m.key==="cats").v;
+  if(mc.find(m=>m.key==="plats")) plats = mc.find(m=>m.key==="plats").v;
+}
+(async function init(){
+  // 主題
+  document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
+  // 開啟 DB
+  db = await openDB();
+  await loadData();
+  render();
+  // 持久化 (在首次用戶互動後申請成功率更高, 這裡延遲 2 秒)
+  setTimeout(async () => {
+    await requestPersistence();
+    await showUsage();
+    // iOS Safari 不支援 beforeinstallprompt, 給出提示
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if(isIOS && !navigator.standalone)
+      toast("📱 iOS: 點「分享→加入主畫面」以安裝");
+  }, 2000);
+})();
+</script>
+</body>
+</html>
