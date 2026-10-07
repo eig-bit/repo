@@ -2,576 +2,1132 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>8-BIT TRAVEL MAP</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🗺️ PIXEL TOUR - 8-bit 旅遊地圖</title>
+
+<!-- ============================================
+     技術說明：
+     - 單檔案 PWA：manifest 用 Blob URL 動態注入
+     - Leaflet.js + MarkerCluster（CDN）
+     - IndexedDB：spots 表 + categories 表 + cities 表
+     - 分類管理：CRUD + 景點轉移 + 排序 + 換色
+     - 城市管理：CRUD + 篩選 + 排序
+     - 雙重篩選：可同時按城市和分類篩選景點
+     - Geolocation 定位：一次性高精度 + 誤差圈
+     - 8-bit 像素風：Press Start 2P + pixelated
+     v3.2 更新：新增城市管理功能
+============================================ -->
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --bg:#0f0f23; --panel:#1e1e3f; --panel2:#2a2a55;
-  --ink:#e8e8ff; --yellow:#ffd93d; --green:#4ade80;
-  --red:#ff5c5c; --cyan:#5ce1e6; --mag:#ff6ec7;
-  --border:#000;
+:root {
+  --bg: #1a1c2c; --panel: #29366f; --accent: #41a6f6;
+  --green: #38b764; --yellow: #ffcd75; --red: #b13e53;
+  --text: #f4f4f4; --shadow: #0d0d1a;
+  --border: 4px solid #0d0d1a;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Press Start 2P',monospace;background:var(--bg);color:var(--ink);font-size:11px;line-height:1.7;overflow:hidden}
-button{font-family:inherit;font-size:10px;cursor:pointer;background:var(--panel2);color:var(--ink);border:3px solid var(--border);padding:8px 10px;box-shadow:3px 3px 0 var(--border);text-transform:uppercase}
-button:active{transform:translate(3px,3px);box-shadow:none}
-button.primary{background:var(--yellow);color:#000}
-button.danger{background:var(--red);color:#000}
-input,select,textarea{font-family:inherit;font-size:10px;background:var(--bg);color:var(--ink);border:3px solid var(--border);padding:8px;width:100%;margin-bottom:8px}
-input:focus,select:focus,textarea:focus{outline:3px solid var(--cyan)}
-#app{display:flex;height:100vh;height:100dvh}
-/* ---- Sidebar ---- */
-#sidebar{width:320px;background:var(--panel);border-right:4px solid var(--border);display:flex;flex-direction:column;z-index:1000}
-#sidebar header{padding:14px;border-bottom:4px solid var(--border);background:var(--panel2)}
-#sidebar header h1{font-size:13px;color:var(--yellow);text-shadow:2px 2px 0 var(--border)}
-#sidebar header p{font-size:8px;color:var(--cyan);margin-top:6px}
-#tabs{display:flex;border-bottom:4px solid var(--border)}
-#tabs button{flex:1;border:none;box-shadow:none;padding:12px 4px;font-size:9px;background:var(--panel2);color:var(--ink)}
-#tabs button.active{background:var(--yellow);color:#000}
-.tab-content{flex:1;overflow-y:auto;padding:12px;display:none}
-.tab-content.active{display:block}
-.tab-content::-webkit-scrollbar{width:12px}
-.tab-content::-webkit-scrollbar-thumb{background:var(--panel2);border:3px solid var(--border)}
-.card{background:var(--panel2);border:3px solid var(--border);padding:10px;margin-bottom:10px;box-shadow:3px 3px 0 var(--border)}
-.card h3{font-size:10px;color:var(--yellow);margin-bottom:6px;word-break:break-all}
-.card .meta{font-size:8px;color:var(--cyan)}
-.card .desc{font-size:8px;margin-top:6px;color:var(--ink);word-break:break-word}
-.card .btns{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-.card .btns button{padding:6px 8px;font-size:8px}
-.dot{display:inline-block;width:10px;height:10px;border:2px solid var(--border);margin-right:6px;vertical-align:middle}
-.chip{display:inline-flex;align-items:center;cursor:pointer;background:var(--bg);border:3px solid var(--border);padding:5px 8px;margin:0 6px 8px 0;font-size:8px;user-select:none}
-.chip.off{opacity:.4}
-.empty{color:var(--mag);font-size:9px;text-align:center;padding:20px 10px}
-/* ---- Map ---- */
-#map{flex:1;background:var(--bg)}
-.leaflet-container{font-family:'Press Start 2P',monospace;font-size:9px}
-.leaflet-popup-content-wrapper{background:var(--panel);color:var(--ink);border:3px solid var(--border);border-radius:0;box-shadow:4px 4px 0 var(--border)}
-.leaflet-popup-tip{background:var(--panel);border:3px solid var(--border);border-radius:0}
-.leaflet-popup-content{margin:12px;line-height:1.8}
-.leaflet-popup-content b{color:var(--yellow);font-size:10px}
-.leaflet-popup-content .pd{color:var(--cyan);font-size:8px}
-.leaflet-bar a{background:var(--panel2)!important;color:var(--ink)!important;border:3px solid var(--border)!important;border-radius:0!important;font-family:inherit}
-.leaflet-control-attribution{font-size:7px!important;background:rgba(0,0,0,.7)!important;color:#888!important}
-.leaflet-control-attribution a{color:var(--cyan)!important}
-.marker-pixel{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:3px solid #000;font-size:11px}
-#mapBtns{position:absolute;top:12px;right:12px;z-index:900;display:flex;flex-direction:column;gap:8px}
-#mapBtns button{width:52px;height:52px;font-size:18px;padding:0;background:var(--yellow);color:#000}
-#mapBtns button.danger{background:var(--red)}
-#statusBar{position:absolute;left:12px;bottom:12px;z-index:900;background:var(--panel2);border:3px solid var(--border);padding:6px 10px;font-size:8px;color:var(--green);box-shadow:3px 3px 0 var(--border)}
-/* ---- Mobile ---- */
-#menuToggle{display:none;position:absolute;top:12px;left:12px;z-index:1100;width:52px;height:52px;font-size:16px;background:var(--green);color:#000}
-#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:990}
-@media(max-width:768px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;width:300px;transform:translateX(-105%);transition:transform .2s steps(6);border-right:none}
-  #sidebar.open{transform:translateX(0)}
-  #overlay.show{display:block}
-  #menuToggle{display:block}
-  body{font-size:10px}
-  .tab-content{padding:10px}
+* { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+body {
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  background: var(--bg); color: var(--text);
+  font-size: 10px; line-height: 1.8; overflow: hidden;
+  display: flex; flex-direction: column;
+  height: 100dvh;
 }
-/* ---- Modal ---- */
-#modalBg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:center;justify-content:center;padding:16px}
-#modalBg.show{display:flex}
-#modal{background:var(--panel);border:4px solid var(--border);box-shadow:6px 6px 0 var(--border);width:100%;max-width:420px;max-height:85vh;overflow-y:auto;padding:16px}
-#modal h2{font-size:11px;color:var(--yellow);margin-bottom:14px}
-label{display:block;font-size:8px;color:var(--cyan);margin-bottom:4px;margin-top:8px}
-.colorRow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-.colorSwatch{width:28px;height:28px;border:3px solid var(--border);cursor:pointer}
-.colorSwatch.sel{outline:3px solid #fff}
-.rowBtns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panel2);border:3px solid var(--border);color:var(--green);padding:10px 16px;font-size:9px;z-index:3000;box-shadow:4px 4px 0 var(--border);display:none}
+
+/* ===== 頂部工具列 ===== */
+#topbar {
+  min-height: 56px;
+  background: var(--panel); border-bottom: var(--border);
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 6px; padding: 8px 12px;
+  z-index: 1000; position: relative;
+}
+#topbar h1 { font-size: 12px; color: var(--yellow); text-shadow: 3px 3px 0 var(--shadow); white-space: nowrap; }
+.btn {
+  font-family: inherit; font-size: 9px; background: var(--accent); color: #fff;
+  border: var(--border); padding: 8px 10px; cursor: pointer;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.3), inset 3px 3px 0 rgba(255,255,255,.3);
+  text-transform: uppercase; white-space: nowrap;
+}
+.btn:active { transform: translate(2px,2px); box-shadow: none; }
+.btn.green { background: var(--green); } .btn.red { background: var(--red); }
+.btn.yellow { background: var(--yellow); color: #333; }
+.btn.small { font-size: 8px; padding: 5px 7px; }
+
+/* ===== 主容器 ===== */
+#main { display: flex; flex: 1; min-height: 0; position: relative; }
+#sidebar {
+  width: 320px; background: var(--panel); border-right: var(--border);
+  display: flex; flex-direction: column; z-index: 900;
+}
+
+/* ===== 篩選器 ===== */
+#filters { padding: 10px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: var(--border); }
+.filter-group {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; width: 100%;
+}
+.filter-label {
+  font-size: 7px; color: #a7c4f0; margin-right: 4px; align-self: center;
+}
+.chip {
+  font-family: inherit; font-size: 8px; cursor: pointer;
+  background: #3b5dc9; color: #fff; border: 3px solid var(--shadow);
+  padding: 5px 8px; display: inline-flex; align-items: center; gap: 5px;
+}
+.chip .dot { width: 10px; height: 10px; border: 2px solid var(--shadow); display: inline-block; }
+.chip.active { background: var(--yellow); color: #333; }
+.chip.city-chip { background: #4a6fa5; }
+.chip.city-chip.active { background: var(--accent); color: #fff; }
+
+/* ===== 景點列表 ===== */
+#spot-list { flex: 1; overflow-y: auto; padding: 10px; }
+#spot-list::-webkit-scrollbar { width: 10px; }
+#spot-list::-webkit-scrollbar-thumb { background: var(--accent); border: 2px solid var(--shadow); }
+
+.spot-item {
+  background: #3b5dc9; border: var(--border); padding: 10px; margin-bottom: 10px;
+  cursor: pointer; transition: transform .05s;
+}
+.spot-item:hover { transform: translate(-2px,-2px); box-shadow: 4px 4px 0 var(--shadow); }
+.spot-item.active { background: var(--green); }
+.spot-item h3 { font-size: 10px; color: var(--yellow); margin-bottom: 4px; }
+.spot-item .meta { font-size: 7px; color: #a7c4f0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.spot-item .cat { display: inline-flex; align-items: center; gap: 5px; }
+.spot-item .cat .dot { width: 9px; height: 9px; border: 2px solid var(--shadow); }
+.spot-item .city { display: inline-flex; align-items: center; gap: 4px; }
+.spot-item .del { float: right; font-size: 8px; background: var(--red); border: 2px solid var(--shadow);
+  color:#fff; padding: 2px 4px; cursor: pointer; font-family: inherit; }
+
+/* ===== 地圖 ===== */
+#map { flex: 1; background: #0d0d1a; }
+#map .leaflet-tile { image-rendering: pixelated; }
+.leaflet-popup-content-wrapper {
+  border-radius: 0 !important; border: var(--border) !important;
+  font-family: 'Press Start 2P', monospace !important;
+  background: var(--panel) !important; color: var(--text) !important;
+}
+.leaflet-popup-content { font-size: 9px; line-height: 1.8; margin: 12px !important; }
+.leaflet-popup-content b { color: var(--yellow); }
+.leaflet-bar a {
+  border-radius: 0 !important; border: 3px solid var(--shadow) !important;
+  background: var(--accent) !important; color: #fff !important;
+  font-family: 'Press Start 2P', monospace !important;
+}
+.pixel-marker {
+  width: 20px; height: 20px; border: 3px solid #0d0d1a;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.4);
+}
+
+/* ===== 定位標記 ===== */
+.loc-marker {
+  width: 18px; height: 18px;
+  background: #41a6f6;
+  border: 3px solid #f4f4f4;
+  outline: 3px solid #0d0d1a;
+  border-radius: 50%;
+  position: relative;
+}
+.loc-marker::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border: 3px solid rgba(65, 166, 246, .8);
+  border-radius: 50%;
+  animation: pulse 1.2s steps(8) infinite;
+}
+@keyframes pulse {
+  0%   { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+#btn-locate.loading { animation: blink .5s steps(2) infinite; }
+@keyframes blink { 50% { background: #ef7d57; } }
+
+/* ===== 對話框 ===== */
+dialog {
+  font-family: inherit; background: var(--panel); color: var(--text);
+  border: var(--border); box-shadow: 8px 8px 0 var(--shadow);
+  padding: 20px; width: min(440px, 92vw);
+}
+dialog::backdrop { background: rgba(0,0,0,.7); }
+dialog h2 { color: var(--yellow); font-size: 12px; margin-bottom: 16px; }
+label { display: block; font-size: 8px; margin: 12px 0 4px; color: #a7c4f0; }
+input, textarea, select {
+  font-family: inherit; font-size: 9px; width: 100%;
+  background: #1a1c2c; color: var(--text);
+  border: 3px solid var(--shadow); padding: 8px;
+}
+textarea { height: 70px; resize: vertical; }
+dialog .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+
+/* ===== 分類與城市管理介面 ===== */
+#cat-list, #city-list { max-height: 340px; overflow-y: auto; margin-top: 4px; }
+#cat-list::-webkit-scrollbar, #city-list::-webkit-scrollbar { width: 10px; }
+#cat-list::-webkit-scrollbar-thumb, #city-list::-webkit-scrollbar-thumb { background: var(--accent); }
+.cat-row, .city-row {
+  display: flex; align-items: center; gap: 8px;
+  background: #3b5dc9; border: 3px solid var(--shadow);
+  padding: 8px; margin-bottom: 8px;
+}
+.cat-row .dot { width: 16px; height: 16px; border: 3px solid var(--shadow); flex-shrink: 0; cursor: pointer; }
+.cat-row .name, .city-row .name { flex: 1; font-size: 9px; overflow: hidden; text-overflow: ellipsis; }
+.cat-row .count, .city-row .count { font-size: 7px; color: #a7c4f0; }
+.cat-row button, .city-row button {
+  font-family: inherit; font-size: 8px; border: 2px solid var(--shadow);
+  background: var(--accent); color: #fff; padding: 4px 6px; cursor: pointer;
+}
+.cat-row button.mv, .city-row button.mv { background: #3b5dc9; }
+.cat-row button.edit, .city-row button.edit { background: var(--yellow); color: #333; }
+.cat-row button.del, .city-row button.del { background: var(--red); }
+#cat-new-row, #city-new-row { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
+#cat-new-row input[type="text"], #city-new-row input[type="text"] { flex: 1; }
+#palette {
+  position: fixed; background: var(--panel); border: var(--border);
+  box-shadow: 6px 6px 0 var(--shadow); padding: 10px; z-index: 4000;
+  display: none; grid-template-columns: repeat(5, 1fr); gap: 6px;
+}
+#palette .sw { width: 26px; height: 26px; border: 3px solid var(--shadow); cursor: pointer; }
+#palette .sw:hover { transform: scale(1.15); }
+
+/* ===== 通知 ===== */
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--green); color: #fff; border: var(--border);
+  padding: 12px 16px; font-size: 9px; z-index: 2000;
+  box-shadow: 4px 4px 0 var(--shadow); display: none;
+}
+#a2hs-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--yellow); color: #333; border-top: var(--border);
+  padding: 12px; font-size: 9px; display: none; align-items: center; gap: 10px;
+  z-index: 3000; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+#a2hs-bar button { flex-shrink: 0; }
+#importFile { display: none; }
+
+#sidebar-toggle { display: none; }
+
+/* ===== 響應式設計 ===== */
+@media (max-width: 768px) {
+  #sidebar-toggle { display: block; }
+  #sidebar {
+    position: absolute; left: -324px; width: 320px; top: 0; bottom: 0;
+    transition: left .15s steps(4);
+  }
+  #sidebar.open { left: 0; box-shadow: 8px 0 0 rgba(0,0,0,.5); }
+  #topbar { padding: 6px 8px; gap: 4px; }
+  #topbar h1 { font-size: 9px; }
+  body { font-size: 9px; }
+  #topbar .btn { font-size: 7px; padding: 6px 6px; border-width: 3px; }
+  #topbar h1 { order: -1; }
+}
+@media (max-width: 360px) {
+  #topbar h1 { font-size: 8px; }
+  #topbar .btn { font-size: 7px; padding: 5px 4px; }
+}
 </style>
 </head>
 <body>
-<div id="app">
-  <button id="menuToggle">☰</button>
-  <div id="overlay"></div>
 
+<div id="topbar">
+  <button id="sidebar-toggle" class="btn yellow">☰</button>
+  <h1>🗺️ PIXEL TOUR</h1>
+  <span style="flex:1"></span>
+  <button id="btn-locate" class="btn yellow" title="定位目前位置">📍 定位</button>
+  <button id="btn-add" class="btn green">+ 新增</button>
+  <button id="btn-cats" class="btn yellow">🏷️ 分類</button>
+  <button id="btn-cities" class="btn yellow">🏙️ 城市</button>
+  <button id="btn-export" class="btn">📤 匯出</button>
+  <button id="btn-import" class="btn">📥 匯入</button>
+  <input type="file" id="importFile" accept=".json">
+</div>
+
+<div id="main">
   <aside id="sidebar">
-    <header>
-      <h1>👾 8-BIT TRAVEL</h1>
-      <p id="storageInfo">CHECKING STORAGE...</p>
-    </header>
-    <div id="tabs">
-      <button data-tab="places" class="active">地點</button>
-      <button data-tab="cats">分類</button>
-      <button data-tab="data">資料</button>
-    </div>
-
-    <!-- 地點清單 -->
-    <div id="tab-places" class="tab-content active">
-      <div style="margin-bottom:10px">
-        <input id="searchBox" placeholder="🔍 搜尋地點...">
-      </div>
-      <div style="margin-bottom:10px">
-        <button class="primary" style="width:100%" onclick="UI.startAddPlace()">＋ 新增地點</button>
-      </div>
-      <div id="filterChips"></div>
-      <div id="placeList"></div>
-    </div>
-
-    <!-- 分類管理 -->
-    <div id="tab-cats" class="tab-content">
-      <button class="primary" style="width:100%;margin-bottom:12px" onclick="UI.openCatModal()">＋ 新增分類</button>
-      <div id="catList"></div>
-    </div>
-
-    <!-- 資料匯入匯出 -->
-    <div id="tab-data" class="tab-content">
-      <div class="card">
-        <h3>💾 儲存狀態</h3>
-        <p style="font-size:8px" id="dbInfo"></p>
-      </div>
-      <div class="card">
-        <h3>📤 匯出 JSON</h3>
-        <p style="font-size:8px;margin-bottom:10px">下載所有地點與分類資料。</p>
-        <button class="primary" style="width:100%" onclick="Data.exportJSON()">匯出檔案</button>
-      </div>
-      <div class="card">
-        <h3>📥 匯入 JSON</h3>
-        <p style="font-size:8px;margin-bottom:10px">選擇 JSON 檔案匯入（可選合併或覆蓋）。</p>
-        <button style="width:100%;margin-bottom:8px" onclick="UI.askImportMode('merge')">合併匯入</button>
-        <button class="danger" style="width:100%" onclick="UI.askImportMode('replace')">覆蓋匯入</button>
-        <input type="file" id="importFile" accept=".json" style="display:none">
-      </div>
-      <div class="card">
-        <h3>🗑️ 危險區域</h3>
-        <button class="danger" style="width:100%" onclick="UI.askClearAll()">清空所有資料</button>
-      </div>
-    </div>
+    <div id="filters"></div>
+    <div id="spot-list"></div>
   </aside>
-
-  <main id="map">
-    <div id="mapBtns">
-      <button title="定位目前位置" onclick="Geo.locate()">🎯</button>
-      <button class="danger" title="取消新增模式" id="cancelAddBtn" style="display:none" onclick="UI.cancelAdd()">✕</button>
-    </div>
-    <div id="statusBar">READY</div>
-  </main>
+  <div id="map"></div>
 </div>
 
-<!-- Modal -->
-<div id="modalBg">
-  <div id="modal">
-    <h2 id="modalTitle"></h2>
-    <div id="modalBody"></div>
-    <div class="rowBtns">
-      <button onclick="UI.closeModal()">取消</button>
-      <button class="primary" id="modalOk">確定</button>
+<!-- 新增/編輯景點 -->
+<dialog id="dlg">
+  <h2 id="dlg-title">⚔️ 新增景點</h2>
+  <form id="spot-form">
+    <label>名稱 *</label><input id="f-name" required maxlength="50">
+    <label>城市</label><select id="f-city"></select>
+    <label>分類</label><select id="f-cat"></select>
+    <label>緯度 / 經度 *（在地圖上點擊可自動填入）</label>
+    <input id="f-lat" type="number" step="any" required placeholder="lat">
+    <input id="f-lng" type="number" step="any" required placeholder="lng" style="margin-top:6px">
+    <label>簡介</label><textarea id="f-desc" maxlength="200"></textarea>
+    <div class="row">
+      <button type="button" class="btn red" id="dlg-cancel">取消</button>
+      <button type="submit" class="btn green">儲存</button>
     </div>
+  </form>
+</dialog>
+
+<!-- 分類管理 -->
+<dialog id="cat-dlg">
+  <h2>🏷️ 分類管理</h2>
+  <div id="cat-list"></div>
+  <div id="cat-new-row">
+    <input type="text" id="cat-new-name" maxlength="20" placeholder="新分類名稱">
+    <button class="btn green small" id="cat-new-add">+ 新增</button>
   </div>
-</div>
+  <div class="row">
+    <button class="btn" id="cat-close">關閉</button>
+  </div>
+</dialog>
+
+<!-- 城市管理 -->
+<dialog id="city-dlg">
+  <h2>🏙️ 城市管理</h2>
+  <div id="city-list"></div>
+  <div id="city-new-row">
+    <input type="text" id="city-new-name" maxlength="20" placeholder="新城市名稱">
+    <button class="btn green small" id="city-new-add">+ 新增</button>
+  </div>
+  <div class="row">
+    <button class="btn" id="city-close">關閉</button>
+  </div>
+</dialog>
 
 <div id="toast"></div>
+<div id="a2hs-bar">
+  <span>📲 把 PIXEL TOUR 加到主畫面，離線也能冒險！</span>
+  <button id="a2hs-install" class="btn green small">安裝</button>
+  <button id="a2hs-close" class="btn red small">✕</button>
+</div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* ============ IndexedDB ============ */
-const DB = {
-  db:null,
-  open(){
-    return new Promise((res,rej)=>{
-      const r=indexedDB.open('travelMap8bit',1);
-      r.onupgradeneeded=e=>{
-        const d=e.target.result;
-        if(!d.objectStoreNames.contains('places')){
-          const s=d.createObjectStore('places',{keyPath:'id'});
-          s.createIndex('cat','cat');
-        }
-        if(!d.objectStoreNames.contains('cats')){
-          const s=d.createObjectStore('cats',{keyPath:'id'});
-        }
-      };
-      r.onsuccess=()=>{DB.db=r.result;res()};
-      r.onerror=()=>rej(r.error);
-    });
-  },
-  tx(store,mode){return DB.db.transaction(store,mode).objectStore(store)},
-  getAll(store){return new Promise((res,rej)=>{const r=DB.tx(store,'readonly').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
-  put(store,val){return new Promise((res,rej)=>{const r=DB.tx(store,'readwrite').put(val);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
-  del(store,id){return new Promise((res,rej)=>{const r=DB.tx(store,'readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})},
-  clear(store){return new Promise((res,rej)=>{const r=DB.tx(store,'readwrite').clear();r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
-};
+/* ============================================================
+   PIXEL TOUR v3.2 — 架構總覽
+   ├─ IndexedDB：「spots」、「categories」與「cities」三張表
+   ├─ 分類系統：動態 CRUD + 換色 + 排序 + 景點轉移
+   ├─ 城市系統：動態 CRUD + 排序 + 景點關聯
+   ├─ 雙重篩選：可同時按城市和分類篩選景點
+   ├─ Geolocation：一次性高精度定位 + 誤差圈 + 脈衝標記
+   ├─ JSON 匯入/匯出：含分類與城市資料一併備份
+   ├─ 單檔案 PWA：Blob manifest + canvas 8-bit 圖示 + A2HS
+   └─ v3.2：新增城市管理與雙重篩選功能
+   ============================================================ */
 
-/* ============ State ============ */
-const State = {
-  places:[], cats:[],
-  filter:new Set(),        // 關閉的分類 id
-  addMode:false,
-  markers:new Map()        // placeId -> marker
-};
-
-const DEFAULT_CATS = [
-  {id:'cat_sight', name:'景點', color:'#ffd93d', icon:'📸'},
-  {id:'cat_food',  name:'美食', color:'#ff6ec7', icon:'🍜'},
-  {id:'cat_hotel', name:'住宿', color:'#5ce1e6', icon:'🛏️'},
-  {id:'cat_trans', name:'交通', color:'#4ade80', icon:'🚌'}
-];
-const PALETTE=['#ffd93d','#ff6ec7','#5ce1e6','#4ade80','#ff5c5c','#a78bfa','#fb923c','#f472b6','#34d399','#60a5fa'];
-const CAT_ICONS=['📸','🍜','🛏️','🚌','🛍️','🎪','🏖️','⛰️','🏛️','⛲','🎡','🍺','☕','🎁','🚆','✈️'];
-
-/* ============ Toast ============ */
-function toast(msg,ms=2200){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.style.display='block';
-  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);
-}
-function status(msg){
-  const s=document.getElementById('statusBar');
-  s.textContent=msg;s.style.color='var(--green)';
-}
-
-/* ============ Map ============ */
-const Map = {
-  map:null, meMarker:null,
-  init(){
-    Map.map=L.map('map',{
-      zoomControl:true,
-      worldCopyJump:true
-    }).setView([23.7,120.96],7); // 台灣
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19,
-      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(Map.map);
-    Map.map.on('click',e=>{
-      if(State.addMode){
-        UI.openPlaceModal(null,{lat:e.latlng.lat,lng:e.latlng.lng});
-        UI.cancelAdd();
+/* ------------------------------------------------------------
+   IndexedDB（Promise 封裝）
+------------------------------------------------------------ */
+const DB_NAME = 'pixel-tour-db', DB_VER = 3;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('spots')) {
+        const s = db.createObjectStore('spots', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('cat', 'cat', { unique: false });
+        s.createIndex('city', 'city', { unique: false });
       }
-    });
-    // 響應式：尺寸變更時重繪
-    window.addEventListener('resize',()=>setTimeout(()=>Map.map.invalidateSize(),250));
-    if(window.innerWidth>768) document.getElementById('menuToggle').style.display='none';
-  },
-  makeIcon(color,icon){
-    return L.divIcon({
-      className:'',
-      html:`<div class="marker-pixel" style="background:${color}">${icon||'📍'}</div>`,
-      iconSize:[22,22], iconAnchor:[11,11], popupAnchor:[0,-14]
-    });
-  },
-  catOf(id){return State.cats.find(c=>c.id===id)},
-  refreshMarkers(){
-    State.markers.forEach(m=>Map.map.removeLayer(m));
-    State.markers.clear();
-    State.places.forEach(p=>{
-      if(State.filter.has(p.cat))return;
-      const c=Map.catOf(p.cat)||{color:'#ffd93d',icon:'📍',name:'未分類'};
-      const m=L.marker([p.lat,p.lng],{icon:Map.makeIcon(c.color,c.icon)}).addTo(Map.map);
-      m.bindPopup(
-        `<b>${esc(p.name)}</b><br>`+
-        `<span class="pd"><span style="color:${c.color}">■</span> ${esc(c.name)}</span><br>`+
-        (p.desc?`<span class="pd">${esc(p.desc)}</span><br>`:'')+
-        `<span class="pd">📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span>`
-      );
-      m.on('click',()=>{ if(window.innerWidth<=768) UI.closeSidebar(); });
-      State.markers.set(p.id,m);
-    });
-  }
-};
-
-/* ============ Geo ============ */
-const Geo = {
-  locate(){
-    if(!navigator.geolocation){toast('此瀏覽器不支援定位');return}
-    status('定位中...');
-    navigator.geolocation.getCurrentPosition(pos=>{
-      const {latitude:lat,longitude:lng}=pos.coords;
-      if(Map.meMarker)Map.map.removeLayer(Map.meMarker);
-      Map.meMarker=L.marker([lat,lng],{icon:Map.makeIcon('#ff5c5c','👤')})
-        .addTo(Map.map).bindPopup('<b>你的位置</b>');
-      Map.map.setView([lat,lng],15);
-      status('已定位');
-      toast('🎯 已定位目前位置');
-    },err=>{
-      status('定位失敗');
-      toast('定位失敗：'+err.message);
-    },{enableHighAccuracy:true,timeout:10000});
-  }
-};
-
-/* ============ Data (import/export) ============ */
-const Data = {
-  async exportJSON(){
-    const payload={
-      app:'travel-map-8bit',version:1,exportedAt:new Date().toISOString(),
-      cats:State.cats,places:State.places
+      if (!db.objectStoreNames.contains('categories')) {
+        db.createObjectStore('categories', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('cities')) {
+        db.createObjectStore('cities', { keyPath: 'key' });
+      }
     };
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=`travel-map-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();URL.revokeObjectURL(a.href);
-    toast('📤 已匯出 JSON');
-  },
-  async importJSON(file,mode){
-    try{
-      const data=JSON.parse(await file.text());
-      if(!data.places||!data.cats)throw new Error('格式不符');
-      if(mode==='replace'){
-        await DB.clear('places');await DB.clear('cats');
-        State.cats=[];State.places=[];
-      }
-      // 分類先匯入（避免重複 id）
-      const catIds=new Set(State.cats.map(c=>c.id));
-      for(const c of data.cats){ if(!catIds.has(c.id)){await DB.put('cats',c);State.cats.push(c);catIds.add(c.id);} }
-      const placeIds=new Set(State.places.map(p=>p.id));
-      for(const p of data.places){
-        if(!p.id||typeof p.lat!=='number')continue;
-        if(!placeIds.has(p.id)){await DB.put('places',p);State.places.push(p);placeIds.add(p.id);}
-      }
-      UI.renderAll();
-      toast(`📥 匯入完成（${mode==='replace'?'覆蓋':'合併'}）`);
-    }catch(e){ toast('匯入失敗：'+e.message); }
-  }
-};
-
-/* ============ UI ============ */
-const UI = {
-  // --- Modal ---
-  openModal(title,bodyHTML,onOk){
-    document.getElementById('modalTitle').textContent=title;
-    document.getElementById('modalBody').innerHTML=bodyHTML;
-    document.getElementById('modalBg').classList.add('show');
-    document.getElementById('modalOk').onclick=onOk;
-  },
-  closeModal(){document.getElementById('modalBg').classList.remove('show')},
-
-  // --- Sidebar ---
-  closeSidebar(){
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('overlay').classList.remove('show');
-  },
-
-  // --- 新增地點流程 ---
-  startAddPlace(){
-    State.addMode=true;
-    document.getElementById('cancelAddBtn').style.display='block';
-    status('點擊地圖放置地點');
-    toast('點擊地圖以新增地點');
-    UI.closeSidebar();
-  },
-  cancelAdd(){
-    State.addMode=false;
-    document.getElementById('cancelAddBtn').style.display='none';
-    status('READY');
-  },
-  openPlaceModal(existing,coords){
-    const p=existing||{name:'',cat:State.cats[0]?.id||'',desc:'',lat:coords.lat,lng:coords.lng};
-    const opts=State.cats.map(c=>
-      `<option value="${c.id}" ${c.id===p.cat?'selected':''}>${c.icon} ${esc(c.name)}</option>`).join('');
-    UI.openModal(existing?'✏️ 編編輯地點':'➕ 新增地點',`
-      <label>名稱 *</label>
-      <input id="f_name" value="${esc(p.name)}" maxlength="60">
-      <label>分類</label>
-      <select id="f_cat">${opts}</select>
-      <label>描述</label>
-      <textarea id="f_desc" rows="3">${esc(p.desc||'')}</textarea>
-      <label>座標</label>
-      <input id="f_lat" type="number" step="any" value="${p.lat}">
-      <input id="f_lng" type="number" step="any" value="${p.lng}">
-    `,async()=>{
-      const name=document.getElementById('f_name').value.trim();
-      if(!name){toast('請輸入名稱');return}
-      const lat=parseFloat(document.getElementById('f_lat').value);
-      const lng=parseFloat(document.getElementById('f_lng').value);
-      if(isNaN(lat)||isNaN(lng)){toast('座標無效');return}
-      const obj=existing?{...p,...{}}:{id:'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),created:Date.now()};
-      obj.name=name;
-      obj.cat=document.getElementById('f_cat').value;
-      obj.desc=document.getElementById('f_desc').value.trim();
-      obj.lat=lat;obj.lng=lng;
-      await DB.put('places',obj);
-      if(existing){const i=State.places.findIndex(x=>x.id===p.id);State.places[i]=obj}
-      else State.places.push(obj);
-      UI.closeModal();UI.renderAll();
-      Map.map.setView([lat,lng],Math.max(Map.map.getZoom(),13));
-      toast(existing?'✏️ 已更新':'➕ 已新增：'+name);
-    });
-  },
-  async deletePlace(id){
-    if(!confirm('確定刪除此地點？'))return;
-    await DB.del('places',id);
-    State.places=State.places.filter(p=>p.id!==id);
-    UI.renderAll();toast('🗑️ 已刪除');
-  },
-  flyTo(p){ Map.map.setView([p.lat,p.lng],15); UI.closeSidebar(); },
-
-  // --- 分類 Modal ---
-  openCatModal(existing){
-    const c=existing||{name:'',color:PALETTE[0],icon:CAT_ICONS[0]};
-    const colors=PALETTE.map(col=>
-      `<div class="colorSwatch ${col===c.color?'sel':''}" data-c="${col}" style="background:${col}"></div>`).join('');
-    const icons=CAT_ICONS.map(ic=>
-      `<button type="button" class="chip ${ic===c.icon?'':'off'}" data-i="${ic}" style="font-size:14px">${ic}</button>`).join('');
-    UI.openModal(existing?'✏️ 編輯分類':'➕ 新增分類',`
-      <label>分類名稱 *</label>
-      <input id="c_name" value="${esc(c.name)}" maxlength="20">
-      <label>顏色</label>
-      <div class="colorRow" id="c_colors">${colors}</div>
-      <label>圖示</label>
-      <div id="c_icons">${icons}</div>
-      ${existing?`<p style="font-size:8px;color:var(--mag);margin-top:10px">⚠️ 刪除分類將同時刪除該分類所有地點</p>`:''}
-    `,async()=>{
-      const name=document.getElementById('c_name').value.trim();
-      if(!name){toast('請輸入名稱');return}
-      const color=document.querySelector('#c_colors .sel')?.dataset.c||PALETTE[0];
-      const icon=document.querySelector('#c_icons .chip:not(.off)')?.dataset.i||CAT_ICONS[0];
-      const obj=existing?{...c}:{id:'cat_'+Date.now()};
-      obj.name=name;obj.color=color;obj.icon=icon;
-      await DB.put('cats',obj);
-      if(existing){const i=State.cats.findIndex(x=>x.id===c.id);State.cats[i]=obj}
-      else State.cats.push(obj);
-      UI.closeModal();UI.renderAll();toast('✅ 已儲存分類');
-    });
-    document.querySelectorAll('#c_colors .colorSwatch').forEach(el=>el.onclick=()=>{
-      document.querySelectorAll('#c_colors .colorSwatch').forEach(x=>x.classList.remove('sel'));
-      el.classList.add('sel');
-    });
-    document.querySelectorAll('#c_icons .chip').forEach(el=>el.onclick=()=>{
-      document.querySelectorAll('#c_icons .chip').forEach(x=>x.classList.add('off'));
-      el.classList.remove('off');
-    });
-  },
-  async deleteCat(id){
-    const n=State.places.filter(p=>p.cat===id).length;
-    if(!confirm(`刪除此分類${n?`及其 ${n} 個地點`:''}？`))return;
-    await DB.del('cats',id);
-    for(const p of State.places.filter(p=>p.cat===id))await DB.del('places',p.id);
-    State.cats=State.cats.filter(c=>c.id!==id);
-    State.places=State.places.filter(p=>p.cat!==id);
-    State.filter.delete(id);
-    UI.renderAll();toast('🗑️ 已刪除分類');
-  },
-
-  // --- 匯入/清除 ---
-  askImportMode(mode){
-    const file=document.getElementById('importFile');
-    file.onchange=()=>{
-      if(file.files[0])Data.importJSON(file.files[0],mode);
-      file.value='';
-    };
-    file.click();
-  },
-  async askClearAll(){
-    if(!confirm('確定清空所有地點與分類？此操作無法復原！'))return;
-    await DB.clear('places');await DB.clear('cats');
-    State.places=[];State.cats=[];State.filter.clear();
-    await seedDefaults();
-    UI.renderAll();toast('已清空並重設預設分類');
-  },
-
-  // --- Render ---
-  renderAll(){UI.renderChips();UI.renderPlaces();UI.renderCats();UI.renderDbInfo();Map.refreshMarkers()},
-
-  renderChips(){
-    const box=document.getElementById('filterChips');
-    if(!State.cats.length){box.innerHTML='';return}
-    box.innerHTML=State.cats.map(c=>
-      `<span class="chip ${State.filter.has(c.id)?'off':''}" data-id="${c.id}">
-        <span class="dot" style="background:${c.color}"></span>${c.icon} ${esc(c.name)}</span>`).join('');
-    box.querySelectorAll('.chip').forEach(el=>el.onclick=()=>{
-      const id=el.dataset.id;
-      State.filter.has(id)?State.filter.delete(id):State.filter.add(id);
-      UI.renderChips();Map.refreshMarkers();
-    });
-  },
-
-  renderPlaces(){
-    const list=document.getElementById('placeList');
-    const q=document.getElementById('searchBox').value.trim().toLowerCase();
-    let ps=State.places.filter(p=>!State.filter.has(p.cat));
-    if(q)ps=ps.filter(p=>p.name.toLowerCase().includes(q)||(p.desc||'').toLowerCase().includes(q));
-    if(!ps.length){list.innerHTML='<div class="empty">-- 無資料 --<br>點地圖或按「＋ 新增地點」！</div>';return}
-    list.innerHTML=ps.map(p=>{
-      const c=Map.catOf(p.cat)||{color:'#ffd93d',icon:'📍',name:'未分類'};
-      return `<div class="card">
-        <h3><span class="dot" style="background:${c.color}"></span>${esc(p.name)}</h3>
-        <div class="meta">${c.icon} ${esc(c.name)} | ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div>
-        ${p.desc?`<div class="desc">${esc(p.desc)}</div>`:''}
-        <div class="btns">
-          <button onclick='UI.flyTo(${JSON.stringify(p)})'>🗺️</button>
-          <button onclick='UI.openPlaceModal(${JSON.stringify(p)})'>✏️</button>
-          <button class="danger" onclick='UI.deletePlace("${p.id}")'>🗑️</button>
-        </div></div>`;
-    }).join('');
-  },
-
-  renderCats(){
-    const list=document.getElementById('catList');
-    if(!State.cats.length){list.innerHTML='<div class="empty">-- 無分類 --</div>';return}
-    list.innerHTML=State.cats.map(c=>{
-      const n=State.places.filter(p=>p.cat===c.id).length;
-      return `<div class="card">
-        <h3><span class="dot" style="background:${c.color}"></span>${c.icon} ${esc(c.name)}</h3>
-        <div class="meta">${n} 個地點</div>
-        <div class="btns">
-          <button onclick='UI.openCatModal(${JSON.stringify(c)})'>✏️</button>
-          <button class="danger" onclick='UI.deleteCat("${c.id}")'>🗑️</button>
-        </div></div>`;
-    }).join('');
-  },
-
-  async renderDbInfo(){
-    const persisted=await navigator.storage?.persisted?.();
-    let quota='';
-    if(navigator.storage?.estimate){
-      const e=await navigator.storage.estimate();
-      if(e.usage)quota=` | 已用 ${(e.usage/1024).toFixed(1)} KB`;
-    }
-    document.getElementById('dbInfo').innerHTML=
-      `IndexedDB：${State.places.length} 地點 / ${State.cats.length} 分類<br>`+
-      `持久化：${persisted?'✅ 已授權':'⏳ 未授權'}${quota}`;
-  }
-};
-
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-
-/* ============ 啟動 ============ */
-async function seedDefaults(){
-  if((await DB.getAll('cats')).length===0){
-    for(const c of DEFAULT_CATS)await DB.put('cats',c);
-  }
-}
-async function init(){
-  // 1. 申請持久化儲存
-  const info=document.getElementById('storageInfo');
-  if(navigator.storage?.persist){
-    const granted=await navigator.storage.persist();
-    info.textContent=granted?'💾 STORAGE: PERSISTED ✓':'💾 STORAGE: BEST-EFFORT';
-  }else info.textContent='💾 STORAGE: N/A';
-
-  await DB.open();
-  await seedDefaults();
-  State.cats=await DB.getAll('cats');
-  State.places=await DB.getAll('places');
-
-  Map.init();
-  UI.renderAll();
-
-  // Tabs
-  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
-    document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror  = () => reject(req.error);
   });
-  // 搜尋
-  document.getElementById('searchBox').oninput=()=>UI.renderPlaces();
-  // Mobile toggle
-  document.getElementById('menuToggle').onclick=()=>{
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('overlay').classList.toggle('show');
-  };
-  document.getElementById('overlay').onclick=UI.closeSidebar;
-  // Modal 背景關閉
-  document.getElementById('modalBg').onclick=e=>{if(e.target.id==='modalBg')UI.closeModal()};
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')UI.closeModal()});
-  status('READY ▸ '+State.places.length+' 地點');
 }
-init();
+function tx(store, mode, fn) {
+  return openDB().then(db => new Promise((res, rej) => {
+    const t = db.transaction(store, mode);
+    const rq = fn(t.objectStore(store));
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror  = () => rej(rq.error);
+  }));
+}
+const dbSpots = {
+  all:    () => tx('spots', 'readonly',  s => s.getAll()),
+  put:    d  => tx('spots', 'readwrite', s => s.put(d)),
+  del:    id => tx('spots', 'readwrite', s => s.delete(id)),
+};
+const dbCats = {
+  all:    () => tx('categories', 'readonly',  s => s.getAll()),
+  put:    c  => tx('categories', 'readwrite', s => s.put(c)),
+  del:    k  => tx('categories', 'readwrite', s => s.delete(k)),
+};
+const dbCities = {
+  all:    () => tx('cities', 'readonly',  s => s.getAll()),
+  put:    c  => tx('cities', 'readwrite', s => s.put(c)),
+  del:    k  => tx('cities', 'readwrite', s => s.delete(k)),
+};
+
+/* ------------------------------------------------------------
+   預設分類（11 種）與色板
+------------------------------------------------------------ */
+const PALETTE = ['#ffcd75','#38b764','#b13e53','#41a6f6','#ef7d57',
+                 '#a7c4f0','#ff7ab6','#73eff7','#8b6ff0','#94b0c2','#5d275d'];
+const DEFAULT_CATS = [
+  { key: 'history', name: '🏰 歷史古蹟', color: '#ffcd75' },
+  { key: 'nature',  name: '🌲 自然風光', color: '#38b764' },
+  { key: 'food',    name: '🍜 美食',     color: '#b13e53' },
+  { key: 'shopping',name: '🛍️ 購物',     color: '#ef7d57' },
+  { key: 'theme',   name: '🎡 主題樂園', color: '#ff7ab6' },
+  { key: 'airport', name: '✈️ 機場',     color: '#a7c4f0' },
+  { key: 'religion',name: '⛩️ 宗教',     color: '#8b6ff0' },
+  { key: 'venue',   name: '🏛️ 場館',     color: '#73eff7' },
+  { key: 'entmt',   name: '🎭 娛樂',     color: '#94b0c2' },
+  { key: 'night',   name: '🌙 夜生活',   color: '#5d275d' },
+  { key: 'other',   name: '📍 其他',     color: '#41a6f6' },
+];
+
+/* ------------------------------------------------------------
+   預設城市（根據台灣主要城市）
+------------------------------------------------------------ */
+const DEFAULT_CITIES = [
+  { key: 'taipei', name: '台北市', sort: 0 },
+  { key: 'new-taipei', name: '新北市', sort: 1 },
+  { key: 'keelung', name: '基隆市', sort: 2 },
+  { key: 'taoyuan', name: '桃園市', sort: 3 },
+  { key: 'hsinchu', name: '新竹市', sort: 4 },
+  { key: 'hsinchu-county', name: '新竹縣', sort: 5 },
+  { key: 'miaoli', name: '苗栗縣', sort: 6 },
+  { key: 'taichung', name: '台中市', sort: 7 },
+  { key: 'changhua', name: '彰化縣', sort: 8 },
+  { key: 'nantou', name: '南投縣', sort: 9 },
+  { key: 'yunlin', name: '雲林縣', sort: 10 },
+  { key: 'chiayi', name: '嘉義市', sort: 11 },
+  { key: 'chiayi-county', name: '嘉義縣', sort: 12 },
+  { key: 'tainan', name: '台南市', sort: 13 },
+  { key: 'kaohsiung', name: '高雄市', sort: 14 },
+  { key: 'pingtung', name: '屏東縣', sort: 15 },
+  { key: 'yilan', name: '宜蘭縣', sort: 16 },
+  { key: 'hualien', name: '花蓮縣', sort: 17 },
+  { key: 'taitung', name: '台東縣', sort: 18 },
+  { key: 'penghu', name: '澎湖縣', sort: 19 },
+  { key: 'kinmen', name: '金門縣', sort: 20 },
+  { key: 'lienchiang', name: '連江縣', sort: 21 },
+];
+
+/* ------------------------------------------------------------
+   持久化儲存申請
+------------------------------------------------------------ */
+async function requestPersistence() {
+  if (navigator.storage && navigator.storage.persist) {
+    if (await navigator.storage.persisted()) return;
+    const granted = await navigator.storage.persist();
+    if (granted) toast('✅ 已取得持久化儲存權限！');
+    if (navigator.storage.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      console.info(`儲存用量：${(usage/1024).toFixed(1)}KB / ${(quota/1048576).toFixed(0)}MB`);
+    }
+  }
+}
+
+/* ------------------------------------------------------------
+   單檔案 PWA：canvas 繪 8-bit 圖示 + Blob manifest
+------------------------------------------------------------ */
+function makePixelIcon(size) {
+  const px = 8, c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const art = ['DDDDDDDD','DWWWWWD','DWJJJJWD','DWJJJJWD',
+               'DWJJJJWD','DDWJJWDD','DDDWJWDD','DDDDWDDD'];
+  const colors = { D:'#0d0d1a', J:'#ffcd75', W:'#f4f4f4' };
+  art.forEach((row, y) => [...row].forEach((ch, x) => {
+    ctx.fillStyle = colors[ch];
+    ctx.fillRect(x*size/px, y*size/px, size/px+0.5, size/px+0.5);
+  }));
+  return c.toDataURL('image/png');
+}
+(function injectManifest() {
+  const manifest = {
+    name: 'Pixel Tour - 8bit 旅遊地圖', short_name: 'PixelTour',
+    start_url: '.', display: 'standalone',
+    background_color: '#1a1c2c', theme_color: '#29366f',
+    icons: [
+      { src: makePixelIcon(192), sizes: '192x192', type: 'image/png' },
+      { src: makePixelIcon(512), sizes: '512x512', type: 'image/png' }
+    ]
+  };
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
+  document.head.appendChild(link);
+})();
+
+/* ------------------------------------------------------------
+   A2HS - Add to Home Screen
+------------------------------------------------------------ */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('a2hs-bar').style.display = 'flex';
+});
+document.getElementById('a2hs-install').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  toast(outcome === 'accepted' ? '🎉 安裝成功！' : '已取消安裝');
+  deferredPrompt = null; hideA2HS();
+});
+document.getElementById('a2hs-close').addEventListener('click', hideA2HS);
+function hideA2HS() { document.getElementById('a2hs-bar').style.display = 'none'; }
+window.addEventListener('appinstalled', () => { hideA2HS(); toast('🎉 感謝安裝！'); });
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches) {
+  const bar = document.getElementById('a2hs-bar');
+  bar.querySelector('span').textContent = '📲 iOS：點 Safari「分享」→「加入主畫面」';
+  bar.style.display = 'flex';
+  document.getElementById('a2hs-install').style.display = 'none';
+}
+
+/* ------------------------------------------------------------
+   地圖初始化
+------------------------------------------------------------ */
+const map = L.map('map').setView([23.7, 121], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '© OpenStreetMap'
+}).addTo(map);
+const markerGroup = L.markerClusterGroup({ maxClusterRadius: 40 });
+map.addLayer(markerGroup);
+
+new ResizeObserver(() => map.invalidateSize()).observe(document.body);
+
+/* ------------------------------------------------------------
+   應用狀態
+------------------------------------------------------------ */
+let spots = [], cats = [], cities = [], 
+    activeFilter = 'all', activeCityFilter = 'all', 
+    editingId = null;
+const markers = new Map();
+const catMap = () => Object.fromEntries(cats.map(c => [c.key, c]));
+const cityMap = () => Object.fromEntries(cities.map(c => [c.key, c]));
+
+function makeIcon(cat) {
+  const c = catMap()[cat];
+  return L.divIcon({
+    className: '',
+    html: `<div class="pixel-marker" style="background:${c ? c.color : '#41a6f6'}"></div>`,
+    iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -12]
+  });
+}
+
+/* ---------- 渲染：景點列表 ---------- */
+function renderList() {
+  const cm = catMap();
+  const cityM = cityMap();
+  const list = document.getElementById('spot-list');
+  
+  // 應用篩選：城市和分類
+  let filtered = spots;
+  if (activeCityFilter !== 'all') {
+    filtered = filtered.filter(s => s.city === activeCityFilter);
+  }
+  if (activeFilter !== 'all') {
+    filtered = filtered.filter(s => s.cat === activeFilter);
+  }
+  
+  list.innerHTML = filtered.length ? '' :
+    '<p style="padding:20px;color:#a7c4f0;text-align:center">— 沒有景點 —<br><br>點地圖或按「+新增」<br>開始冒險吧！</p>';
+  
+  filtered.forEach(s => {
+    const c = cm[s.cat];
+    const city = cityM[s.city];
+    const div = document.createElement('div');
+    div.className = 'spot-item'; div.dataset.id = s.id;
+    div.innerHTML = `<button class="del" title="刪除">✕</button>
+      <h3>${escapeHtml(s.name)}</h3>
+      <div class="meta">
+        ${city ? `<span class="city">🏙️ ${escapeHtml(city.name)}</span>` : ''}
+        ${c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span>${escapeHtml(c.name)}</span>` : '⚠️ 未知分類'}
+      </div>`;
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('del')) return;
+      flyToSpot(s.id);
+      if (innerWidth <= 768) sidebar.classList.remove('open');
+    });
+    div.querySelector('.del').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (confirm(`刪除「${s.name}」？`)) { await dbSpots.del(s.id); loadAll(); toast('🗑️ 已刪除'); }
+    });
+    list.appendChild(div);
+  });
+}
+
+/* ---------- 渲染：地圖標記 ---------- */
+function renderMarkers() {
+  const cm = catMap();
+  markerGroup.clearLayers(); markers.clear();
+  
+  // 應用篩選：城市和分類
+  let filtered = spots;
+  if (activeCityFilter !== 'all') {
+    filtered = filtered.filter(s => s.city === activeCityFilter);
+  }
+  if (activeFilter !== 'all') {
+    filtered = filtered.filter(s => s.cat === activeFilter);
+  }
+  
+  filtered.forEach(s => {
+    const c = cm[s.cat];
+    const m = L.marker([s.lat, s.lng], { icon: makeIcon(s.cat) })
+      .bindPopup(`<b>${escapeHtml(s.name)}</b><br>${c ? escapeHtml(c.name) : ''}<br>
+        ${escapeHtml(s.desc || '')}<br>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}"
+           target="_blank" style="color:#ffcd75">🧭 導航前往 »</a>`);
+    markerGroup.addLayer(m);
+    markers.set(s.id, m);
+  });
+}
+
+/* ---------- 渲染：篩選器 ---------- */
+function renderFilters() {
+  const box = document.getElementById('filters');
+  box.innerHTML = '';
+  
+  // 城市篩選器
+  const cityGroup = document.createElement('div');
+  cityGroup.className = 'filter-group';
+  
+  const cityLabel = document.createElement('span');
+  cityLabel.className = 'filter-label';
+  cityLabel.textContent = '城市:';
+  cityGroup.appendChild(cityLabel);
+  
+  const mkCity = (key, label) => {
+    const b = document.createElement('button');
+    b.className = 'chip city-chip' + (activeCityFilter === key ? ' active' : '');
+    b.textContent = label;
+    b.onclick = () => { activeCityFilter = key; renderFilters(); renderList(); renderMarkers(); };
+    cityGroup.appendChild(b);
+  };
+  
+  mkCity('all', '全部');
+  cities.forEach(c => mkCity(c.key, c.name));
+  box.appendChild(cityGroup);
+  
+  // 分類篩選器
+  const catGroup = document.createElement('div');
+  catGroup.className = 'filter-group';
+  
+  const catLabel = document.createElement('span');
+  catLabel.className = 'filter-label';
+  catLabel.textContent = '分類:';
+  catGroup.appendChild(catLabel);
+  
+  const mkCat = (key, label, color) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (activeFilter === key ? ' active' : '');
+    b.innerHTML = color ? `<span class="dot" style="background:${color}"></span>${label}` : label;
+    b.onclick = () => { activeFilter = key; renderFilters(); renderList(); renderMarkers(); };
+    catGroup.appendChild(b);
+  };
+  
+  mkCat('all', '全部');
+  cats.forEach(c => mkCat(c.key, c.name, c.color));
+  box.appendChild(catGroup);
+}
+
+/* ---------- 渲染：景點表單下拉 ---------- */
+function renderCatSelect(sel) {
+  const el = document.getElementById('f-cat');
+  el.innerHTML = '';
+  cats.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.key; o.textContent = c.name;
+    el.appendChild(o);
+  });
+  if (sel) el.value = sel;
+}
+
+function renderCitySelect(sel) {
+  const el = document.getElementById('f-city');
+  el.innerHTML = '';
+  cities.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.key; o.textContent = c.name;
+    el.appendChild(o);
+  });
+  if (sel) el.value = sel;
+}
+
+function flyToSpot(id) {
+  const s = spots.find(x => x.id === id);
+  if (!s) return;
+  map.flyTo([s.lat, s.lng], Math.max(map.getZoom(), 14), { duration: 0.5 });
+  setTimeout(() => {
+    const m = markers.get(id);
+    if (m) m.openPopup();
+    document.querySelectorAll('.spot-item').forEach(el =>
+      el.classList.toggle('active', +el.dataset.id === id));
+    const a = document.querySelector('.spot-item.active');
+    if (a) a.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, 550);
+}
+
+async function loadAll() {
+  spots = (await dbSpots.all()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+  renderList(); renderMarkers();
+}
+async function loadCats() {
+  cats = (await dbCats.all()).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+  renderFilters(); renderCatSelect(); renderCatManager();
+}
+async function loadCities() {
+  cities = (await dbCities.all()).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+  renderFilters(); renderCitySelect(); renderCityManager();
+}
+
+/* ------------------------------------------------------------
+   新增 / 編輯景點
+------------------------------------------------------------ */
+const dlg = document.getElementById('dlg');
+document.getElementById('btn-add').addEventListener('click', () => openDialog(null));
+map.on('click', e => openDialog(null, e.latlng));
+map.on('contextmenu', e => openDialog(null, e.latlng));
+
+function openDialog(id, latlng) {
+  editingId = id;
+  const s = id ? spots.find(x => x.id === id) : null;
+  document.getElementById('dlg-title').textContent = s ? '✏️ 編輯景點' : '⚔️ 新增景點';
+  document.getElementById('f-name').value = s?.name || '';
+  renderCitySelect(s?.city);
+  renderCatSelect(s?.cat);
+  document.getElementById('f-lat').value = s?.lat ?? latlng?.lat ?? '';
+  document.getElementById('f-lng').value = s?.lng ?? latlng?.lng ?? '';
+  document.getElementById('f-desc').value = s?.desc || '';
+  dlg.showModal();
+}
+document.getElementById('dlg-cancel').onclick = () => dlg.close();
+document.getElementById('spot-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {
+    name: document.getElementById('f-name').value.trim(),
+    city: document.getElementById('f-city').value,
+    cat:  document.getElementById('f-cat').value,
+    lat:  +document.getElementById('f-lat').value,
+    lng:  +document.getElementById('f-lng').value,
+    desc: document.getElementById('f-desc').value.trim()
+  };
+  if (editingId) data.id = editingId;
+  await dbSpots.put(data);
+  dlg.close(); await loadAll(); toast('💾 已儲存！');
+});
+
+/* ============================================================
+   分類管理
+============================================================ */
+const catDlg = document.getElementById('cat-dlg');
+document.getElementById('btn-cats').addEventListener('click', () => { renderCatManager(); catDlg.showModal(); });
+document.getElementById('cat-close').onclick = () => catDlg.close();
+
+function makeCatKey(name) {
+  let base = 'cat-' + encodeURIComponent(name).replace(/[^a-zA-Z0-9%-]/g, '').slice(0, 20)
+             || 'cat';
+  if (!cats.some(c => c.key === base)) return base;
+  let i = 2;
+  while (cats.some(c => c.key === `${base}-${i}`)) i++;
+  return `${base}-${i}`;
+}
+
+function renderCatManager() {
+  const counts = {};
+  spots.forEach(s => counts[s.cat] = (counts[s.cat] || 0) + 1);
+  const box = document.getElementById('cat-list');
+  box.innerHTML = '';
+  cats.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+    row.innerHTML = `
+      <div class="dot" style="background:${c.color}" title="點擊換色"></div>
+      <span class="name">${escapeHtml(c.name)}</span>
+      <span class="count">${counts[c.key] || 0} 處</span>
+      <button class="mv" data-act="up" ${i === 0 ? 'disabled' : ''}>▲</button>
+      <button class="mv" data-act="down" ${i === cats.length-1 ? 'disabled' : ''}>▼</button>
+      <button class="edit" data-act="edit">✏️</button>
+      <button class="del" data-act="del" ${c.key === 'other' ? 'disabled title="保底分類不可刪"' : ''}>✕</button>`;
+    row.querySelector('.dot').addEventListener('click', e => openPalette(e.target, c));
+    row.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      if (act === 'up' || act === 'down') moveCat(i, act === 'up' ? i-1 : i+1);
+      else if (act === 'edit') editCat(c);
+      else if (act === 'del') deleteCat(c, counts[c.key] || 0);
+    }));
+    box.appendChild(row);
+  });
+}
+
+document.getElementById('cat-new-add').addEventListener('click', async () => {
+  const input = document.getElementById('cat-new-name');
+  const name = input.value.trim();
+  if (!name) { toast('請輸入分類名稱'); return; }
+  if (cats.some(c => c.name === name)) { toast('❌ 名稱重複'); return; }
+  await dbCats.put({ key: makeCatKey(name), name, color: PALETTE[cats.length % PALETTE.length], sort: cats.length });
+  input.value = '';
+  await loadCats(); renderList(); renderMarkers();
+  toast('🏷️ 已新增分類');
+});
+document.getElementById('cat-new-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cat-new-add').click(); }
+});
+
+async function editCat(c) {
+  const name = prompt('新名稱：', c.name);
+  if (!name || name.trim() === c.name) return;
+  if (cats.some(x => x.name === name.trim() && x.key !== c.key)) { toast('❌ 名稱重複'); return; }
+  await dbCats.put({ ...c, name: name.trim() });
+  await loadCats(); renderList(); renderMarkers();
+  toast('✏️ 已更新');
+}
+
+async function deleteCat(c, count) {
+  if (count > 0) {
+    const others = cats.filter(x => x.key !== c.key);
+    let msg = `分類「${c.name}」下有 ${count} 個景點。\n轉移到哪個分類？\n\n`;
+    others.forEach((o, i) => msg += `${i+1}. ${o.name}\n`);
+    const ans = prompt(msg);
+    if (ans === null) return;
+    const target = others[+ans - 1] || others.find(o => o.key === 'other') || others[0];
+    if (!target) { toast('❌ 沒有可轉移的分類'); return; }
+    for (const s of spots.filter(s => s.cat === c.key)) {
+      await dbSpots.put({ ...s, cat: target.key });
+    }
+    toast(`📦 已轉移至「${target.name}」`);
+  } else if (!confirm(`刪除分類「${c.name}」？`)) return;
+  await dbCats.del(c.key);
+  if (activeFilter === c.key) activeFilter = 'all';
+  await loadCats(); await loadAll();
+  toast('🗑️ 已刪除分類');
+}
+
+async function moveCat(from, to) {
+  if (to < 0 || to >= cats.length) return;
+  const arr = [...cats];
+  [arr[from], arr[to]] = [arr[to], arr[from]];
+  for (let i = 0; i < arr.length; i++) await dbCats.put({ ...arr[i], sort: i });
+  await loadCats();
+}
+
+/* ---------- 像素色板（換色用） ---------- */
+const palette = document.createElement('div');
+palette.id = 'palette';
+document.body.appendChild(palette);
+let paletteTarget = null;
+function openPalette(dotEl, cat) {
+  paletteTarget = cat;
+  palette.innerHTML = '';
+  PALETTE.forEach(color => {
+    const sw = document.createElement('div');
+    sw.className = 'sw'; sw.style.background = color;
+    sw.onclick = async () => {
+      await dbCats.put({ ...paletteTarget, color });
+      palette.style.display = 'none';
+      await loadCats(); renderList(); renderMarkers();
+      toast('🎨 已換色');
+    };
+    palette.appendChild(sw);
+  });
+  const r = dotEl.getBoundingClientRect();
+  palette.style.display = 'grid';
+  palette.style.left = Math.min(r.left, innerWidth - 190) + 'px';
+  palette.style.top  = Math.max(10, r.bottom + 6) + 'px';
+}
+document.addEventListener('click', e => {
+  if (!palette.contains(e.target) && !e.target.classList.contains('dot'))
+    palette.style.display = 'none';
+});
+
+/* ============================================================
+   城市管理
+============================================================ */
+const cityDlg = document.getElementById('city-dlg');
+document.getElementById('btn-cities').addEventListener('click', () => { renderCityManager(); cityDlg.showModal(); });
+document.getElementById('city-close').onclick = () => cityDlg.close();
+
+function makeCityKey(name) {
+  let base = 'city-' + encodeURIComponent(name).replace(/[^a-zA-Z0-9%-]/g, '').slice(0, 20)
+             || 'city';
+  if (!cities.some(c => c.key === base)) return base;
+  let i = 2;
+  while (cities.some(c => c.key === `${base}-${i}`)) i++;
+  return `${base}-${i}`;
+}
+
+function renderCityManager() {
+  const counts = {};
+  spots.forEach(s => counts[s.city] = (counts[s.city] || 0) + 1);
+  const box = document.getElementById('city-list');
+  box.innerHTML = '';
+  cities.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'city-row';
+    row.innerHTML = `
+      <span class="name">${escapeHtml(c.name)}</span>
+      <span class="count">${counts[c.key] || 0} 處</span>
+      <button class="mv" data-act="up" ${i === 0 ? 'disabled' : ''}>▲</button>
+      <button class="mv" data-act="down" ${i === cities.length-1 ? 'disabled' : ''}>▼</button>
+      <button class="edit" data-act="edit">✏️</button>
+      <button class="del" data-act="del">✕</button>`;
+    row.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      if (act === 'up' || act === 'down') moveCity(i, act === 'up' ? i-1 : i+1);
+      else if (act === 'edit') editCity(c);
+      else if (act === 'del') deleteCity(c, counts[c.key] || 0);
+    }));
+    box.appendChild(row);
+  });
+}
+
+document.getElementById('city-new-add').addEventListener('click', async () => {
+  const input = document.getElementById('city-new-name');
+  const name = input.value.trim();
+  if (!name) { toast('請輸入城市名稱'); return; }
+  if (cities.some(c => c.name === name)) { toast('❌ 名稱重複'); return; }
+  await dbCities.put({ key: makeCityKey(name), name, sort: cities.length });
+  input.value = '';
+  await loadCities(); renderList(); renderMarkers();
+  toast('🏙️ 已新增城市');
+});
+document.getElementById('city-new-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('city-new-add').click(); }
+});
+
+async function editCity(c) {
+  const name = prompt('新名稱：', c.name);
+  if (!name || name.trim() === c.name) return;
+  if (cities.some(x => x.name === name.trim() && x.key !== c.key)) { toast('❌ 名稱重複'); return; }
+  await dbCities.put({ ...c, name: name.trim() });
+  await loadCities(); renderList(); renderMarkers();
+  toast('✏️ 已更新城市');
+}
+
+async function deleteCity(c, count) {
+  if (count > 0) {
+    const others = cities.filter(x => x.key !== c.key);
+    let msg = `城市「${c.name}」下有 ${count} 個景點。\n轉移到哪個城市？\n\n`;
+    others.forEach((o, i) => msg += `${i+1}. ${o.name}\n`);
+    const ans = prompt(msg);
+    if (ans === null) return;
+    const target = others[+ans - 1] || others[0];
+    if (!target) { toast('❌ 沒有可轉移的城市'); return; }
+    for (const s of spots.filter(s => s.city === c.key)) {
+      await dbSpots.put({ ...s, city: target.key });
+    }
+    toast(`📦 已轉移至「${target.name}」`);
+  } else if (!confirm(`刪除城市「${c.name}」？`)) return;
+  await dbCities.del(c.key);
+  if (activeCityFilter === c.key) activeCityFilter = 'all';
+  await loadCities(); await loadAll();
+  toast('🗑️ 已刪除城市');
+}
+
+async function moveCity(from, to) {
+  if (to < 0 || to >= cities.length) return;
+  const arr = [...cities];
+  [arr[from], arr[to]] = [arr[to], arr[from]];
+  for (let i = 0; i < arr.length; i++) await dbCities.put({ ...arr[i], sort: i });
+  await loadCities();
+}
+
+/* ============================================================
+   【定位功能】
+============================================================ */
+const btnLocate = document.getElementById('btn-locate');
+let locMarker = null;
+let locCircle = null;
+
+btnLocate.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    toast('❌ 此瀏覽器不支援定位');
+    return;
+  }
+  btnLocate.classList.add('loading');
+  btnLocate.textContent = '⏳ 定位中';
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      btnLocate.classList.remove('loading');
+      btnLocate.textContent = '📍 定位';
+      const { latitude, longitude, accuracy } = pos.coords;
+
+      if (locMarker) map.removeLayer(locMarker);
+      if (locCircle) map.removeLayer(locCircle);
+
+      locMarker = L.marker([latitude, longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="loc-marker"></div>',
+          iconSize: [18, 18], iconAnchor: [9, 9]
+        }),
+        zIndexOffset: 1000
+      }).addTo(map).bindPopup('<b>📍 你在這裡</b><br>誤差約 ' + Math.round(accuracy) + ' 公尺');
+
+      locCircle = L.circle([latitude, longitude], {
+        radius: accuracy,
+        color: '#41a6f6', weight: 3,
+        fillColor: '#41a6f6', fillOpacity: 0.15
+      }).addTo(map);
+
+      map.flyTo([latitude, longitude], 16, { duration: 0.6 });
+      setTimeout(() => locMarker.openPopup(), 650);
+      toast('📍 定位成功！');
+    },
+    err => {
+      btnLocate.classList.remove('loading');
+      btnLocate.textContent = '📍 定位';
+      const msgs = {
+        1: '❌ 定位權限被拒絕，請至瀏覽器設定開啟',
+        2: '❌ 取不到位置訊號，請到空曠處再試',
+        3: '❌ 定位逾時，請再試一次'
+      };
+      toast(msgs[err.code] || '❌ 定位失敗');
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 30000
+    }
+  );
+});
+
+/* ------------------------------------------------------------
+   JSON 匯入/匯出（含分類與城市一併備份）
+------------------------------------------------------------ */
+document.getElementById('btn-export').addEventListener('click', async () => {
+  const data = {
+    app: 'pixel-tour', version: 3,
+    exportedAt: new Date().toISOString(),
+    categories: await dbCats.all(),
+    cities: await dbCities.all(),
+    spots: await dbSpots.all()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pixel-tour-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('📤 匯出成功！');
+});
+
+document.getElementById('btn-import').addEventListener('click', () =>
+  document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.spots)) throw new Error('格式錯誤');
+      if (Array.isArray(data.categories)) {
+        for (const c of data.categories) {
+          if (c.key && c.name) await dbCats.put({
+            key: c.key, name: String(c.name),
+            color: /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : '#41a6f6',
+            sort: +c.sort || 99
+          });
+        }
+      }
+      if (Array.isArray(data.cities)) {
+        for (const c of data.cities) {
+          if (c.key && c.name) await dbCities.put({
+            key: c.key, name: String(c.name),
+            sort: +c.sort || 99
+          });
+        }
+      }
+      if (!confirm(`匯入 ${data.spots.length} 筆資料？（將與現有資料合併）`)) { e.target.value=''; return; }
+      for (const s of data.spots) {
+        if (s.name && isFinite(s.lat) && isFinite(s.lng) &&
+            Math.abs(s.lat) <= 90 && Math.abs(s.lng) <= 180) {
+          await dbSpots.put({
+            name: String(s.name),
+            city: cities.some(c => c.key === s.city) ? s.city : 'other',
+            cat: cats.some(c => c.key === s.cat) ? s.cat : 'other',
+            lat: +s.lat, lng: +s.lng, desc: s.desc || ''
+          });
+        }
+      }
+      await loadCats(); await loadCities(); await loadAll();
+      toast('📥 匯入成功！');
+    } catch { toast('❌ 匯入失敗：檔案格式錯誤'); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+/* ------------------------------------------------------------
+   工具函式 / 側欄
+------------------------------------------------------------ */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.display = 'none', 2500);
+}
+const sidebar = document.getElementById('sidebar');
+document.getElementById('sidebar-toggle').addEventListener('click', () =>
+  sidebar.classList.toggle('open'));
+
+/* ------------------------------------------------------------
+   首次啟動：寫入預設分類、城市與示範景點
+------------------------------------------------------------ */
+async function seedIfEmpty() {
+  if ((await dbCats.all()).length === 0) {
+    for (let i = 0; i < DEFAULT_CATS.length; i++)
+      await dbCats.put({ ...DEFAULT_CATS[i], sort: i });
+    cats = DEFAULT_CATS.map((c, i) => ({ ...c, sort: i }));
+  }
+  
+  if ((await dbCities.all()).length === 0) {
+    for (let i = 0; i < DEFAULT_CITIES.length; i++)
+      await dbCities.put({ ...DEFAULT_CITIES[i], sort: i });
+    cities = DEFAULT_CITIES.map((c, i) => ({ ...c, sort: i }));
+  }
+  
+  if ((await dbSpots.all()).length === 0) {
+    const demo = [
+      { name: '台北 101', city: 'taipei', cat: 'entmt', lat: 25.0338, lng: 121.5645, desc: '曾是世界第一高樓，觀景台可俯瞰台北。' },
+      { name: '故宮博物院', city: 'taipei', cat: 'venue', lat: 25.1024, lng: 121.5485, desc: '收藏中華文化瑰寶，翠玉白菜必看！' },
+      { name: '士林夜市', city: 'taipei', cat: 'food', lat: 25.0884, lng: 121.5250, desc: '豪大雞排、蚵仔煎、珍珠奶茶。' },
+      { name: '陽明山國家公園', city: 'taipei', cat: 'nature', lat: 25.1683, lng: 121.5583, desc: '火山地形、溫泉、春季花季。' },
+      { name: '龍山寺', city: 'taipei', cat: 'religion', lat: 25.0369, lng: 121.4999, desc: '台北最古老的廟宇之一。' },
+      { name: '象山步道', city: 'taipei', cat: 'nature', lat: 25.0287, lng: 121.5795, desc: '近距離拍攝 101 的絕佳地點。' },
+      { name: '信義商圈', city: 'taipei', cat: 'shopping', lat: 25.0324, lng: 121.5645, desc: '百貨一級戰區。' },
+      { name: '桃園國際機場', city: 'taoyuan', cat: 'airport', lat: 25.0777, lng: 121.2328, desc: 'TPE，出發冒險的起點！' },
+      { name: '西門町', city: 'taipei', cat: 'night', lat: 25.0422, lng: 121.5063, desc: '夜生活與街頭文化聖地。' },
+      { name: '駁二藝術特區', city: 'kaohsiung', cat: 'venue', lat: 22.6205, lng: 120.2823, desc: '高雄的藝文與創意基地。' },
+      { name: '六合夜市', city: 'kaohsiung', cat: 'food', lat: 22.6331, lng: 120.3003, desc: '高雄著名夜市，海產料理聞名。' },
+      { name: '愛河', city: 'kaohsiung', cat: 'nature', lat: 22.6301, lng: 120.3008, desc: '城市河岸，夜景迷人。' },
+      { name: '逢甲夜市', city: 'taichung', cat: 'food', lat: 24.1753, lng: 120.6467, desc: '台中最大夜市之一。' },
+      { name: '高美濕地', city: 'taichung', cat: 'nature', lat: 24.3085, lng: 120.5525, desc: '夕陽與濕地生態的絕美景點。' },
+      { name: '日月潭', city: 'nantou', cat: 'nature', lat: 23.8489, lng: 120.9846, desc: '台灣最大的天然湖泊。' }
+    ];
+    for (const s of demo) await dbSpots.put(s);
+  }
+}
+
+(async function init() {
+  await seedIfEmpty();
+  await loadCats();
+  await loadCities();
+  await loadAll();
+  await requestPersistence();
+  toast('🎮 歡迎來到 PIXEL TOUR！');
+})();
 </script>
 </body>
 </html>
