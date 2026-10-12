@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="description" content="8-bit 像素風 iOS 遊戲收藏館">
+<title>🕹️ GAME VAULT - iOS 遊戲收藏館</title>
+
+<!-- PWA 基礎（Add to Home Screen 需要） -->
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22GAME%20VAULT%22%2C%22short_name%22%3A%22GameVault%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22icons%22%3A%5B%5D%7D">
+<style>
+/* ═══════════════════════════════════════════
+   8-BIT 像素風樣式
+   ═══════════════════════════════════════════ */
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --panel: #0f3460;
+  --panel-dark: #0a2647;
+  --accent: #e94560;
+  --accent2: #0fff95;
+  --gold: #ffd700;
+  --text: #eaeaea;
+  --text-dim: #9a9ab0;
+  --border: #4a4a6a;
+  --shadow: #000000;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+
+/* 像素字體（Google Fonts：Press Start 2P） */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@400;700&display=swap');
+
+/* 像素化渲染：讓圖片縮放時保持硬邊 */
+img { image-rendering: pixelated; }
+/* App 圖標例外：保持平滑 */
+img.app-icon { image-rendering: auto; }
+
+body {
+  font-family: 'Noto Sans TC', 'Courier New', monospace;
+  background: var(--bg);
+  background-image:
+    linear-gradient(rgba(26,26,46,.93), rgba(26,26,46,.93)),
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,.02) 3px, rgba(255,255,255,.02) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,.02) 3px, rgba(255,255,255,.02) 4px);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+h1,h2,h3,.pixel-font { font-family: 'Press Start 2P', 'Noto Sans TC', monospace; }
+
+/* ── 掃描線 CRT 效果 ── */
+body::after {
+  content:''; position:fixed; top:0; left:0; width:100%; height:100%;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 3px);
+  pointer-events:none; z-index:9999;
+}
+
+.wrap { max-width:1200px; margin:0 auto; padding:0 16px; }
+
+/* ═══ HEADER ═══ */
+header {
+  background: var(--panel-dark);
+  border-bottom: 4px solid var(--accent);
+  padding: 20px 0 16px;
+  position: sticky; top:0; z-index:100;
+}
+header .wrap { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+h1 { font-size: clamp(14px, 3vw, 22px); color: var(--gold); text-shadow: 3px 3px 0 var(--shadow); }
+h1 span { color: var(--accent2); }
+.tagline { font-size:10px; color:var(--text-dim); font-family:'Press Start 2P'; margin-top:6px; }
+
+/* ═══ 按鈕（像素風） ═══ */
+.btn {
+  font-family:'Press Start 2P','Noto Sans TC',monospace;
+  font-size:10px; padding:10px 14px; cursor:pointer;
+  background: var(--panel); color: var(--text);
+  border: none;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.5), inset 3px 3px 0 rgba(255,255,255,.15);
+  border: 2px solid var(--border);
+  image-rendering: pixelated;
+  transition: transform .05s;
+  text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+}
+.btn:hover { background:#1a4a8a; }
+.btn:active { transform: translateY(2px); box-shadow: inset 3px 3px 0 rgba(0,0,0,.5); }
+.btn-primary { background: var(--accent); color:#fff; }
+.btn-primary:hover { background:#ff5c77; }
+.btn-green { background:#1b7a4a; }
+.btn-green:hover { background:#22a05f; }
+.btn-sm { font-size:8px; padding:7px 10px; }
+
+/* ═══ 輸入框 ═══ */
+input[type=text], input[type=url], select, textarea {
+  font-family:'Noto Sans TC',monospace; font-size:14px;
+  background: var(--panel-dark); color: var(--text);
+  border: 2px solid var(--border); padding: 10px 12px;
+  box-shadow: inset 3px 3px 0 rgba(0,0,0,.4);
+  outline: none;
+}
+input:focus, select:focus { border-color: var(--accent2); }
+::placeholder { color:#666; }
+
+/* ═══ 新增區塊 ═══ */
+.add-section { margin:24px 0; padding:16px; background:var(--bg2); border:3px solid var(--border); }
+.add-row { display:flex; gap:10px; flex-wrap:wrap; }
+.add-row input[type=text] { flex:1; min-width:220px; }
+.add-hint { font-size:11px; color:var(--text-dim); margin-top:8px; }
+.status-msg { font-size:12px; margin-top:10px; font-weight:bold; }
+.status-msg.ok { color:var(--accent2); }
+.status-msg.err { color:var(--accent); }
+.status-msg.load { color:var(--gold); }
+
+/* ═══ 工具列 ═══ */
+.toolbar { display:flex; flex-wrap:wrap; gap:10px; margin:20px 0; align-items:center; }
+.toolbar input[type=text] { flex:1; min-width:160px; }
+.toolbar select { min-width:110px; }
+.count-badge { font-family:'Press Start 2P'; font-size:9px; color:var(--gold); }
+
+/* ═══ 遊戲卡片格線 ═══ */
+.game-grid {
+  display:grid; gap:18px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.game-card {
+  background: var(--bg2);
+  border: 3px solid var(--border);
+  padding: 14px;
+  position:relative;
+  transition: border-color .15s;
+  display:flex; flex-direction:column; gap:10px;
+}
+.game-card:hover { border-color: var(--gold); }
+.game-card .rank {
+  position:absolute; top:-3px; left:-3px;
+  background:var(--accent); color:#fff;
+  font-family:'Press Start 2P'; font-size:9px;
+  padding:5px 8px; z-index:2;
+}
+.gc-head { display:flex; gap:12px; }
+.app-icon { width:64px; height:64px; border:2px solid var(--border); flex-shrink:0; background:#222; }
+.gc-info { flex:1; min-width:0; }
+.gc-title { font-family:'Press Start 2P','Noto Sans TC'; font-size:11px; color:var(--gold); line-height:1.5; word-break:break-all; }
+.gc-dev { font-size:11px; color:var(--text-dim); margin-top:5px; }
+.gc-rating { font-size:11px; margin-top:5px; color:var(--accent2); }
+.gc-price { color:var(--gold); font-weight:bold; font-size:11px; }
+.gc-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.tag { font-size:10px; background:var(--panel); padding:3px 7px; border:1px solid var(--border); color:var(--text-dim); }
+.gc-desc {
+  font-size:12px; color:var(--text-dim); line-height:1.6;
+  max-height:4.8em; overflow:hidden;
+  border-left:3px solid var(--panel); padding-left:8px;
+}
+.gc-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; }
+.gc-del { position:absolute; top:6px; right:6px; background:none; border:none; color:var(--text-dim); font-size:14px; cursor:pointer; padding:4px; }
+.gc-del:hover { color:var(--accent); }
+
+/* ═══ 分頁 ═══ */
+.pagination { display:flex; gap:6px; justify-content:center; margin:30px 0; flex-wrap:wrap; }
+.pagination .btn.active { background:var(--gold); color:#000; }
+.pagination .btn:disabled { opacity:.35; cursor:not-allowed; }
+
+/* ═══ 折疊技術說明 ═══ */
+details.tech {
+  margin:30px 0; background:var(--panel-dark);
+  border:3px solid var(--border);
+}
+details.tech summary {
+  cursor:pointer; padding:14px 16px; font-family:'Press Start 2P','Noto Sans TC';
+  font-size:11px; color:var(--accent2); user-select:none; list-style:none;
+  display:flex; align-items:center; gap:10px;
+}
+details.tech summary::before { content:'▶'; font-size:9px; transition:transform .2s; }
+details.tech[open] summary::before { transform:rotate(90deg); }
+details.tech .tech-body { padding:0 20px 20px; font-size:13px; line-height:1.9; color:var(--text-dim); }
+details.tech .tech-body h3 { font-size:11px; color:var(--gold); margin:16px 0 8px; }
+details.tech code { background:#000; color:var(--accent2); padding:2px 6px; font-size:12px; }
+details.tech pre { background:#000; padding:12px; overflow-x:auto; margin:8px 0; border-left:3px solid var(--accent); }
+details.tech pre code { background:none; padding:0; }
+
+/* ═══ A2HS 提示條 ═══ */
+#a2hs-banner {
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:1000;
+  background:var(--panel); border-top:4px solid var(--gold);
+  padding:12px 16px; align-items:center; gap:10px; flex-wrap:wrap;
+}
+#a2hs-banner.show { display:flex; }
+#a2hs-banner .msg { flex:1; font-size:13px; min-width:200px; }
+
+/* ═══ Toast ═══ */
+#toast {
+  position:fixed; top:80px; right:16px; z-index:2000;
+  background:var(--accent); color:#fff; padding:12px 18px;
+  font-size:13px; font-weight:bold; border:3px solid #fff;
+  box-shadow:4px 4px 0 #000; opacity:0; pointer-events:none;
+  transition: opacity .25s, transform .25s; transform:translateY(-10px);
+}
+#toast.show { opacity:1; transform:translateY(0); }
+
+/* ═══ 空/載入狀態 ═══ */
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-dim); }
+.empty-state .big { font-family:'Press Start 2P'; font-size:36px; margin-bottom:16px; }
+
+/* ═══ 響應式微調 ═══ */
+@media (max-width:520px) {
+  .add-row input[type=text] { min-width:100%; }
+  .toolbar select { flex:1; }
+  header .wrap { flex-direction:column; align-items:stretch; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div>
+      <h1>🕹️ GAME <span>VAULT</span></h1>
+      <div class="tagline">&gt;&gt; iOS GAME COLLECTION &lt;&lt;</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green btn-sm" id="btn-export">📥 匯出JSON</button>
+      <button class="btn btn-sm" id="btn-import">📤 匯入JSON</button>
+      <input type="file" id="file-import" accept=".json,application/json" hidden>
+      <button class="btn btn-sm" id="btn-persist">💾 持久化儲存</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ═══ 新增遊戲 ═══ -->
+  <section class="add-section">
+    <h2 style="font-size:12px;color:var(--accent2);margin-bottom:10px">➕ 新增遊戲</h2>
+    <div class="add-row">
+      <input type="text" id="input-url" placeholder="貼上 App Store 連結或 App ID，例如 https://apps.apple.com/hk/app/sifu/id6762813110">
+      <button class="btn btn-primary" id="btn-add">新增</button>
+    </div>
+    <div class="add-hint">💡 支援完整 App Store 連結、或純數字 App ID（如 6762813110）。資料透過 iTunes Lookup API 自動擷取。</div>
+    <div class="status-msg" id="add-status"></div>
+  </section>
+
+  <!-- ═══ 工具列：搜尋 + 篩選 + 排序 ═══ -->
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="🔍 搜尋名稱 / 開發商 / 標籤...">
+    <select id="filter-tag"><option value="">🏷️ 全部標籤</option></select>
+    <select id="sort-by">
+      <option value="added-desc">📅 最新加入</option>
+      <option value="added-asc">📅 最早加入</option>
+      <option value="rating-desc">⭐ 評分高→低</option>
+      <option value="rating-asc">⭐ 評分低→高</option>
+      <option value="name-asc">🔤 名稱 A→Z</option>
+      <option value="name-desc">🔤 名稱 Z→A</option>
+    </select>
+    <span class="count-badge" id="count-badge"></span>
+  </div>
+
+  <!-- ═══ 遊戲卡片 ═══ -->
+  <div class="game-grid" id="game-grid"></div>
+  <div class="empty-state" id="empty-state">
+    <div class="big">👾</div>
+    <p style="font-family:'Press Start 2P';font-size:12px;margin-bottom:10px">NO GAMES YET</p>
+    <p>貼上 App Store 連結開始建立你的收藏！</p>
+  </div>
+
+  <!-- ═══ 分頁 ═══ -->
+  <div class="pagination" id="pagination"></div>
+
+  <!-- ═══ 折疊技術說明 ═══ -->
+  <details class="tech">
+    <summary>📚 技術說明（點擊展開）</summary>
+    <div class="tech-body">
+
+      <h3>🏗️ 架構總覽</h3>
+      <p>本頁面是一個<b>零依賴的單一 HTML 檔案</b>靜態網頁，所有邏輯在瀏覽器端執行，可直接部署到 GitHub Pages。</p>
+
+      <h3>💾 IndexedDB 資料儲存</h3>
+      <p>所有遊戲資料儲存在瀏覽器的 <code>IndexedDB</code>（資料庫名稱 <code>GameVaultDB</code>，物件倉儲 <code>games</code>，主鍵為 App ID）。相比 localStorage，IndexedDB 支援非同步、容量更大、結構化資料。</p>
+      <pre><code>const db = await openDB();            // 開啟資料庫
+await db.put('games', gameObj);      // 寫入（同 ID 會覆蓋）
+const all = await db.getAll('games'); // 讀取全部
+await db.delete('games', appId);      // 刪除</code></pre>
+
+      <h3>🔒 navigator.storage.persist() 持久化</h3>
+      <p>瀏覽器在儲存空間不足時，可能自動清除 IndexedDB 資料（「盡力而為」儲存）。呼叫 <code>navigator.storage.persist()</code> 可向瀏覽器申請「持久化儲存」，通過後資料不會被自動清除。點擊上方「💾 持久化儲存」按鈕即可申請，並可用 <code>navigator.storage.persisted()</code> 查詢目前狀態。也可透過 <code>navigator.storage.estimate()</code> 查看已用/可用空間。</p>
+
+      <h3>🔗 iTunes Lookup API 自動擷取</h3>
+      <p>貼上連結後，頁面會解析出 App ID，並呼叫蘋果官方的 <b>iTunes Lookup API</b>（免金鑰、免 CORS 設定）：</p>
+      <pre><code>https://itunes.apple.com/lookup?id={APP_ID}&amp;country=hk</code></pre>
+      <p>API 回傳 JSON，包含：圖標 <code>artworkUrl512</code>、名稱 <code>trackName</code>、開發商 <code>artistName</code>、評分 <code>averageUserRating</code>、價格 <code>formattedPrice</code>、描述 <code>description</code>、類型 <code>primaryGenreName</code>、截圖 <code>screenshotUrls</code> 等。連結中的地區碼（如 <code>hk</code>、<code>us</code>）會被保留，確保價格與語言正確。</p>
+
+      <h3>📄 分頁與篩選</h3>
+      <p>所有篩選／排序／搜尋都在記憶體中處理後重新分頁，每頁預設顯示 12 張卡片。搜尋同時比對名稱、開發商與標籤。</p>
+
+      <h3>📥📤 JSON 匯入／匯出</h3>
+      <p>匯出會將全部資料序列化為 JSON 檔案下載（檔名含日期）。匯入支援「合併」模式：相同 App ID 的資料會被覆蓋更新，不會產生重複。匯入格式：</p>
+      <pre><code>[ { "id": "6762813110", "name": "Sifu", ... }, ... ]</code></pre>
+
+      <h3>📱 Add to Home Screen（A2HS）</h3>
+      <p>頁面偵測 <code>beforeinstallprompt</code> 事件；當瀏覽器判定網站可安裝時（需 HTTPS、有效的 manifest），會顯示底部提示條。注意：透過 <code>data:</code> URI 內嵌 manifest 時，部分瀏覽器（如 Safari iOS）需手動使用「分享 → 加入主畫面」。若要完整支援 Chrome 安裝提示，建議部署時加入真正的 <code>manifest.json</code> 與 Service Worker。</p>
+
+      <h3>🎨 8-Bit 像素風實現</h3>
+      <ul style="padding-left:20px">
+        <li>字體：<code>Press Start 2P</code>（Google Fonts）</li>
+        <li>硬邊按鈕：<code>box-shadow inset</code> 模擬像素立體感，不使用圓角</li>
+        <li>CRT 掃描線：<code>body::after</code> 疊加半透明橫紋</li>
+        <li>配色：深藍底 + 霓虹粉／綠 + 金色強調</li>
+        <li>App 圖標保留 <code>image-rendering: auto</code>（非像素素材不需硬邊縮放）</li>
+      </ul>
+
+    </div>
+  </details>
+
+  <footer style="text-align:center;color:#555;font-size:11px;margin-top:40px;font-family:'Press Start 2P'">
+    GAME VAULT © 2026 · ALL DATA STORED LOCALLY
+  </footer>
+</div>
+
+<!-- A2HS 提示條 -->
+<div id="a2hs-banner">
+  <span class="msg">📲 想像 App 一樣使用？把 GAME VAULT 加到主畫面！</span>
+  <button class="btn btn-primary btn-sm" id="btn-a2hs">安裝</button>
+  <button class="btn btn-sm" id="btn-a2hs-close">✕</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   GAME VAULT 主程式
+   ═══════════════════════════════════════════ */
+'use strict';
+
+/* ---------- IndexedDB ---------- */
+const DB_NAME = 'GameVaultDB', STORE = 'games';
+let dbPromise = null;
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE))
+        db.createObjectStore(STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = () => rej(req.error);
+  });
+  return dbPromise;
+}
+async function dbPut(games) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    if (Array.isArray(games)) games.forEach(g => tx.objectStore(STORE).put(g));
+    else tx.objectStore(STORE).put(games);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function dbGetAll() {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction(STORE).objectStore(STORE).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function dbDelete(id) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* ---------- 狀態 ---------- */
+let allGames = [];
+let filtered = [];
+let currentPage = 1;
+const PAGE_SIZE = 12;
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const grid = $('game-grid'), pagination = $('pagination');
+
+/* ---------- Toast ---------- */
+function toast(msg, ms = 2600) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* ---------- 解析 App Store 連結 ---------- */
+function parseAppStoreInput(input) {
+  input = input.trim();
+  if (/^\d{6,12}$/.test(input)) return { id: input, country: 'hk' };
+  const m = input.match(/apps\.apple\.com\/([a-z]{2})\/(?:[^\/]+\/)*app\/[^\/]*\/id(\d+)/i)
+        || input.match(/itunes\.apple\.com\/([a-z]{2})\/app\/[^\/]*\/id(\d+)/i);
+  if (m) return { id: m[2], country: m[1].toLowerCase() };
+  const m2 = input.match(/[?&]id=(\d+)/);
+  if (m2) return { id: m2[1], country: 'hk' };
+  return null;
+}
+
+/* ---------- iTunes Lookup API ---------- */
+async function fetchAppInfo(appId, country) {
+  const url = `https://itunes.apple.com/lookup?id=${appId}&country=${country}&lang=zh_tw`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`API 請求失敗 (${res.status})`);
+  const data = await res.json();
+  if (!data.resultCount) throw new Error('找不到此 App（請確認 ID / 地區）');
+  const r = data.results[0];
+  return {
+    id: String(r.trackId),
+    name: r.trackName || '',
+    developer: r.artistName || '',
+    icon: (r.artworkUrl512 || r.artworkUrl100 || '').replace('100x100', '256x256'),
+    price: r.formattedPrice || '—',
+    rating: r.averageUserRating || 0,
+    ratingCount: r.userRatingCount || 0,
+    genre: r.primaryGenreName || '',
+    description: (r.description || '').slice(0, 300),
+    screenshots: (r.screenshotUrls || []).slice(0, 5),
+    url: r.trackViewUrl || `https://apps.apple.com/${country}/app/id${appId}`,
+    country: country,
+    tags: [],
+    addedAt: Date.now()
+  };
+}
+
+/* ---------- 新增流程 ---------- */
+async function addGame() {
+  const input = $('input-url').value;
+  const status = $('add-status');
+  if (!input.trim()) return;
+  const parsed = parseAppStoreInput(input);
+  if (!parsed) {
+    status.className = 'status-msg err';
+    status.textContent = '❌ 無法解析連結，請輸入 App Store 連結或 App ID';
+    return;
+  }
+  if (allGames.some(g => g.id === parsed.id)) {
+    status.className = 'status-msg err';
+    status.textContent = '❌ 此遊戲已在收藏中！';
+    return;
+  }
+  status.className = 'status-msg load';
+  status.textContent = '⏳ 正在從 App Store 擷取資料...';
+  $('btn-add').disabled = true;
+  try {
+    const game = await fetchAppInfo(parsed.id, parsed.country);
+    await dbPut(game);
+    allGames.push(game);
+    $('input-url').value = '';
+    status.className = 'status-msg ok';
+    status.textContent = `✅ 已加入「${game.name}」！`;
+    toast(`🎮 ${game.name} 已加入收藏`);
+    refresh();
+    setTimeout(() => { status.textContent = ''; }, 3000);
+  } catch (e) {
+    status.className = 'status-msg err';
+    status.textContent = '❌ ' + e.message;
+  } finally {
+    $('btn-add').disabled = false;
+  }
+}
+
+/* ---------- 刪除 ---------- */
+async function deleteGame(id) {
+  const g = allGames.find(x => x.id === id);
+  if (!g || !confirm(`確定要刪除「${g.name}」嗎？`)) return;
+  await dbDelete(id);
+  allGames = allGames.filter(x => x.id !== id);
+  toast(`🗑️ 已刪除 ${g.name}`);
+  refresh();
+}
+
+/* ---------- 篩選 / 排序 / 搜尋 ---------- */
+function applyFilters() {
+  const q = $('search').value.trim().toLowerCase();
+  const tag = $('filter-tag').value;
+  const sort = $('sort-by').value;
+
+  filtered = allGames.filter(g => {
+    if (tag && !(g.tags || []).includes(tag) && g.genre !== tag) return false;
+    if (q) {
+      const hay = `${g.name} ${g.developer} ${(g.tags||[]).join(' ')} ${g.genre}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const sorters = {
+    'added-desc': (a,b) => b.addedAt - a.addedAt,
+    'added-asc':  (a,b) => a.addedAt - b.addedAt,
+    'rating-desc':(a,b) => (b.rating||0) - (a.rating||0),
+    'rating-asc': (a,b) => (a.rating||0) - (b.rating||0),
+    'name-asc':   (a,b) => (a.name||'').localeCompare(b.name||'', 'zh-Hant'),
+    'name-desc':  (a,b) => (b.name||'').localeCompare(a.name||'', 'zh-Hant'),
+  };
+  filtered.sort(sorters[sort] || sorters['added-desc']);
+}
+
+/* ---------- 渲染 ---------- */
+function refresh() {
+  applyFilters();
+  updateTagFilter();
+  render();
+}
+
+function updateTagFilter() {
+  const sel = $('filter-tag');
+  const cur = sel.value;
+  const tags = new Set();
+  allGames.forEach(g => {
+    (g.tags || []).forEach(t => tags.add(t));
+    if (g.genre) tags.add(g.genre);
+  });
+  sel.innerHTML = '<option value="">🏷️ 全部標籤</option>' +
+    [...tags].sort().map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  sel.value = cur;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function stars(rating) {
+  const full = Math.round(rating);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
+}
+
+function render() {
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > pages) currentPage = pages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+  $('count-badge').textContent = `共 ${total} 款`;
+  $('empty-state').style.display = total === 0 ? 'block' : 'none';
+  grid.style.display = total === 0 ? 'none' : 'grid';
+
+  grid.innerHTML = pageItems.map((g, i) => {
+    const rank = start + i + 1;
+    const tags = [...(g.genre ? [g.genre] : []), ...(g.tags || [])]
+      .map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    return `
+    <div class="game-card">
+      <span class="rank">#${rank}</span>
+      <button class="gc-del" title="刪除" onclick="deleteGame('${g.id}')">✕</button>
+      <div class="gc-head">
+        ${g.icon ? `<img class="app-icon" src="${esc(g.icon)}" alt="" loading="lazy">` : ''}
+        <div class="gc-info">
+          <div class="gc-title">${esc(g.name)}</div>
+          <div class="gc-dev">👤 ${esc(g.developer)}</div>
+          <div class="gc-rating">${stars(g.rating)} ${(g.rating || 0).toFixed(1)}
+            <span style="color:#666">(${(g.ratingCount||0).toLocaleString()})</span></div>
+          <div class="gc-price">${esc(g.price)}</div>
+        </div>
+      </div>
+      <div class="gc-tags">${tags}</div>
+      ${g.description ? `<div class="gc-desc">${esc(g.description)}</div>` : ''}
+      <div class="gc-actions">
+        <a class="btn btn-primary btn-sm" href="${esc(g.url)}" target="_blank" rel="noopener">🛒 App Store</a>
+        <a class="btn btn-sm" href="itms-apps://itunes.apple.com/app/id${esc(g.id)}?action=write-review" title="前往評評價">⭐ 評價</a>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* 分頁按鈕 */
+  let html = `<button class="btn btn-sm" ${currentPage===1?'disabled':''} onclick="goPage(1)">««</button>
+              <button class="btn btn-sm" ${currentPage===1?'disabled':''} onclick="goPage(${currentPage-1})">«</button>`;
+  const win = [];
+  for (let p = Math.max(1, currentPage-2); p <= Math.min(pages, currentPage+2); p++) win.push(p);
+  if (win[0] > 1) html += `<span class="count-badge">...</span>`;
+  win.forEach(p => {
+    html += `<button class="btn btn-sm ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  });
+  if (win[win.length-1] < pages) html += `<span class="count-badge">...</span>`;
+  html += `<button class="btn btn-sm" ${currentPage===pages?'disabled':''} onclick="goPage(${currentPage+1})">»</button>
+           <button class="btn btn-sm" ${currentPage===pages?'disabled':''} onclick="goPage(${pages})">»»</button>`;
+  pagination.innerHTML = pages > 1 ? html : '';
+}
+
+function goPage(p) {
+  currentPage = p;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ---------- JSON 匯出 / 匯入 ---------- */
+function exportJSON() {
+  if (!allGames.length) return toast('⚠️ 沒有資料可匯出');
+  const blob = new Blob([JSON.stringify(allGames, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `game-vault-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`📥 已匯出 ${allGames.length} 款遊戲`);
+}
+
+async function importJSON(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    const arr = Array.isArray(data) ? data : [data];
+    let added = 0, updated = 0;
+    for (const g of arr) {
+      if (!g || !g.id) continue;
+      const exists = allGames.some(x => x.id === String(g.id));
+      g.id = String(g.id);
+      if (!g.addedAt) g.addedAt = Date.now();
+      await dbPut(g);
+      if (exists) updated++; else added++;
+    }
+    allGames = await dbGetAll();
+    refresh();
+    toast(`📤 匯入完成：新增 ${added}、更新 ${updated}`);
+  } catch (e) {
+    toast('❌ 匯入失敗：' + e.message);
+  }
+}
+
+/* ---------- 持久化儲存 ---------- */
+async function requestPersist() {
+  if (!navigator.storage || !navigator.storage.persist) {
+    return toast('⚠️ 此瀏覽器不支援持久化儲存');
+  }
+  const already = await navigator.storage.persisted();
+  if (already) {
+    const est = await navigator.storage.estimate();
+    const used = (est.usage/1024/1024).toFixed(2);
+    return toast(`✅ 已是持久化儲存（已用 ${used} MB）`);
+  }
+  const granted = await navigator.storage.persist();
+  toast(granted ? '✅ 持久化儲存已授權！資料不會被自動清除'
+                : '⚠️ 瀏覽器暫時拒絕了申請（多用一點網站後再試）');
+}
+
+/* ---------- A2HS ---------- */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  $('a2hs-banner').classList.add('show');
+});
+$('btn-a2hs').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  $('a2hs-banner').classList.remove('show');
+});
+$('btn-a2hs-close').addEventListener('click', () => $('a2hs-banner').classList.remove('show'));
+/* iOS Safari 無 beforeinstallprompt，改為顯示提示文字 */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+if (isIOS) {
+  const banner = $('a2hs-banner');
+  banner.querySelector('.msg').textContent = '📲 iOS：點分享按鈕 →「加入主畫面」即可安裝！';
+  setTimeout(() => banner.classList.add('show'), 1500);
+  $('btn-a2hs').style.display = 'none';
+  $('btn-a2hs-close').onclick = () => banner.classList.remove('show');
+}
+
+/* ---------- 事件綁結 ---------- */
+$('btn-add').addEventListener('click', addGame);
+$('input-url').addEventListener('keydown', e => { if (e.key === 'Enter') addGame(); });
+$('btn-export').addEventListener('click', exportJSON);
+$('btn-import').addEventListener('click', () => $('file-import').click());
+$('file-import').addEventListener('change', e => {
+  if (e.target.files[0]) importJSON(e.target.files[0]);
+  e.target.value = '';
+});
+$('btn-persist').addEventListener('click', requestPersist);
+let searchTimer;
+$('search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { currentPage = 1; refresh(); }, 200);
+});
+$('filter-tag').addEventListener('change', () => { currentPage = 1; refresh(); });
+$('sort-by').addEventListener('change', () => { currentPage = 1; refresh(); });
+
+/* ---------- 啟動 ---------- */
+  try {
+    allGames = await dbGetAll();
+    refresh();
+    /* 啟動時嘗試申請持久化（部分瀏覽器需使用者互動才會通過） */
+    if (navigator.storage?.persist) {
+      const ok = await navigator.storage.persisted();
+      if (!ok) navigator.storage.persist(); // 靜默嘗試，不通過也不打擾
+    }
+  } catch (e) {
+    toast('❌ 資料庫初始化失敗：' + e.message);
+  }
+})();
+</script>
+</body>
+</html>
