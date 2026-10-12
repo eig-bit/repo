@@ -8,7 +8,6 @@
 <meta name="apple-mobile-web-app-title" content="GameVault">
 <title>GAME VAULT - iOS Game Collection</title>
 
-<!-- 像素字體 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
@@ -37,7 +36,6 @@ body {
 }
 h1, h2, h3, .pixel-font { font-family: 'Press Start 2P', 'Noto Sans TC', monospace; }
 
-/* CRT 掃描線 */
 body::after {
   content: '';
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -47,7 +45,6 @@ body::after {
 
 .wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
 
-/* ── Header ── */
 header {
   background: var(--panel-dark);
   border-bottom: 4px solid var(--accent);
@@ -63,7 +60,6 @@ h1 span { color: var(--accent2); }
 .tagline { font-size: 9px; color: var(--text-dim); font-family: 'Press Start 2P'; margin-top: 6px; }
 .header-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ── 像素按鈕 ── */
 .btn {
   font-family: 'Press Start 2P', 'Noto Sans TC', monospace;
   font-size: 10px; padding: 10px 14px; cursor: pointer;
@@ -81,7 +77,6 @@ h1 span { color: var(--accent2); }
 .btn.active { background: var(--gold); color: #000; }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 
-/* ── 輸入 ── */
 input[type="text"], select {
   font-family: 'Noto Sans TC', monospace; font-size: 14px;
   background: var(--panel-dark); color: var(--text);
@@ -92,7 +87,6 @@ input[type="text"], select {
 input:focus, select:focus { border-color: var(--accent2); }
 ::placeholder { color: #666; }
 
-/* ── 新增區 ── */
 .add-section { margin: 24px 0; padding: 16px; background: var(--bg2); border: 3px solid var(--border); }
 .add-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .add-row input[type="text"] { flex: 1; min-width: 220px; }
@@ -102,12 +96,11 @@ input:focus, select:focus { border-color: var(--accent2); }
 .status-msg.err { color: var(--accent); }
 .status-msg.load { color: var(--gold); }
 
-/* ── 工具列 ── */
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: center; }
 .toolbar input[type="text"] { flex: 1; min-width: 160px; }
+.toolbar select { min-width: 120px; max-width: 220px; }
 .count-badge { font-family: 'Press Start 2P'; font-size: 9px; color: var(--gold); }
 
-/* ── 卡片格線 ── */
 .game-grid {
   display: grid; gap: 18px;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -148,10 +141,8 @@ input:focus, select:focus { border-color: var(--accent2); }
 }
 .gc-del:hover { color: var(--accent); }
 
-/* ── 分頁 ── */
 .pagination { display: flex; gap: 6px; justify-content: center; margin: 30px 0 10px; flex-wrap: wrap; }
 
-/* ── 折疊技術說明 ── */
 details.tech { margin: 30px 0; background: var(--panel-dark); border: 3px solid var(--border); }
 details.tech summary {
   cursor: pointer; padding: 14px 16px;
@@ -169,7 +160,6 @@ details.tech[open] summary::before { content: 'v'; }
 .tech-body pre code { background: none; padding: 0; }
 .tech-body ul { padding-left: 20px; }
 
-/* ── A2HS 橫幅 ── */
 #a2hs-banner {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
   background: var(--panel); border-top: 4px solid var(--gold);
@@ -178,7 +168,6 @@ details.tech[open] summary::before { content: 'v'; }
 #a2hs-banner.show { display: flex; }
 #a2hs-banner .msg { flex: 1; font-size: 13px; min-width: 200px; }
 
-/* ── Toast ── */
 #toast {
   position: fixed; top: 90px; right: 16px; z-index: 2000;
   background: var(--accent); color: #fff; padding: 12px 18px;
@@ -189,12 +178,12 @@ details.tech[open] summary::before { content: 'v'; }
 }
 #toast.show { opacity: 1; transform: translateY(0); }
 
-/* ── 空狀態 ── */
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
 .empty-state .big { font-family: 'Press Start 2P'; font-size: 36px; margin-bottom: 16px; }
 
 @media (max-width: 520px) {
   .add-row input[type="text"] { min-width: 100%; }
+  .toolbar select { flex: 1; max-width: none; }
   header .wrap { flex-direction: column; align-items: stretch; }
 }
 </style>
@@ -230,6 +219,7 @@ details.tech[open] summary::before { content: 'v'; }
 
   <div class="toolbar">
     <input type="text" id="search" placeholder="Search name / developer / tag ...">
+    <select id="filter-dev"><option value="">ALL DEVELOPERS</option></select>
     <select id="filter-tag"><option value="">ALL TAGS</option></select>
     <select id="sort-by">
       <option value="added-desc">Newest first</option>
@@ -275,7 +265,7 @@ await dbDelete(id);</code></pre>
       <p>It returns icon (<code>artworkUrl512</code>), name, developer, rating, price, description, genre and screenshots. Note: the API is rate-limited (~20 calls/min per IP).</p>
 
       <h3>Pagination &amp; Filtering</h3>
-      <p>Search / filter / sort run fully in memory, then the list is paginated (12 cards per page).</p>
+      <p>Search / developer filter / tag filter / sort run fully in memory, then the list is paginated (12 cards per page). The developer dropdown is populated from the <code>artistName</code> field of all stored games.</p>
 
       <h3>JSON Import / Export</h3>
       <p>Export downloads all data as a dated JSON file. Import merges: entries with the same App ID are updated, not duplicated.</p>
@@ -500,12 +490,17 @@ await dbDelete(id);</code></pre>
   /* ================= Filter / sort ================= */
   function applyFilters() {
     var q = $('search').value.trim().toLowerCase();
+    var dev = $('filter-dev').value;
     var tag = $('filter-tag').value;
     var sort = $('sort-by').value;
 
     filtered = allGames.filter(function (g) {
+      /* developer filter (exact match on developer field) */
+      if (dev && g.developer !== dev) return false;
+
       var gTags = g.tags || [];
       if (tag && gTags.indexOf(tag) === -1 && g.genre !== tag) return false;
+
       if (q) {
         var hay = (g.name + ' ' + g.developer + ' ' + gTags.join(' ') + ' ' + g.genre).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
@@ -525,21 +520,40 @@ await dbDelete(id);</code></pre>
   }
 
   /* ================= Render ================= */
-  function updateTagFilter() {
-    var sel = $('filter-tag');
-    var current = sel.value;
+  function updateFilters() {
+    /* --- developer dropdown --- */
+    var devSel = $('filter-dev');
+    var curDev = devSel.value;
+    var devs = {};
+    allGames.forEach(function (g) {
+      if (g.developer) devs[g.developer] = (devs[g.developer] || 0) + 1;
+    });
+    var devKeys = Object.keys(devs).sort(function (a, b) {
+      return a.localeCompare(b, 'zh-Hant');
+    });
+    var devHtml = '<option value="">ALL DEVELOPERS</option>';
+    devKeys.forEach(function (d) {
+      devHtml += '<option value="' + esc(d) + '">' + esc(d) + ' (' + devs[d] + ')</option>';
+    });
+    devSel.innerHTML = devHtml;
+    /* keep selection if still valid, otherwise reset */
+    devSel.value = devKeys.indexOf(curDev) !== -1 ? curDev : '';
+
+    /* --- tag dropdown --- */
+    var tagSel = $('filter-tag');
+    var curTag = tagSel.value;
     var tags = {};
     allGames.forEach(function (g) {
       (g.tags || []).forEach(function (t) { tags[t] = 1; });
       if (g.genre) tags[g.genre] = 1;
     });
-    var keys = Object.keys(tags).sort();
-    var html = '<option value="">ALL TAGS</option>';
-    keys.forEach(function (t) {
-      html += '<option value="' + esc(t) + '">' + esc(t) + '</option>';
+    var tagKeys = Object.keys(tags).sort();
+    var tagHtml = '<option value="">ALL TAGS</option>';
+    tagKeys.forEach(function (t) {
+      tagHtml += '<option value="' + esc(t) + '">' + esc(t) + '</option>';
     });
-    sel.innerHTML = html;
-    sel.value = current;
+    tagSel.innerHTML = tagHtml;
+    tagSel.value = tagKeys.indexOf(curTag) !== -1 ? curTag : '';
   }
 
   function render() {
@@ -608,7 +622,7 @@ await dbDelete(id);</code></pre>
 
   function refresh() {
     applyFilters();
-    updateTagFilter();
+    updateFilters();
     render();
   }
 
@@ -693,7 +707,6 @@ await dbDelete(id);</code></pre>
   $('btn-a2hs-close').addEventListener('click', function () {
     $('a2hs-banner').classList.remove('show');
   });
-  /* iOS Safari hint */
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   if (isIOS) {
     $('a2hs-msg').textContent = 'iOS: tap Share -> "Add to Home Screen" to install!';
@@ -725,6 +738,10 @@ await dbDelete(id);</code></pre>
       refresh();
     }, 200);
   });
+  $('filter-dev').addEventListener('change', function () {
+    currentPage = 1;
+    refresh();
+  });
   $('filter-tag').addEventListener('change', function () {
     currentPage = 1;
     refresh();
@@ -751,7 +768,6 @@ await dbDelete(id);</code></pre>
   dbGetAll().then(function (games) {
     allGames = games;
     refresh();
-    /* silent persistent-storage attempt */
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persisted().then(function (ok) {
         if (!ok) navigator.storage.persist().catch(function () {});
