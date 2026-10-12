@@ -24,6 +24,11 @@
   --text: #eaeaea;
   --text-dim: #9a9ab0;
   --border: #4a4a6a;
+  /* Status 配色 */
+  --st-active: #0fff95;   /* 綠 */
+  --st-inactive: #9a9ab0; /* 灰 */
+  --st-owned: #ffd700;    /* 金 */
+  --st-wish: #e94560;     /* 粉 */
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -98,8 +103,22 @@ input:focus, select:focus { border-color: var(--accent2); }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: center; }
 .toolbar input[type="text"] { flex: 1; min-width: 160px; }
-.toolbar select { min-width: 120px; max-width: 220px; }
+.toolbar select { min-width: 120px; max-width: 200px; }
 .count-badge { font-family: 'Press Start 2P'; font-size: 9px; color: var(--gold); }
+
+/* ── Status 相關樣式 ── */
+.status-chip {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px; padding: 5px 8px; cursor: pointer;
+  border: 2px solid; background: rgba(0,0,0,.35);
+  letter-spacing: 1px; user-select: none;
+  transition: transform .05s;
+}
+.status-chip:active { transform: translateY(1px); }
+.status-chip[data-status="active"]   { color: var(--st-active);   border-color: var(--st-active); }
+.status-chip[data-status="inactive"] { color: var(--st-inactive); border-color: var(--st-inactive); }
+.status-chip[data-status="owned"]    { color: var(--st-owned);    border-color: var(--st-owned); }
+.status-chip[data-status="wish"]     { color: var(--st-wish);     border-color: var(--st-wish); }
 
 .game-grid {
   display: grid; gap: 18px;
@@ -113,6 +132,10 @@ input:focus, select:focus { border-color: var(--accent2); }
   display: flex; flex-direction: column; gap: 10px;
 }
 .game-card:hover { border-color: var(--gold); }
+.game-card[data-status="active"]   { border-left: 6px solid var(--st-active); }
+.game-card[data-status="inactive"] { border-left: 6px solid var(--st-inactive); }
+.game-card[data-status="owned"]    { border-left: 6px solid var(--st-owned); }
+.game-card[data-status="wish"]     { border-left: 6px solid var(--st-wish); }
 .rank {
   position: absolute; top: -3px; left: -3px;
   background: var(--accent); color: #fff;
@@ -133,7 +156,7 @@ input:focus, select:focus { border-color: var(--accent2); }
   max-height: 4.8em; overflow: hidden;
   border-left: 3px solid var(--panel); padding-left: 8px;
 }
-.gc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.gc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; align-items: center; }
 .gc-del {
   position: absolute; top: 6px; right: 6px;
   background: none; border: none; color: var(--text-dim);
@@ -211,14 +234,27 @@ details.tech[open] summary::before { content: 'v'; }
     <h2 style="font-size:12px;color:var(--accent2);margin-bottom:10px">+ ADD GAME</h2>
     <div class="add-row">
       <input type="text" id="input-url" placeholder="Paste App Store link or App ID, e.g. https://apps.apple.com/hk/app/sifu/id6762813110">
+      <select id="input-status">
+        <option value="owned">OWNED</option>
+        <option value="wish">WISH</option>
+        <option value="active">ACTIVE</option>
+        <option value="inactive">INACTIVE</option>
+      </select>
       <button class="btn btn-primary" id="btn-add" type="button">ADD</button>
     </div>
-    <div class="add-hint">Paste a full App Store link (region code like /hk/ is kept) or just the numeric App ID. Data is fetched automatically via the iTunes Lookup API.</div>
+    <div class="add-hint">Paste a full App Store link (region code like /hk/ is kept) or just the numeric App ID. Pick a status before adding. You can change it later by clicking the status chip on the card.</div>
     <div class="status-msg" id="add-status"></div>
   </section>
 
   <div class="toolbar">
     <input type="text" id="search" placeholder="Search name / developer / tag ...">
+    <select id="filter-status">
+      <option value="">ALL STATUS</option>
+      <option value="active">ACTIVE</option>
+      <option value="inactive">INACTIVE</option>
+      <option value="owned">OWNED</option>
+      <option value="wish">WISH</option>
+    </select>
     <select id="filter-dev"><option value="">ALL DEVELOPERS</option></select>
     <select id="filter-tag"><option value="">ALL TAGS</option></select>
     <select id="sort-by">
@@ -256,6 +292,16 @@ await dbPut(game);        // put (same id overwrites)
 const all = await dbGetAll();
 await dbDelete(id);</code></pre>
 
+      <h3>Game Status</h3>
+      <p>Each game carries a <code>status</code> field with one of four values:</p>
+      <ul>
+        <li><code>active</code> (green) - currently playing</li>
+        <li><code>inactive</code> (grey) - not playing / paused</li>
+        <li><code>owned</code> (gold) - purchased / in library (default)</li>
+        <li><code>wish</code> (pink) - wish list, not purchased yet</li>
+      </ul>
+      <p>The status chip on each card cycles through values on click (owned &rarr; wish &rarr; active &rarr; inactive &rarr; owned) and is saved back to IndexedDB immediately. The card's left border color reflects the status, and the STATUS dropdown in the toolbar filters by it. Games imported from older JSON exports without a <code>status</code> field default to <code>owned</code>.</p>
+
       <h3>navigator.storage.persist()</h3>
       <p>Browsers may evict IndexedDB data under storage pressure ("best-effort" storage). Calling <code>navigator.storage.persist()</code> requests persistent storage; once granted, data will not be auto-cleared. The PERSIST button in the header requests it and reports status via <code>navigator.storage.persisted()</code> and <code>navigator.storage.estimate()</code>.</p>
 
@@ -265,10 +311,10 @@ await dbDelete(id);</code></pre>
       <p>It returns icon (<code>artworkUrl512</code>), name, developer, rating, price, description, genre and screenshots. Note: the API is rate-limited (~20 calls/min per IP).</p>
 
       <h3>Pagination &amp; Filtering</h3>
-      <p>Search / developer filter / tag filter / sort run fully in memory, then the list is paginated (12 cards per page). The developer dropdown is populated from the <code>artistName</code> field of all stored games.</p>
+      <p>Search / status / developer / tag filters and sorting run fully in memory, then the list is paginated (12 cards per page). Dropdowns for developer and tag are populated from stored data.</p>
 
       <h3>JSON Import / Export</h3>
-      <p>Export downloads all data as a dated JSON file. Import merges: entries with the same App ID are updated, not duplicated.</p>
+      <p>Export downloads all data (including status) as a dated JSON file. Import merges: entries with the same App ID are updated, not duplicated. Missing status fields default to <code>owned</code>.</p>
 
       <h3>Add to Home Screen</h3>
       <p>Chrome/Edge: the <code>beforeinstallprompt</code> event triggers the bottom banner. iOS Safari does not support this event, so a hint banner is shown instead (Share &gt; Add to Home Screen). For full PWA installability, add a real <code>manifest.json</code> and Service Worker when deploying.</p>
@@ -300,6 +346,15 @@ await dbDelete(id);</code></pre>
 <script>
 (function () {
   'use strict';
+
+  /* ================= Constants ================= */
+  var STATUS_VALUES = ['owned', 'wish', 'active', 'inactive'];
+  var STATUS_LABELS = {
+    active: 'ACTIVE',
+    inactive: 'INACTIVE',
+    owned: 'OWNED',
+    wish: 'WISH'
+  };
 
   /* ================= IndexedDB ================= */
   var DB_NAME = 'GameVaultDB';
@@ -375,6 +430,10 @@ await dbDelete(id);</code></pre>
     });
   }
 
+  function normalizeStatus(s) {
+    return STATUS_VALUES.indexOf(s) !== -1 ? s : 'owned';
+  }
+
   function stars(rating) {
     var full = Math.round(rating || 0);
     var out = '';
@@ -403,7 +462,7 @@ await dbDelete(id);</code></pre>
   }
 
   /* ================= Fetch from iTunes API ================= */
-  function fetchAppInfo(appId, country) {
+  function fetchAppInfo(appId, country, status) {
     var url = 'https://itunes.apple.com/lookup?id=' + encodeURIComponent(appId) +
               '&country=' + encodeURIComponent(country);
     return fetch(url).then(function (res) {
@@ -424,6 +483,7 @@ await dbDelete(id);</code></pre>
         description: (r.description || '').slice(0, 300),
         url: r.trackViewUrl || ('https://apps.apple.com/' + country + '/app/id' + appId),
         country: country,
+        status: normalizeStatus(status),
         tags: [],
         addedAt: Date.now()
       };
@@ -449,16 +509,18 @@ await dbDelete(id);</code></pre>
       return;
     }
 
+    var newStatus = $('input-status').value;
+
     status.className = 'status-msg load';
     status.textContent = 'Fetching data from the App Store...';
     $('btn-add').disabled = true;
 
-    fetchAppInfo(parsed.id, parsed.country).then(function (game) {
+    fetchAppInfo(parsed.id, parsed.country, newStatus).then(function (game) {
       return dbPut(game).then(function () {
         allGames.push(game);
         $('input-url').value = '';
         status.className = 'status-msg ok';
-        status.textContent = 'Added: ' + game.name;
+        status.textContent = 'Added: ' + game.name + ' [' + STATUS_LABELS[game.status] + ']';
         toast('Added: ' + game.name);
         currentPage = 1;
         refresh();
@@ -487,15 +549,37 @@ await dbDelete(id);</code></pre>
     });
   }
 
+  /* ================= Status cycle ================= */
+  function cycleStatus(id) {
+    var game = null;
+    for (var i = 0; i < allGames.length; i++) {
+      if (allGames[i].id === id) { game = allGames[i]; break; }
+    }
+    if (!game) return;
+    var idx = STATUS_VALUES.indexOf(normalizeStatus(game.status));
+    game.status = STATUS_VALUES[(idx + 1) % STATUS_VALUES.length];
+    dbPut(game).then(function () {
+      toast(game.name + ' -> ' + STATUS_LABELS[game.status]);
+      /* re-render only (dropdowns unchanged) */
+      applyFilters();
+      render();
+    }).catch(function () {
+      toast('Failed to save status');
+    });
+  }
+
   /* ================= Filter / sort ================= */
   function applyFilters() {
     var q = $('search').value.trim().toLowerCase();
+    var st = $('filter-status').value;
     var dev = $('filter-dev').value;
     var tag = $('filter-tag').value;
     var sort = $('sort-by').value;
 
     filtered = allGames.filter(function (g) {
-      /* developer filter (exact match on developer field) */
+      /* status filter */
+      if (st && normalizeStatus(g.status) !== st) return false;
+      /* developer filter */
       if (dev && g.developer !== dev) return false;
 
       var gTags = g.tags || [];
@@ -536,7 +620,6 @@ await dbDelete(id);</code></pre>
       devHtml += '<option value="' + esc(d) + '">' + esc(d) + ' (' + devs[d] + ')</option>';
     });
     devSel.innerHTML = devHtml;
-    /* keep selection if still valid, otherwise reset */
     devSel.value = devKeys.indexOf(curDev) !== -1 ? curDev : '';
 
     /* --- tag dropdown --- */
@@ -562,7 +645,10 @@ await dbDelete(id);</code></pre>
     if (currentPage > pages) currentPage = pages;
     var start = (currentPage - 1) * PAGE_SIZE;
 
-    $('count-badge').textContent = total + ' GAME' + (total === 1 ? '' : 'S');
+    /* count badge includes status breakdown hint when filtered */
+    var st = $('filter-status').value;
+    $('count-badge').textContent = (st ? STATUS_LABELS[st] + ': ' : '') +
+      total + ' GAME' + (total === 1 ? '' : 'S');
     $('empty-state').style.display = total === 0 ? 'block' : 'none';
     $('game-grid').style.display = total === 0 ? 'none' : 'grid';
 
@@ -570,6 +656,7 @@ await dbDelete(id);</code></pre>
     for (var i = start; i < Math.min(start + PAGE_SIZE, total); i++) {
       var g = filtered[i];
       var rank = i + 1;
+      var status = normalizeStatus(g.status);
       var tagList = [];
       if (g.genre) tagList.push(g.genre);
       (g.tags || []).forEach(function (t) {
@@ -579,7 +666,7 @@ await dbDelete(id);</code></pre>
         return '<span class="tag">' + esc(t) + '</span>';
       }).join('');
 
-      html += '<div class="game-card">' +
+      html += '<div class="game-card" data-status="' + status + '">' +
         '<span class="rank">#' + rank + '</span>' +
         '<button class="gc-del" type="button" data-del="' + esc(g.id) + '" title="Delete">X</button>' +
         '<div class="gc-head">' +
@@ -595,6 +682,8 @@ await dbDelete(id);</code></pre>
         (tagsHtml ? '<div class="gc-tags">' + tagsHtml + '</div>' : '') +
         (g.description ? '<div class="gc-desc">' + esc(g.description) + '</div>' : '') +
         '<div class="gc-actions">' +
+          '<button class="status-chip" type="button" data-status-toggle="' + esc(g.id) + '" data-status="' + status + '" ' +
+            'title="Click to change status">' + STATUS_LABELS[status] + '</button>' +
           '<a class="btn btn-primary btn-sm" href="' + esc(g.url) + '" target="_blank" rel="noopener">APP STORE</a>' +
           '<a class="btn btn-sm" href="itms-apps://itunes.apple.com/app/id' + esc(g.id) + '?action=write-review">REVIEW</a>' +
         '</div>' +
@@ -651,6 +740,7 @@ await dbDelete(id);</code></pre>
           if (!g || !g.id) return;
           g.id = String(g.id);
           if (!g.addedAt) g.addedAt = Date.now();
+          g.status = normalizeStatus(g.status); /* default owned for old exports */
           var existed = allGames.some(function (x) { return x.id === g.id; });
           return dbPut(g).then(function () {
             if (existed) updated++; else added++;
@@ -738,6 +828,10 @@ await dbDelete(id);</code></pre>
       refresh();
     }, 200);
   });
+  $('filter-status').addEventListener('change', function () {
+    currentPage = 1;
+    refresh();
+  });
   $('filter-dev').addEventListener('change', function () {
     currentPage = 1;
     refresh();
@@ -751,8 +845,10 @@ await dbDelete(id);</code></pre>
     refresh();
   });
 
-  /* Card delete + pagination: event delegation */
+  /* Card delete + status toggle + pagination: event delegation */
   $('game-grid').addEventListener('click', function (e) {
+    var chip = e.target.closest ? e.target.closest('[data-status-toggle]') : null;
+    if (chip) { cycleStatus(chip.getAttribute('data-status-toggle')); return; }
     var btn = e.target.closest ? e.target.closest('.gc-del') : null;
     if (btn) deleteGame(btn.getAttribute('data-del'));
   });
@@ -766,13 +862,21 @@ await dbDelete(id);</code></pre>
 
   /* ================= Init ================= */
   dbGetAll().then(function (games) {
-    allGames = games;
-    refresh();
-    if (navigator.storage && navigator.storage.persist) {
-      navigator.storage.persisted().then(function (ok) {
-        if (!ok) navigator.storage.persist().catch(function () {});
-      }).catch(function () {});
-    }
+    /* normalize any legacy entries without status */
+    var needsFix = games.filter(function (g) { return normalizeStatus(g.status) !== g.status; });
+    allGames = games.map(function (g) {
+      g.status = normalizeStatus(g.status);
+      return g;
+    });
+    var fixChain = needsFix.length ? dbPut(needsFix) : Promise.resolve();
+    return fixChain.then(function () {
+      refresh();
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persisted().then(function (ok) {
+          if (!ok) navigator.storage.persist().catch(function () {});
+        }).catch(function () {});
+      }
+    });
   }).catch(function (e) {
     toast('DB init failed: ' + (e && e.message ? e.message : e));
   });
