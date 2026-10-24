@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<title>UNIT CHECK — 8-bit</title>
+<style>
+  @font-face { font-family: fallback; }
+
+  :root{
+    --bg:#0f0f1b; --panel:#1a1a2e; --panel2:#16213e;
+    --accent:#e94560; --accent2:#0f3460; --gold:#ffd700;
+    --green:#4ecca3; --text:#eaeaea; --shadow:#000;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  body{
+    font-family:"Courier New", Courier, monospace;
+    background:var(--bg); color:var(--text);
+    background-image:
+      linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+    background-size:16px 16px;
+    min-height:100vh; padding:12px;
+  }
+
+  .wrap{ max-width:1100px; margin:0 auto; }
+
+  /* pixel border helper */
+  .pxbox{
+    background:var(--panel);
+    border:4px solid var(--accent2);
+    box-shadow:4px 4px 0 var(--shadow), inset 0 0 0 2px #0b0b14;
+    padding:14px; margin-bottom:14px;
+  }
+
+  h1{
+    font-size:clamp(18px,4vw,30px); letter-spacing:4px;
+    color:var(--gold); text-shadow:3px 3px 0 var(--shadow);
+    text-align:center; margin-bottom:4px;
+  }
+  .subtitle{ text-align:center; color:var(--green); font-size:11px; letter-spacing:2px; margin-bottom:14px; }
+
+  h2{ color:var(--gold); font-size:14px; letter-spacing:2px; margin-bottom:10px; text-shadow:2px 2px 0 var(--shadow); }
+
+  /* controls */
+  .ctrl-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  label{ font-size:11px; color:var(--green); display:block; margin-bottom:4px; letter-spacing:1px; }
+  input[type=number]{
+    width:100%; font-family:inherit; font-size:16px;
+    background:var(--panel2); color:var(--text);
+    border:3px solid var(--accent2); padding:6px 8px; outline:none;
+  }
+  input[type=number]:focus{ border-color:var(--accent); }
+
+  .btn{
+    font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+    background:var(--panel2); color:var(--text);
+    border:3px solid var(--accent2); padding:8px 12px;
+    box-shadow:3px 3px 0 var(--shadow); display:inline-block;
+    -webkit-tap-highlight-color:transparent; user-select:none;
+  }
+  .btn:active{ transform:translate(2px,2px); box-shadow:1px 1px 0 var(--shadow); }
+  .btn.warn{ border-color:var(--accent); color:var(--accent); }
+  .btn.gold{ border-color:var(--gold); color:var(--gold); }
+  .btn-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+
+  select{
+    font-family:inherit; font-size:14px; width:100%;
+    background:var(--panel2); color:var(--text);
+    border:3px solid var(--accent2); padding:6px;
+  }
+
+  /* table */
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ border-collapse:collapse; width:100%; }
+  th{
+    background:var(--panel2); color:var(--gold); font-size:11px;
+    border:2px solid var(--accent2); padding:6px 4px; letter-spacing:1px;
+    cursor:pointer; white-space:nowrap;
+  }
+  th:hover{ background:var(--accent2); }
+  td{ border:2px solid var(--accent2); text-align:center; padding:2px; }
+  td.col-label{ background:var(--panel2); font-size:12px; color:var(--green); white-space:nowrap; }
+
+  .unit-btn{
+    font-family:inherit; font-size:clamp(14px,3.5vw,20px);
+    background:var(--panel); border:2px solid var(--accent2);
+    width:100%; min-width:44px; height:44px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .unit-btn:active{ transform:translate(1px,1px); }
+  .unit-btn[data-v="1"]{ background:#123c2e; border-color:var(--green); }
+  .unit-btn[data-v="2"]{ background:#3c1223; border-color:var(--gold); }
+  .unit-btn[data-v="3"]{ background:#3c1230; border-color:var(--accent); }
+
+  .stats{ font-size:11px; color:var(--green); margin-top:8px; letter-spacing:1px; }
+
+  /* details */
+  details{ margin-bottom:14px; }
+  details summary{
+    background:var(--panel2); border:3px solid var(--accent2);
+    padding:8px 12px; cursor:pointer; font-size:12px;
+    color:var(--gold); letter-spacing:1px; user-select:none;
+    box-shadow:3px 3px 0 var(--shadow); list-style:none;
+  }
+  details summary::before{ content:"▶ "; font-size:10px; }
+  details[open] summary::before{ content:"▼ "; }
+  details[open] summary{ margin-bottom:10px; }
+  .tech-body{ background:var(--panel); border:3px solid var(--accent2); padding:12px; font-size:12px; line-height:1.8; }
+  .tech-body code{ background:#000; color:var(--green); padding:1px 5px; }
+  .tech-body h3{ color:var(--gold); font-size:12px; margin:10px 0 4px; }
+
+  /* toast */
+  #toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--panel2); border:3px solid var(--gold); color:var(--gold);
+    padding:10px 16px; font-size:12px; letter-spacing:1px;
+    box-shadow:4px 4px 0 var(--shadow); display:none; z-index:99;
+    max-width:90vw; text-align:center;
+  }
+
+  /* A2HS banner */
+  #a2hs-banner{
+    position:fixed; top:0; left:0; right:0; z-index:98;
+    background:var(--panel2); border-bottom:4px solid var(--gold);
+    padding:10px 12px; display:none;
+    font-size:11px; text-align:center;
+  }
+  #a2hs-banner .btn{ margin:0 4px; padding:4px 10px; }
+
+  footer{ text-align:center; font-size:10px; color:#555; padding:12px 0; letter-spacing:2px; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="a2hs-banner">
+  ★ INSTALL THIS APP ★
+  <button class="btn gold" id="a2hs-yes">Add to Home Screen</button>
+  <button class="btn" id="a2hs-no">Later</button>
+</div>
+
+<div class="wrap">
+  <h1>▣ UNIT CHECK ▣</h1>
+  <div class="subtitle">8-BIT STATUS TRACKER v1.0</div>
+
+  <div class="pxbox">
+    <h2>⚙ CONFIG</h2>
+    <div class="ctrl-grid">
+      <div>
+        <label>LAYERS (X) 1-50</label>
+        <input type="number" id="in-layers" min="1" max="50" value="8">
+      </div>
+      <div>
+        <label>COLUMNS (Y) 1-50</label>
+        <input type="number" id="in-cols" min="1" max="50" value="8">
+      </div>
+      <div>
+        <label>UNITS (Z) 1-50</label>
+        <input type="number" id="in-units" min="1" max="50" value="8">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn gold" id="btn-apply">APPLY / REBUILD</button>
+      <button class="btn warn" id="btn-reset">RESET ALL ☐</button>
+      <button class="btn" id="btn-export">⭳ EXPORT JSON</button>
+      <button class="btn" id="btn-import">⭱ IMPORT JSON</button>
+      <button class="btn" id="btn-clear">DELETE DB</button>
+      <input type="file" id="file-input" accept=".json" class="hidden">
+    </div>
+  </div>
+
+  <div class="pxbox">
+    <h2>▣ LAYER SELECT</h2>
+    <select id="layer-select"></select>
+    <div class="btn-row">
+      <button class="btn" id="btn-sort-1">COL↓ UNIT↑</button>
+      <button class="btn" id="btn-sort-2">COL↑ UNIT↑</button>
+      <button class="btn" id="btn-sort-3">COL↓ UNIT↓</button>
+    </div>
+  </div>
+
+  <div class="pxbox">
+    <h2 id="table-title">LAYER 1</h2>
+    <div class="table-scroll" id="table-container"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <details>
+    <summary>📖 TECHNICAL DOCUMENTATION</summary>
+    <div class="tech-body">
+      <h3>1. Data Model</h3>
+      Each cell value is stored as an integer 0-3, mapping to the cycle:
+      <code>0:"☐" → 1:"☑" → 2:"♥️" → 3:"☒"</code>. Config is
+      <code>{ layers, columns, units }</code>. When dimensions shrink, excess data is discarded; when growing, new cells default to 0.
+
+      <h3>2. IndexedDB Schema</h3>
+      Database <code>unitcheck-db</code>, object store <code>state</code> (keyPath <code>id</code>).
+      Two records: <code>config</code> and <code>data</code>, where <code>data.values</code> is
+      a flat object keyed <code>"layer:col:unit"</code> → 0-3. All writes are transactional
+      (<code>readwrite</code>) and debounced; every click persists immediately.
+
+      <h3>3. Persistent Storage</h3>
+      On first load the app calls <code>navigator.storage.persist()</code> to request
+      persistent storage, preventing the browser from evicting IndexedDB data under
+      storage pressure. Status is shown via <code>navigator.storage.persisted()</code>.
+
+      <h3>4. JSON Import / Export</h3>
+      Export serialises <code>{ version, config, data }</code> and downloads it as
+      <code>unit-check-YYYYMMDD-HHMMSS.json</code>. Import validates the JSON structure,
+      clamps values to 1-50, rebuilds the grid and merges saved cell states.
+
+      <h3>5. Add to Home Screen (A2HS)</h3>
+      The app listens to <code>beforeinstallprompt</code>. When fired, the event is saved
+      and an install banner appears; clicking it triggers <code>prompt()</code>. This is
+      a progressive enhancement — on GitHub Pages it works best alongside a PWA
+      <code>manifest.json</code> and service worker.
+
+      <h3>6. Sorting</h3>
+      The table can be re-ordered: <em>Columns Descending / Units Ascending</em> is the
+      default view, matching the spec. Buttons allow toggling column and unit direction.
+      Sorting affects only display order; stored coordinates are stable.
+
+      <h3>7. Responsive Design</h3>
+      The table sits in an <code>overflow-x: auto</code> scroll container. Buttons use
+      <code>clamp()</code> font sizing and a 44px minimum touch target. The config panel
+      uses a CSS grid that reflows on narrow screens.
+
+      <h3>8. 8-bit Pixel Style</h3>
+      Monospace type, hard <code>box-shadow</code> offsets (no blur) for chunky borders,
+      a CRT-style scanline/grid background, and a 4-colour retro palette
+      (navy, gold, red, mint).
+    </div>
+  </details>
+
+  <footer>© UNIT CHECK — GLM POWERED — PRESS START</footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------- constants ---------- */
+  const SYMBOLS = ["☐", "☑", "♥️", "☒"];
+  const DB_NAME = "unitcheck-db", DB_VER = 1, STORE = "state";
+  const DEFAULTS = { layers: 8, columns: 8, units: 8 };
+
+  /* ---------- state ---------- */
+  let config = { ...DEFAULTS };
+  let data = {};                       // "layer:col:unit" -> 0..3
+  let currentLayer = 1;
+  let sortColDesc = true, sortUnitAsc = true;
+  let saveTimer = null;
+
+  const $ = id => document.getElementById(id);
+
+  /* ---------- toast ---------- */
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.style.display = "none", 2200);
+  }
+
+  /* ---------- IndexedDB ---------- */
+  function openDB() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = e => {
+        e.target.result.createObjectStore(STORE, { keyPath: "id" });
+      };
+      req.onsuccess = e => res(e.target.result);
+      req.onerror = e => rej(e);
+    });
+  }
+
+  function dbPut(rec) {
+    return openDB().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).put(rec);
+      tx.oncomplete = res;
+      tx.onerror = rej;
+    }));
+  }
+
+  function dbGetAll() {
+    return openDB().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror = rej;
+    }));
+  }
+
+  function dbClear() {
+    return openDB().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).clear();
+      tx.oncomplete = res;
+      tx.onerror = rej;
+    }));
+  }
+
+  function saveConfig() { return dbPut({ id: "config", ...config }); }
+  function saveData()  { return dbPut({ id: "data", values: data }); }
+
+  function saveDataDebounced() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveData, 300);
+  }
+
+  /* ---------- persistent storage ---------- */
+  async function requestPersistence() {
+    if (navigator.storage && navigator.storage.persist) {
+      try {
+        const ok = await navigator.storage.persist();
+        if (navigator.storage.persisted) {
+          const persisted = await navigator.storage.persisted();
+          console.log(`[UnitCheck] persistent storage: ${persisted}`);
+        }
+        if (!ok) toast("⚠ PERSISTENT STORAGE NOT GRANTED");
+      } catch (e) { console.warn(e); }
+    } else {
+      toast("⚠ STORAGE PERSIST API N/A");
+    }
+  }
+
+  /* ---------- helpers ---------- */
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const key = (l, c, u) => `${l}:${c}:${u}`;
+
+  function readInput() {
+    return {
+      layers: clamp(parseInt($("in-layers").value, 10) || DEFAULTS.layers, 1, 50),
+      columns: clamp(parseInt($("in-cols").value, 10) || DEFAULTS.columns, 1, 50),
+      units: clamp(parseInt($("in-units").value, 10) || DEFAULTS.units, 1, 50)
+    };
+  }
+
+  function sanitizeData() {
+    const out = {};
+    for (const k in data) {
+      const [l, c, u] = k.split(":").map(Number);
+      if (l >= 1 && l <= config.layers &&
+          c >= 1 && c <= config.columns &&
+          u >= 1 && u <= config.units) {
+        out[k] = clamp(Number(data[k]) || 0, 0, 3);
+      }
+    }
+    data = out;
+  }
+
+  /* ---------- UI: layer select ---------- */
+  function renderLayerSelect() {
+    const sel = $("layer-select");
+    sel.innerHTML = "";
+    for (let i = 1; i <= config.layers; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      // progress summary per layer
+      let done = 0, total = config.columns * config.units;
+      for (let c = 1; c <= config.columns; c++)
+        for (let u = 1; u <= config.units; u++)
+          if (data[key(i, c, u)] > 0) done++;
+      opt.textContent = `LAYER ${String(i).padStart(2, "0")} [${done}/${total}]`;
+      sel.appendChild(opt);
+    }
+    if (currentLayer > config.layers) currentLayer = 1;
+    sel.value = currentLayer;
+  }
+
+  /* ---------- UI: table ---------- */
+  function renderTable() {
+    const cont = $("table-container");
+    $("table-title").textContent = `LAYER ${currentLayer} — ORDER: COL ${sortColDesc ? "DESC" : "ASC"} / UNIT ${sortUnitAsc ? "ASC" : "DESC"}`;
+
+    const cols = [];
+    for (let c = 1; c <= config.columns; c++) cols.push(c);
+    if (sortColDesc) cols.reverse();
+
+    const units = [];
+    for (let u = 1; u <= config.units; u++) units.push(u);
+    if (!sortUnitAsc) units.reverse();
+
+    let html = "<table><thead><tr><th>#</th>";
+    units.forEach(u => html += `<th>U${u}</th>`);
+    html += "</tr></thead><tbody>";
+
+    let total = 0, marked = 0;
+
+    cols.forEach(c => {
+      html += `<tr><td class="col-label">C${c}</td>`;
+      units.forEach(u => {
+        const v = data[key(currentLayer, c, u)] || 0;
+        total++;
+        if (v > 0) marked++;
+        html += `<td><button class="unit-btn" data-l="${currentLayer}" data-c="${c}" data-u="${u}" data-v="${v}">${SYMBOLS[v]}</button></td>`;
+      });
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+    cont.innerHTML = html;
+
+    const pct = total ? Math.round(marked / total * 100) : 0;
+    $("stats").textContent = `▓ PROGRESS: ${marked}/${total} (${pct}%) ${"█".repeat(Math.round(pct / 5))}${"░".repeat(20 - Math.round(pct / 5))}`;
+  }
+
+  function renderAll() {
+    renderLayerSelect();
+    renderTable();
+  }
+
+  /* ---------- events ---------- */
+  // unit click: cycle value, persist immediately
+  $("table-container").addEventListener("click", e => {
+    const btn = e.target.closest(".unit-btn");
+    if (!btn) return;
+    const l = +btn.dataset.l, c = +btn.dataset.c, u = +btn.dataset.u;
+    const v = ((+btn.dataset.v) + 1) % 4;
+    data[key(l, c, u)] = v;
+    btn.dataset.v = v;
+    btn.textContent = SYMBOLS[v];
+    renderTable();       // refresh progress + header
+    saveDataDebounced(); // persist
+  });
+
+  $("layer-select").addEventListener("change", e => {
+    currentLayer = +e.target.value;
+    renderTable();
+  });
+
+  // sort buttons
+  $("btn-sort-1").onclick = () => { sortColDesc = true;  sortUnitAsc = true;  renderTable(); };
+  $("btn-sort-2").onclick = () => { sortColDesc = false; sortUnitAsc = true;  renderTable(); };
+  $("btn-sort-3").onclick = () => { sortColDesc = true;  sortUnitAsc = false; renderTable(); };
+
+  // apply / rebuild
+  $("btn-apply").onclick = async () => {
+    config = readInput();
+    $("in-layers").value = config.layers;
+    $("in-cols").value = config.columns;
+    $("in-units").value = config.units;
+    sanitizeData();
+    await saveConfig();
+    await saveData();
+    renderAll();
+    toast("✔ GRID REBUILT");
+  };
+
+  // reset all buttons to ☐
+  $("btn-reset").onclick = async () => {
+    if (!confirm("Reset ALL units to ☐ ?")) return;
+    data = {};
+    await saveData();
+    renderAll();
+    toast("✔ ALL UNITS RESET");
+  };
+
+  // export JSON
+  $("btn-export").onclick = () => {
+    const payload = {
+      app: "unit-check",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      config,
+      data
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    const ts = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
+    a.href = URL.createObjectURL(blob);
+    a.download = `unit-check-${ts}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("⭳ JSON EXPORTED");
+  };
+
+  // import JSON
+  $("btn-import").onclick = () => $("file-input").click();
+
+  $("file-input").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const j = JSON.parse(reader.result);
+        if (!j.config || !j.data) throw new Error("bad structure");
+        config = {
+          layers:   clamp(+j.config.layers   || 8, 1, 50),
+          columns:  clamp(+j.config.columns  || 8, 1, 50),
+          units:    clamp(+j.config.units    || 8, 1, 50)
+        };
+        data = j.data.values || j.data || {};
+        $("in-layers").value = config.layers;
+        $("in-cols").value = config.columns;
+        $("in-units").value = config.units;
+        sanitizeData();
+        currentLayer = 1;
+        await saveConfig();
+        await saveData();
+        renderAll();
+        toast("⭱ JSON IMPORTED");
+      } catch (err) {
+        toast("✖ INVALID JSON FILE");
+        alert("Import failed: the file is not a valid Unit Check export.");
+      }
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  // delete DB
+  $("btn-clear").onclick = async () => {
+    if (!confirm("DELETE all data from IndexedDB?")) return;
+    await dbClear();
+    config = { ...DEFAULTS };
+    data = {};
+    currentLayer = 1;
+    $("in-layers").value = 8;
+    $("in-cols").value = 8;
+    $("in-units").value = 8;
+    renderAll();
+    toast("✖ DATABASE CLEARED");
+  };
+
+  /* ---------- A2HS ---------- */
+  let deferredPrompt = null;
+  window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    $("a2hs-banner").style.display = "block";
+  });
+  $("a2hs-yes").onclick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      toast(choice.outcome === "accepted" ? "★ INSTALLED!" : "✖ CANCELLED");
+      deferredPrompt = null;
+    }
+    $("a2hs-banner").style.display = "none";
+  };
+  $("a2hs-no").onclick = () => { $("a2hs-banner").style.display = "none"; };
+  window.addEventListener("appinstalled", () => {
+    $("a2hs-banner").style.display = "none";
+    toast("★ APP INSTALLED");
+  });
+
+  /* ---------- init ---------- */
+  (async function init() {
+    try {
+      const all = await dbGetAll();
+      for (const rec of all) {
+        if (rec.id === "config" && rec.layers) {
+          config = {
+            layers:   clamp(+rec.layers   || 8, 1, 50),
+            columns:  clamp(+rec.columns  || 8, 1, 50),
+            units:    clamp(+rec.units    || 8, 1, 50)
+          };
+        }
+        if (rec.id === "data" && rec.values) data = rec.values;
+      }
+    } catch (e) { console.warn("DB init failed, using defaults", e); }
+
+    $("in-layers").value = config.layers;
+    $("in-cols").value = config.columns;
+    $("in-units").value = config.units;
+
+    renderAll();
+    requestPersistence();
+  })();
+})();
+</script>
+</body>
+</html>
